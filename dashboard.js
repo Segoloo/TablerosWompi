@@ -29,7 +29,7 @@ let filteredForTable = [];
 const TABLE_PAGE_SIZE = 50;
 
 // Fecha de corte global — igual que vp.py: solo desde 2026-03-01
-const MARCH_2026 = new Date(2026, 2, 1);   // mes 2 = marzo (0-indexed)
+const MARCH_2026 = new Date(2024, 2, 1);   // mes 2 = marzo (0-indexed)
 
 // ══════════════════════════════════════════════════════════════════
 //  CONSTANTES VT / OPLG  (coinciden exactamente con vp.py)
