@@ -28,8 +28,10 @@ let filteredForTable = [];
 
 const TABLE_PAGE_SIZE = 50;
 
-// Fecha de corte global — igual que vp.py: solo desde 2026-03-01
-const MARCH_2026 = new Date(2024, 2, 1);   // mes 2 = marzo (0-indexed)
+// Fecha de corte global — permite datos históricos completos
+// Originalmente solo marzo 2026, ahora se puede configurar desde el filtro de UI
+// Si no hay filtro de fecha, se muestran TODOS los datos
+const MARCH_2026 = new Date(2020, 0, 1);   // fecha mínima muy antigua para no filtrar historial
 
 // ══════════════════════════════════════════════════════════════════
 //  CONSTANTES VT / OPLG  (coinciden exactamente con vp.py)
@@ -156,13 +158,9 @@ function diffDays(a, b) {
 //  FILTRO GLOBAL: solo datos desde marzo 2026  (=== vp.py)
 // ══════════════════════════════════════════════════════════════════
 function applyDateFilter() {
-  FILTERED = RAW_DATA.filter(r => {
-    const fs = getCol(r, 'FECHA DE SOLICITUD', 'fecha de solicitud');
-    if (!fs || fs === '') return true;   // sin fecha: pasa (igual que vp.py)
-    const d = parseDate(fs);
-    if (!d) return true;
-    return d >= MARCH_2026;
-  });
+  // Datos históricos completos — sin corte de fecha global
+  // El filtro de fecha se aplica desde los filtros de UI (Fecha Desde / Hasta / Mes)
+  FILTERED = RAW_DATA.slice();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1010,8 +1008,10 @@ function getDemoData() {
   const tipols  = ['PRINCIPAL','INTERMEDIA','LEJANA'];
   const rows    = [];
   for (let i = 0; i < 320; i++) {
-    // Fechas desde marzo 2026 para pasar el filtro global
-    const fSol = new Date(2026, 2 + Math.floor(i/40), 1+(i%28));
+    // Fechas distribuidas desde octubre 2025 hasta abril 2026 para datos históricos reales
+    const monthOffset = Math.floor(i / 53);  // ~53 registros por mes, 6 meses
+    const startMonth  = new Date(2025, 9, 1); // Octubre 2025
+    const fSol = new Date(startMonth.getFullYear(), startMonth.getMonth() + monthOffset, 1+(i%28));
     const fLim = new Date(fSol.getTime() + 7*86400000);
     const est  = estados[i%estados.length];
     const fEnt = est==='ENTREGADO' ? new Date(fSol.getTime()+(3+Math.floor(Math.random()*4))*86400000) : null;
