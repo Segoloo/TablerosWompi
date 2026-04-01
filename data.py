@@ -4,16 +4,19 @@
 ║   sync_wompi_vp.py — Extractor SharePoint → data.json → GitHub  ║
 ║   LINEACOM · Dashboard Tracking VP Wompi                         ║
 ║                                                                  ║
+║   Responsabilidad: SOLO extrae los datos crudos del Excel        ║
+║   y los serializa en data.json. Todos los cálculos de KPIs       ║
+║   se realizan en el frontend (dashboard.js).                     ║
+║                                                                  ║
 ║   Uso:                                                           ║
-║     python sync_wompi_vp.py              # ejecutar una vez      ║
-║     python sync_wompi_vp.py --loop       # cada N horas          ║
-║     python sync_wompi_vp.py --no-push    # genera JSON sin subir ║
+║     python data.py              # ejecutar una vez               ║
+║     python data.py --loop       # cada N horas                   ║
+║     python data.py --no-push    # genera JSON sin subir          ║
 ╚══════════════════════════════════════════════════════════════════╝
 """
 
 import os
 import sys
-import gzip
 import json
 import time
 import base64
@@ -48,7 +51,7 @@ OAUTH_TOKEN_URL = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/to
 GRAPH_BASE      = "https://graph.microsoft.com/v1.0"
 
 # ── GitHub ────────────────────────────────────────────────────────
-GITHUB_TOKEN     = os.getenv("GITHUB_TOKEN",     "")     # <-- pon tu PAT aquí
+GITHUB_TOKEN     = os.getenv("GITHUB_TOKEN",     "")
 GITHUB_REPO      = os.getenv("GITHUB_REPO",      "TuOrg/TuRepo")
 GITHUB_BRANCH    = os.getenv("GITHUB_BRANCH",    "main")
 GITHUB_FILE_PATH = os.getenv("GITHUB_FILE_PATH", "data.json")
@@ -95,7 +98,7 @@ _token_cache = TokenCache()
 # ══════════════════════════════════════════════════════════════════
 #  SHAREPOINT — buscar y leer el libro
 # ══════════════════════════════════════════════════════════════════
-SEARCH_KEYWORDS = ["Comodato", "VP", "Operaci", "Wompi"]   # términos para encontrar el archivo
+SEARCH_KEYWORDS = ["Comodato", "VP", "Operaci", "Wompi"]
 
 
 def find_workbook_item_id() -> str:
@@ -103,7 +106,6 @@ def find_workbook_item_id() -> str:
     token   = _token_cache.get()
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Búsqueda por nombre
     for kw in SEARCH_KEYWORDS:
         url = f"{GRAPH_BASE}/sites/{SITE_ID}/drive/root/search(q='{requests.utils.quote(kw, safe='')}' )"
         r   = requests.get(url, headers=headers, timeout=60)
@@ -114,7 +116,6 @@ def find_workbook_item_id() -> str:
                     log.info(f"Archivo encontrado: {name}")
                     return item["id"]
 
-    # Fallback: listar raíz
     r2 = requests.get(f"{GRAPH_BASE}/sites/{SITE_ID}/drive/root/children",
                       headers=headers, timeout=60)
     if r2.status_code == 200:
@@ -162,7 +163,7 @@ def read_sheet(item_id: str) -> pd.DataFrame:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  LIMPIEZA Y NORMALIZACIÓN
+#  LIMPIEZA BÁSICA — solo normaliza texto y fechas, SIN calcular KPIs
 # ══════════════════════════════════════════════════════════════════
 DATE_COLS = [
     "FECHA DE SOLICITUD",
@@ -174,10 +175,12 @@ DATE_COLS = [
 
 
 def _parse_date_str(val: Any) -> str:
-    """Normaliza cualquier valor de fecha a ISO dd/mm/yyyy o ''."""
-    if pd.isna(val) or str(val).strip() in ("", "nan", "NaN", "None"):
+    """Normaliza cualquier valor de fecha a dd/mm/yyyy o ''."""
+    if pd.isna(val) if not isinstance(val, (list, dict, bool)) else False:
         return ""
     s = str(val).strip()
+    if s in ("", "nan", "NaN", "None"):
+        return ""
     # Excel serial number
     if s.replace(".", "", 1).isdigit():
         try:
@@ -185,7 +188,6 @@ def _parse_date_str(val: Any) -> str:
             return d.strftime("%d/%m/%Y")
         except Exception:
             return s
-    # Try common formats
     for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y", "%m/%d/%Y",
                 "%d/%m/%y", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
         try:
@@ -199,17 +201,15 @@ def _parse_date_str(val: Any) -> str:
 
 
 def clean_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Limpieza general y normalización de fechas."""
+    """Limpieza básica: normaliza texto y fechas."""
     df = df.copy()
     df.columns = [str(c).strip() for c in df.columns]
 
-    # Normalizar texto
     for col in df.columns:
         if df[col].dtype == object:
             df[col] = df[col].astype(str).str.strip()
             df[col] = df[col].replace({"nan": "", "None": "", "NaN": ""})
 
-    # Normalizar fechas
     for col in DATE_COLS:
         if col in df.columns:
             df[col] = df[col].apply(_parse_date_str)
@@ -222,104 +222,22 @@ def clean_df(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  KPI SUMMARY (pre-calculado para carga rápida en el frontend)
-# ══════════════════════════════════════════════════════════════════
-def compute_summary(df: pd.DataFrame) -> Dict[str, Any]:
-    """Calcula KPIs resumen para incluir en data.json."""
-    d = df.copy()
-    d.columns = [str(c).strip().upper() for c in d.columns]
-    for c in d.columns:
-        if d[c].dtype == object:
-            d[c] = d[c].astype(str).str.strip().str.upper()
-
-    # Excluir cancelados para métricas
-    if "ESTADO DATAFONO" in d.columns:
-        dA = d[d["ESTADO DATAFONO"] != "CANCELADO"].copy()
-    else:
-        dA = d.copy()
-
-    total = len(dA)
-    ec    = dA["ESTADO DATAFONO"].value_counts().to_dict() if "ESTADO DATAFONO" in dA.columns else {}
-
-    entregados      = ec.get("ENTREGADO", 0)
-    en_transito     = ec.get("EN TRANSITO", ec.get("EN TRÁNSITO", 0))
-    en_alistamiento = ec.get("EN ALISTAMIENTO", 0)
-    devueltos       = sum(v for k, v in ec.items() if "DEVOLU" in k or "REMIT" in k)
-    cancelados      = len(d) - total
-
-    # Visita Técnica
-    COL_TF = "TIPO DE SOLICITUD FACTURACIÓN"
-    if COL_TF in dA.columns:
-        vt = dA[dA[COL_TF].str.contains("VISITA", na=False)]
-        ol = dA[dA[COL_TF].str.contains("ENVIO|ENVÍO", na=False)]
-    else:
-        vt = ol = pd.DataFrame()
-
-    entVT = len(vt[vt["ESTADO DATAFONO"] == "ENTREGADO"]) if len(vt) else 0
-    entOL = len(ol[ol["ESTADO DATAFONO"] == "ENTREGADO"]) if len(ol) else 0
-
-    # ANS
-    entDf = dA[dA["ESTADO DATAFONO"] == "ENTREGADO"] if "ESTADO DATAFONO" in dA.columns else pd.DataFrame()
-    cumple = len(entDf[entDf["CUMPLE ANS"] == "SI"]) if "CUMPLE ANS" in entDf.columns and len(entDf) else 0
-    pct_oport   = round(cumple / len(entDf) * 100) if len(entDf) else 0
-    pct_calidad = round((entregados - devueltos) / entregados * 100) if entregados else 100
-
-    # Solicitudes por día (para gráfica de tendencia)
-    daily: Dict[str, int] = {}
-    if "FECHA DE SOLICITUD" in dA.columns:
-        for v in dA["FECHA DE SOLICITUD"]:
-            vs = str(v).strip()
-            if not vs or vs in ("", "NAN"):
-                continue
-            try:
-                for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
-                    try:
-                        d_obj = datetime.strptime(vs, fmt)
-                        key   = d_obj.strftime("%Y-%m-%d")
-                        daily[key] = daily.get(key, 0) + 1
-                        break
-                    except ValueError:
-                        pass
-            except Exception:
-                pass
-
-    return {
-        "total":           total,
-        "entregados":      entregados,
-        "en_transito":     en_transito,
-        "en_alistamiento": en_alistamiento,
-        "devueltos":       devueltos,
-        "cancelados":      cancelados,
-        "total_vt":        len(vt),
-        "entregados_vt":   entVT,
-        "total_ol":        len(ol),
-        "entregados_ol":   entOL,
-        "pct_entregado":   round(entregados / total * 100, 1) if total else 0,
-        "pct_transito":    round(en_transito / total * 100, 1) if total else 0,
-        "pct_oportunidad": pct_oport,
-        "pct_calidad":     pct_calidad,
-        "pct_vt":          round(entVT / len(vt) * 100) if len(vt) else 0,
-        "pct_ol":          round(entOL / len(ol) * 100) if len(ol) else 0,
-        "daily":           dict(sorted(daily.items())),
-    }
-
-
-# ══════════════════════════════════════════════════════════════════
 #  SERIALIZACIÓN SAFE
 # ══════════════════════════════════════════════════════════════════
 def _safe_val(v: Any) -> Any:
-    """Convierte cualquier valor a algo serializable en JSON."""
-    if pd.isna(v) if not isinstance(v, (list, dict, bool)) else False:
-        return ""
-    if isinstance(v, (int, float)):
+    if isinstance(v, (list, dict, bool)):
+        return v
+    try:
         if pd.isna(v):
             return ""
+    except Exception:
+        pass
+    if isinstance(v, (int, float)):
         return v
     return str(v)
 
 
 def df_to_rows(df: pd.DataFrame) -> List[Dict[str, Any]]:
-    """Convierte DataFrame a lista de dicts con valores seguros."""
     rows = []
     cols = list(df.columns)
     for _, row in df.iterrows():
@@ -328,25 +246,25 @@ def df_to_rows(df: pd.DataFrame) -> List[Dict[str, Any]]:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  GENERAR data.json
+#  GENERAR data.json  — SOLO datos crudos, sin summary pre-calculado
 # ══════════════════════════════════════════════════════════════════
 def build_data_json(df: pd.DataFrame) -> Dict[str, Any]:
-    """Construye el payload completo para data.json."""
+    """
+    Construye el payload mínimo para data.json.
+    NO pre-calcula KPIs — el frontend (dashboard.js) se encarga de todo.
+    """
     df_clean = clean_df(df)
-    summary  = compute_summary(df_clean)
     rows     = df_to_rows(df_clean)
 
     return {
         "generado":  datetime.now().strftime("%d/%m/%Y %H:%M"),
         "filas":     len(rows),
         "columnas":  list(df_clean.columns),
-        "summary":   summary,
         "rows":      rows,
     }
 
 
 def write_json(payload: Dict[str, Any]) -> str:
-    """Escribe data.json localmente y retorna el string JSON."""
     content = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     OUTPUT_JSON.write_text(content, encoding="utf-8")
     size_kb = len(content.encode()) / 1024
@@ -358,7 +276,6 @@ def write_json(payload: Dict[str, Any]) -> str:
 #  GITHUB PUSH
 # ══════════════════════════════════════════════════════════════════
 def push_to_github(content: str):
-    """Sube data.json al repositorio de GitHub Pages."""
     if not GITHUB_TOKEN:
         log.warning("GITHUB_TOKEN no configurado — se omite el push.")
         return
@@ -369,7 +286,6 @@ def push_to_github(content: str):
         "Accept":        "application/vnd.github.v3+json",
     }
 
-    # Obtener SHA actual (para update)
     sha: Optional[str] = None
     r = requests.get(api_url, headers=headers, params={"ref": GITHUB_BRANCH}, timeout=30)
     if r.status_code == 200:
@@ -377,7 +293,6 @@ def push_to_github(content: str):
     elif r.status_code not in (404,):
         log.warning(f"GitHub GET {r.status_code}: {r.text[:200]}")
 
-    # Verificar si el contenido cambió
     content_b64 = base64.b64encode(content.encode("utf-8")).decode("ascii")
     if sha:
         content_hash = hashlib.sha256(content.encode()).hexdigest()[:8]
@@ -410,23 +325,14 @@ def run_once(no_push: bool = False):
     log.info("═" * 60)
 
     try:
-        # 1. Token
         _token_cache.get()
-
-        # 2. Buscar archivo
         item_id = find_workbook_item_id()
-
-        # 3. Leer hoja
-        df = read_sheet(item_id)
+        df      = read_sheet(item_id)
         log.info(f"  Columnas detectadas: {list(df.columns)[:8]} ...")
 
-        # 4. Construir JSON
         payload = build_data_json(df)
-
-        # 5. Escribir localmente
         content = write_json(payload)
 
-        # 6. Push a GitHub
         if not no_push:
             push_to_github(content)
         else:
@@ -441,8 +347,8 @@ def run_once(no_push: bool = False):
 
 
 def main():
-    no_push  = "--no-push" in sys.argv
-    loop     = "--loop"    in sys.argv
+    no_push = "--no-push" in sys.argv
+    loop    = "--loop"    in sys.argv
 
     if loop:
         log.info(f"Modo loop cada {INTERVAL_HOURS}h. Ctrl+C para detener.")
