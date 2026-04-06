@@ -221,6 +221,8 @@ function applyFilters() {
   const idSitio  = document.getElementById('f-idsitio')?.value?.trim().toUpperCase();
   const desde    = document.getElementById('f-fecha-desde')?.value;
   const hasta    = document.getElementById('f-fecha-hasta')?.value;
+  const limDesde = document.getElementById('f-limite-desde')?.value;
+  const limHasta = document.getElementById('f-limite-hasta')?.value;
 
   // Primero aplicar filtro de fecha global (marzo 2026)
   applyDateFilter();
@@ -239,6 +241,7 @@ function applyFilters() {
     const rId   = getCol(r, 'ID Comercio', 'id comercio', 'Id Comercio').toUpperCase();
     const fs    = getCol(r, 'FECHA DE SOLICITUD', 'fecha de solicitud');
     const fd    = parseDate(fs);
+    const fl    = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
 
     if (estado   && rEst  !== estado.toUpperCase())  return false;
     if (tipoEnvio&& rTipo !== tipoEnvio.toUpperCase()) return false;
@@ -253,8 +256,12 @@ function applyFilters() {
       const rMes = fd.toLocaleString('es-CO', { month:'long', year:'numeric' });
       if (rMes !== mes) return false;
     }
+    // Rango fecha solicitud
     if (desde && fd && fd < new Date(desde)) return false;
     if (hasta && fd && fd > new Date(hasta + 'T23:59:59')) return false;
+    // Rango fecha límite de entrega
+    if (limDesde && fl && fl < new Date(limDesde)) return false;
+    if (limHasta && fl && fl > new Date(limHasta + 'T23:59:59')) return false;
 
     return true;
   });
@@ -273,10 +280,10 @@ function resetFilters() {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
-  const fd = document.getElementById('f-fecha-desde');
-  const fh = document.getElementById('f-fecha-hasta');
-  if (fd) fd.value = '';
-  if (fh) fh.value = '';
+  ['f-fecha-desde','f-fecha-hasta','f-limite-desde','f-limite-hasta'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 
   applyDateFilter();
   tablePage = 1;
@@ -357,27 +364,35 @@ function computeKPIs(data) {
   const pctOport   = entDf.length ? Math.round(cumpleOport / entDf.length * 100) : 0;
   const pctCalidad = entregados   ? Math.round((entregados - devueltos) / entregados * 100) : 100;
 
-  // 9. Vencen hoy / vencidas
+  // 9. Vencen hoy / vencidas (incluye VT y OPLG)
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const vencenHoy = df.filter(r => {
+  const vencenHoyRows = df.filter(r => {
     const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
     const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
     if (!lim) return false;
     const limD = new Date(lim); limD.setHours(0, 0, 0, 0);
     return limD.getTime() === today.getTime() && est !== 'ENTREGADO' && est !== 'CANCELADO';
-  }).length;
+  });
+  const vencenHoy = vencenHoyRows.length;
 
-  const vencidas = df.filter(r => {
+  // Vencidas: TODOS los registros (VT + OPLG) no entregados con fecha limite pasada
+  const vencidasRows = df.filter(r => {
     const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
     const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
     return lim && lim < today && est !== 'ENTREGADO' && est !== 'CANCELADO';
-  }).length;
+  });
+  const vencidas = vencidasRows.length;
 
-  // 10. Primer intento (entregados sin novedades — igual que index.html previo)
-  const primerIntento = entDf.filter(r => {
-    const nov = getCol(r, 'NOVEDADES', 'novedades', 'Novedades');
-    return !nov || nov.trim() === '' || nov.trim() === '0';
-  }).length;
+  // 10. Primer intento: entregados sin novedades ni causal ni responsable de incumplimiento
+  const FAILED_COLS = ['NOVEDADES','novedades','CAUSAL INCU','causal incu','RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento','CAUSAL INC','causal inc'];
+  const primerIntentoRows = entDf.filter(r => {
+    for (const col of FAILED_COLS) {
+      const v = getCol(r, col);
+      if (v && v.trim() !== '' && v.trim() !== '0') return false;
+    }
+    return true;
+  });
+  const primerIntento = primerIntentoRows.length;
 
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
@@ -398,11 +413,104 @@ function computeKPIs(data) {
     pctVT:           pct(entVT, vtRows.length),
     pctOL:           pct(entOL, olRows.length),
     pctOport, pctCalidad,
-    vencenHoy, vencidas,
-    primerIntento,
+    vencenHoy, vencenHoyRows,
+    vencidas, vencidasRows,
+    primerIntento, primerIntentoRows,
     pctPrimerIntento: pct(primerIntento, entregados),
     ec,
+    entregadosRows: entDf,
+    vtRows, olRows,
+    devueltosRows: df.filter(r => {
+      const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
+      return e.includes('DEVOLUCION') || e.includes('DEVUELTO') || e.includes('REMITENTE');
+    }),
   };
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  MODAL DRILLDOWN
+// ══════════════════════════════════════════════════════════════════
+function openDrillModal(title, rows, cols) {
+  let modal = document.getElementById('drill-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'drill-modal';
+    modal.style.cssText = `
+      position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+      background:rgba(0,0,0,.75);backdrop-filter:blur(6px);padding:20px;
+    `;
+    modal.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+        width:100%;max-width:1000px;max-height:85vh;display:flex;flex-direction:column;
+        box-shadow:0 24px 80px rgba(0,0,0,.8);">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;
+          border-bottom:1px solid var(--border);flex-shrink:0;">
+          <div>
+            <div id="drill-modal-title" style="font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--verde-menta)"></div>
+            <div id="drill-modal-count" style="font-size:12px;color:var(--muted);margin-top:2px"></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <button onclick="exportDrillExcel()" style="background:var(--surface2);border:1px solid var(--border);color:var(--verde-menta);padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif">⬇ Excel</button>
+            <button onclick="document.getElementById('drill-modal').remove()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center">×</button>
+          </div>
+        </div>
+        <div id="drill-modal-body" style="overflow:auto;flex:1;padding:0 4px 4px"></div>
+      </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+
+  window._drillData  = rows;
+  window._drillCols  = cols;
+  document.getElementById('drill-modal-title').textContent = title;
+  document.getElementById('drill-modal-count').textContent = `${rows.length} registros`;
+
+  const DRILL_COLS = cols || [
+    { label:'Comercio',        fn:r=>getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO') },
+    { label:'ID Sitio',        fn:r=>getCol(r,'ID Comercio','id comercio') },
+    { label:'Guía',            fn:r=>getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia') },
+    { label:'Fecha Límite',    fn:r=>{ const d=parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega')); return d?d.toLocaleDateString('es-CO'):'—'; } },
+    { label:'Transportadora',  fn:r=>getCol(r,'TRANSPORTADORA','Transportadora','transportadora') },
+    { label:'Estado',          fn:r=>getCol(r,'ESTADO DATAFONO','estado datafono'), isStatus:true },
+    { label:'Novedad',         fn:r=>getCol(r,'NOVEDADES','novedades')||getCol(r,'CAUSAL INCU','causal incu')||'—' },
+    { label:'Tipo',            fn:r=>getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion') },
+    { label:'Departamento',    fn:r=>getCol(r,'Departamento','DEPARTAMENTO','departamento') },
+  ];
+
+  const body = document.getElementById('drill-modal-body');
+  if (!rows.length) {
+    body.innerHTML = '<div style="text-align:center;padding:48px;color:var(--muted)">Sin registros</div>';
+    return;
+  }
+  body.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+    <thead style="position:sticky;top:0;background:var(--surface)">
+      <tr>${DRILL_COLS.map(c=>`<th style="padding:10px 12px;text-align:left;color:var(--verde-menta);font-weight:600;border-bottom:1px solid var(--border);white-space:nowrap">${c.label}</th>`).join('')}</tr>
+    </thead>
+    <tbody>${rows.map((r,i)=>`<tr style="background:${i%2?'transparent':'rgba(255,255,255,.02)'}">
+      ${DRILL_COLS.map(c=>{
+        const v = c.fn(r)||'—';
+        return c.isStatus ? `<td style="padding:8px 12px"><span class="status-pill ${statusClass(v)}">${v}</span></td>`
+                          : `<td style="padding:8px 12px;color:var(--blanco)">${v}</td>`;
+      }).join('')}
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function exportDrillExcel() {
+  if (!window._drillData || !window._drillData.length) return;
+  const DRILL_COLS = window._drillCols || [
+    { label:'Comercio',        fn:r=>getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO') },
+    { label:'ID Sitio',        fn:r=>getCol(r,'ID Comercio','id comercio') },
+    { label:'Guía',            fn:r=>getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia') },
+    { label:'Fecha Límite',    fn:r=>{ const d=parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega')); return d?d.toLocaleDateString('es-CO'):'—'; } },
+    { label:'Transportadora',  fn:r=>getCol(r,'TRANSPORTADORA','Transportadora','transportadora') },
+    { label:'Estado',          fn:r=>getCol(r,'ESTADO DATAFONO','estado datafono') },
+    { label:'Novedad',         fn:r=>getCol(r,'NOVEDADES','novedades')||getCol(r,'CAUSAL INCU','causal incu')||'' },
+    { label:'Tipo',            fn:r=>getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion') },
+    { label:'Departamento',    fn:r=>getCol(r,'Departamento','DEPARTAMENTO','departamento') },
+  ];
+  const data = window._drillData.map(r=>{ const o={}; DRILL_COLS.forEach(c=>{ o[c.label]=c.fn(r)||''; }); return o; });
+  exportToExcel(data, 'KPI_Drilldown');
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -430,39 +538,89 @@ function renderKPIs(k) {
 
   const cards = [
     { label:'Total Solicitados',  value:k.total,          color:'green', icon:'📦',
-      sub:`Sin cancelados (${k.cancelados} cancelados)` },
+      sub:`Sin cancelados (${k.cancelados} cancelados)`, rows: FILTERED },
     { label:'Alistados',          value:`${k.n_alistados} (${k.pctNAlistados}%)`,
-      color:'lime',  icon:'⚙️',  sub:'Total – en alistamiento', pct:k.pctNAlistados, pctColor:'lime' },
+      color:'lime',  icon:'⚙️',  sub:'Total – en alistamiento', pct:k.pctNAlistados, pctColor:'lime',
+      rows: FILTERED.filter(r=>getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase()!=='EN ALISTAMIENTO'&&getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase()!=='CANCELADO') },
     { label:'Entregados',         value:k.entregados,     color:'selva', icon:'✅',
-      sub:`${k.pctEntregado}%`, pct:k.pctEntregado },
+      sub:`${k.pctEntregado}%`, pct:k.pctEntregado,
+      rows: k.entregadosRows },
     { label:'En Tránsito',        value:k.en_transito,    color:'blue',  icon:'🚚',
-      sub:`${k.pctTransito}%`, pct:k.pctTransito, pctColor:'blue' },
+      sub:`${k.pctTransito}%`, pct:k.pctTransito, pctColor:'blue',
+      rows: FILTERED.filter(r=>{ const e=getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase(); return e==='EN TRANSITO'||e==='EN TRÁNSITO'; }) },
     { label:'En Alistamiento',    value:k.en_alistamiento,color:'lime',  icon:'🔧',
-      sub:`${k.pctAlistamiento}%`, pct:k.pctAlistamiento, pctColor:'lime' },
+      sub:`${k.pctAlistamiento}%`, pct:k.pctAlistamiento, pctColor:'lime',
+      rows: FILTERED.filter(r=>getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase()==='EN ALISTAMIENTO') },
     { label:'Devueltos',          value:k.devueltos,      color:'danger',icon:'↩️',
       sub:`${k.total ? Math.round(k.devueltos/k.total*100) : 0}% del total`,
       pct: k.total ? Math.round(k.devueltos/k.total*100) : 0,
-      pctColor:'danger', alert:k.devueltos > 0 },
+      pctColor:'danger', alert:k.devueltos > 0, rows: k.devueltosRows },
     { label:'% Oportunidad ANS',  value:k.pctOport+'%',   color:'green', icon:'🎯',
-      sub:'Entregas en plazo', pct:k.pctOport },
+      sub:'Entregas en plazo', pct:k.pctOport,
+      rows: k.entregadosRows.filter(r=>getCol(r,'CUMPLE ANS','cumple ans').toUpperCase()==='SI') },
     { label:'% Calidad',          value:k.pctCalidad+'%', color:'blue',  icon:'💎',
-      sub:'Sin devoluciones', pct:k.pctCalidad, pctColor:'blue' },
+      sub:'Sin devoluciones', pct:k.pctCalidad, pctColor:'blue',
+      rows: k.entregadosRows.filter(r=>{ const e=getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase(); return !e.includes('DEVOLUCION')&&!e.includes('DEVUELTO')&&!e.includes('REMITENTE'); }) },
     { label:'Visita Técnica',
       value:`${k.entVT} ejec / ${k.programados_vt} prog / ${k.totalVT} total`,
-      color:'lime', icon:'🔧', sub:`${k.pctVT}% ejecutado`, pct:k.pctVT, pctColor:'lime' },
+      color:'lime', icon:'🔧', sub:`${k.pctVT}% ejecutado`, pct:k.pctVT, pctColor:'lime',
+      isVT: true, vtEjec: k.entVT, vtProg: k.programados_vt, vtTotal: k.totalVT, vtPct: k.pctVT,
+      rows: k.vtRows },
     { label:'Op. Logístico',      value:`${k.entOL}/${k.totalOL}`, color:'blue', icon:'📮',
-      sub:`${k.pctOL}% entregado`, pct:k.pctOL },
+      sub:`${k.pctOL}% entregado`, pct:k.pctOL, rows: k.olRows },
     { label:'Vencen Hoy',         value:k.vencenHoy,      color:'warn',  icon:'⏰',
-      sub:'Sin entregar, límite hoy', alert:k.vencenHoy > 0 },
+      sub:'Sin entregar, límite hoy', alert:k.vencenHoy > 0, rows: k.vencenHoyRows },
     { label:'Vencidas ANS',       value:k.vencidas,       color:'danger',icon:'🚨',
-      sub:'Fuera de ANS', alert:k.vencidas > 0 },
+      sub:'Fuera de ANS (VT + OPLG)', alert:k.vencidas > 0, rows: k.vencidasRows },
     { label:'1er Intento',        value:k.primerIntento,  color:'selva', icon:'🎯',
-      sub:`${k.pctPrimerIntento}% del entregado`, pct:k.pctPrimerIntento },
+      sub:`${k.pctPrimerIntento}% del entregado`, pct:k.pctPrimerIntento, rows: k.primerIntentoRows },
   ];
 
-  grid.innerHTML = cards.map((c, i) => `
-    <div class="kpi-card ${c.color} fade-up" style="animation-delay:${i*.04}s">
+  grid.innerHTML = cards.map((c, i) => {
+    const clickAttr = c.rows ? `onclick="openDrillModal('${c.label}', window._kpiRows[${i}])" style="cursor:pointer"` : '';
+    if (c.isVT) {
+      return `
+    <div class="kpi-card lime vt-special fade-up" ${clickAttr} style="animation-delay:${i*.04}s;cursor:pointer" title="Ver listado">
       ${c.alert ? '<div class="kpi-alert-badge"></div>' : ''}
+      <div class="kpi-drill-hint">Ver listado ↗</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1">
+          <span class="kpi-icon">${c.icon}</span>
+          <div class="kpi-label">${c.label}</div>
+          <div style="display:flex;gap:16px;margin:10px 0;flex-wrap:wrap">
+            <div style="text-align:center">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--verde-lima);line-height:1;text-shadow:0 0 20px rgba(223,255,97,.4)">${c.vtEjec}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Ejecutadas</div>
+            </div>
+            <div style="text-align:center;opacity:.7">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--azul-cielo);line-height:1">${c.vtProg}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Programadas</div>
+            </div>
+            <div style="text-align:center;opacity:.6">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--verde-menta);line-height:1">${c.vtTotal}</div>
+              <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">Total</div>
+            </div>
+          </div>
+          <div class="progress-wrap">
+            <div class="progress-label"><span>Ejecución</span><span style="color:var(--verde-lima);font-weight:700">${c.vtPct}%</span></div>
+            <div class="progress-track" style="height:5px">
+              <div class="progress-fill lime" style="width:${Math.min(c.vtPct,100)}%"></div>
+            </div>
+          </div>
+        </div>
+        <div style="position:relative;width:90px;height:90px;flex-shrink:0">
+          <canvas id="kpi-vt-donut" width="90" height="90"></canvas>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--verde-lima);line-height:1">${c.vtPct}%</div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    }
+    return `
+    <div class="kpi-card ${c.color} fade-up" ${clickAttr} style="animation-delay:${i*.04}s;${c.rows?'cursor:pointer':''}" title="${c.rows?'Ver listado':''}">
+      ${c.alert ? '<div class="kpi-alert-badge"></div>' : ''}
+      ${c.rows ? '<div class="kpi-drill-hint">Ver listado ↗</div>' : ''}
       <span class="kpi-icon">${c.icon}</span>
       <div class="kpi-label">${c.label}</div>
       <div class="kpi-value ${c.color}">${c.value}</div>
@@ -473,8 +631,37 @@ function renderKPIs(k) {
             <div class="progress-fill ${c.pctColor||'green'}" style="width:${Math.min(c.pct,100)}%"></div>
           </div>
         </div>` : ''}
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+
+  // Guardar rows en window para onclick
+  window._kpiRows = cards.map(c => c.rows || []);
+
+  // Render VT mini donut
+  requestAnimationFrame(() => {
+    const vtCanvas = document.getElementById('kpi-vt-donut');
+    if (vtCanvas) {
+      const vtEjec = cards.find(c => c.isVT);
+      if (vtEjec && window.Chart) {
+        destroyChart('kpi-vt-donut');
+        chartInstances['kpi-vt-donut'] = new Chart(vtCanvas, {
+          type: 'doughnut',
+          data: {
+            datasets: [{
+              data: [vtEjec.vtEjec, Math.max(0, vtEjec.vtTotal - vtEjec.vtEjec)],
+              backgroundColor: ['#DFFF61','rgba(223,255,97,.12)'],
+              borderWidth: 0,
+              borderRadius: 4,
+            }]
+          },
+          options: {
+            cutout: '70%', responsive: false, animation: { duration: 1000 },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } }
+          }
+        });
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -657,12 +844,42 @@ function renderDeptTable() {
   const tbody = document.getElementById('dept-tbody');
   if (!tbody) return;
   let totP=0, totI=0, totL=0;
+  // Calcular el máximo total para las mini barras
+  const maxTotal = d.labels.length
+    ? Math.max(...d.labels.map((_,i) => d.principal[i]+d.intermedia[i]+d.lejana[i]))
+    : 1;
+
   tbody.innerHTML = d.labels.map((dep, i) => {
     const p=d.principal[i], in_=d.intermedia[i], l=d.lejana[i], t=p+in_+l;
     totP+=p; totI+=in_; totL+=l;
-    return `<tr><td><strong>${dep}</strong></td><td>${p}</td><td>${in_}</td><td>${l}</td><td><strong>${t}</strong></td></tr>`;
+    const barW = Math.round((t / maxTotal) * 120); // max 120px
+    const pBarW = t ? Math.round((p/t)*barW) : 0;
+    const iBarW = t ? Math.round((in_/t)*barW) : 0;
+    const lBarW = t ? barW - pBarW - iBarW : 0;
+    return `<tr>
+      <td>
+        <div style="display:flex;flex-direction:column;gap:5px">
+          <strong style="color:var(--blanco)">${dep}</strong>
+          <div style="display:flex;gap:2px;height:4px;border-radius:2px;overflow:hidden;width:${barW}px;min-width:20px">
+            ${pBarW ? `<div style="width:${pBarW}px;background:var(--azul-cielo);border-radius:2px 0 0 2px"></div>` : ''}
+            ${iBarW ? `<div style="width:${iBarW}px;background:var(--verde-menta)"></div>` : ''}
+            ${lBarW ? `<div style="width:${lBarW}px;background:var(--verde-lima);border-radius:0 2px 2px 0"></div>` : ''}
+          </div>
+        </div>
+      </td>
+      <td><span class="dept-val-principal">${p}</span></td>
+      <td><span class="dept-val-intermedia">${in_}</span></td>
+      <td><span class="dept-val-lejana">${l}</span></td>
+      <td><span class="dept-val-total">${t}</span></td>
+    </tr>`;
   }).join('') +
-    `<tr class="dept-total"><td><strong>TOTAL</strong></td><td>${totP}</td><td>${totI}</td><td>${totL}</td><td><strong>${totP+totI+totL}</strong></td></tr>`;
+    `<tr class="dept-total">
+      <td><strong>TOTAL</strong></td>
+      <td><span class="dept-val-principal">${totP}</span></td>
+      <td><span class="dept-val-intermedia">${totI}</span></td>
+      <td><span class="dept-val-lejana">${totL}</span></td>
+      <td><span class="dept-val-total">${totP+totI+totL}</span></td>
+    </tr>`;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -673,40 +890,66 @@ function renderANSAlerts(k) {
   if (!grid) return;
   const now = new Date();
 
-  const guiasEst = FILTERED.filter(r => {
+  const FAILED_WORDS_ANS = [
+    'INVALIDA','INVALIDO','DIRECCION INVALIDA',
+    'NO ESTÁ','NO ESTA','AUSENTE','CLIENTE AUSENTE',
+    'CERRADO','CIERRE','RECHAZO','RECHAZADO',
+    'NO RECIBE','NO ACEPTA',
+  ];
+
+  function getLastEventDateLocal(r) {
+    const candidateCols = [
+      'FECHA DE ENTREGA','fecha de entrega',
+      'FECHA ENTREGA AL COMERCIO','fecha entrega al comercio',
+      'FECHA VISITA TECNICA','fecha visita tecnica',
+      'End Date','end date',
+    ];
+    let best = null;
+    for (const col of candidateCols) {
+      const d = parseDate(getCol(r, col));
+      if (d && (!best || d > best)) best = d;
+    }
+    return best;
+  }
+
+  const guiasEstRows = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
     if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
-    const fEnt = parseDate(getCol(r,'FECHA DE ENTREGA','fecha de entrega'));
-    return fEnt !== null && diffDays(fEnt, now) >= 1;
-  }).length;
+    const lastEvent = getLastEventDateLocal(r) || parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
+    return lastEvent ? diffDays(lastEvent, now) >= 1 : false;
+  });
 
-  const FAILED_WORDS = ['INVALIDA','INVALIDO','NO ESTÁ','NO ESTA','CERRADO','CIERRE','RECHAZO','CLIENTE AUSENTE'];
-  const fallidos = FILTERED.filter(r => {
-    const nov = (getCol(r,'NOVEDADES','novedades') + ' ' + getCol(r,'CAUSAL INC','causal inc')).toUpperCase();
-    return FAILED_WORDS.some(w => nov.includes(w));
-  }).length;
+  const fallidosRows = FILTERED.filter(r => {
+    const allNovCols = ['NOVEDADES','novedades','CAUSAL INCU','causal incu','RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento','ESTADO GUIA','estado guia','ESTADO VISITA TECNICA','estado visita tecnica'];
+    const combined = allNovCols.map(c => getCol(r, c)).join(' ').toUpperCase();
+    return FAILED_WORDS_ANS.some(w => combined.includes(w));
+  });
 
   const pctOL = k.total ? Math.round(k.totalOL/k.total*100) : 0;
   const pctVT = k.total ? Math.round(k.totalVT/k.total*100) : 0;
 
   const alerts = [
-    { label:'Vencen Hoy',           value:k.vencenHoy,           type:k.vencenHoy>0?'':'ok',    sub:'Límite hoy sin entregar' },
-    { label:'Vencidas ANS',         value:k.vencidas,             type:k.vencidas>0?'':'ok',     sub:'Fuera de plazo' },
-    { label:'1er Intento',          value:k.pctPrimerIntento+'%', type:'ok',                     sub:`${k.primerIntento} de ${k.entregados}` },
-    { label:'Guías Estancadas >24h',value:guiasEst,               type:guiasEst>0?'warn':'ok',   sub:'Sin eventos registrados' },
-    { label:'Intentos Fallidos',    value:fallidos,               type:fallidos>0?'warn':'ok',   sub:'Dir. inválida, ausente, cierre, rechazo' },
-    { label:'% Op. Logístico',      value:pctOL+'%',              type:'info',                   sub:`${k.totalOL} vía OPLG` },
-    { label:'% Visita Técnica',     value:pctVT+'%',              type:'info',                   sub:`${k.totalVT} gestionadas por VT` },
-    { label:'Devoluciones',         value:k.devueltos,            type:k.devueltos>0?'warn':'ok',sub:'Total devueltos' },
+    { label:'Vencen Hoy',           value:k.vencenHoy,           type:k.vencenHoy>0?'':'ok',    sub:'Límite hoy sin entregar',               rows:k.vencenHoyRows },
+    { label:'Vencidas ANS',         value:k.vencidas,             type:k.vencidas>0?'':'ok',     sub:'Fuera de plazo (VT + OPLG)',             rows:k.vencidasRows },
+    { label:'1er Intento',          value:k.pctPrimerIntento+'%', type:'ok',                     sub:`${k.primerIntento} de ${k.entregados}`,  rows:k.primerIntentoRows },
+    { label:'Guías Estancadas >24h',value:guiasEstRows.length,    type:guiasEstRows.length>0?'warn':'ok',  sub:'Sin eventos registrados',       rows:guiasEstRows },
+    { label:'Intentos Fallidos',    value:fallidosRows.length,    type:fallidosRows.length>0?'warn':'ok',  sub:'Dir. inválida, ausente, cierre, rechazo', rows:fallidosRows },
+    { label:'% Op. Logístico',      value:pctOL+'%',              type:'info',                   sub:`${k.totalOL} vía OPLG`,                 rows:k.olRows },
+    { label:'% Visita Técnica',     value:pctVT+'%',              type:'info',                   sub:`${k.totalVT} gestionadas por VT`,       rows:k.vtRows },
+    { label:'Devoluciones',         value:k.devueltos,            type:k.devueltos>0?'warn':'ok',sub:'Total devueltos',                        rows:k.devueltosRows },
   ];
 
   grid.innerHTML = alerts.map(a => `
-    <div class="alert-card ${a.type}">
+    <div class="alert-card ${a.type}" onclick="openDrillModal('${a.label}', window._ansAlertRows[${alerts.indexOf(a)}])"
+      style="cursor:pointer" title="Ver listado">
+      <div class="kpi-drill-hint" style="font-size:9px;color:var(--muted);text-align:right;margin-bottom:2px">Ver ↗</div>
       <div class="alert-label">${a.label}</div>
       <div class="alert-value">${a.value}</div>
       <div class="alert-sub">${a.sub}</div>
     </div>
   `).join('');
+
+  window._ansAlertRows = alerts.map(a => a.rows || []);
 
   renderBacklog();
   renderStalledGuias();
@@ -719,14 +962,20 @@ function renderANSAlerts(k) {
 function renderBacklog() {
   const hrs    = parseInt(document.getElementById('f-backlog-window')?.value || 24);
   const now    = new Date();
-  const cutoff = new Date(now.getTime() + hrs * 3600000);
+  const nowDay = new Date(now); nowDay.setHours(0,0,0,0);
+  const cutoff = new Date(nowDay.getTime() + hrs * 3600000);
   const wrap   = document.getElementById('backlog-wrap');
   if (!wrap) return;
 
+  // Incluye guías cuya fecha límite está entre AHORA y el cutoff (futuras próximas a vencer)
+  // O que vencen HOY (fecha límite == hoy, sin importar la hora exacta)
   const atRisk = FILTERED.filter(r => {
     const lim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    return lim && est !== 'ENTREGADO' && est !== 'CANCELADO' && lim >= now && lim <= cutoff;
+    if (!lim || est === 'ENTREGADO' || est === 'CANCELADO') return false;
+    const limDay = new Date(lim); limDay.setHours(23,59,59,999);
+    // Vencen en las próximas Xh (desde hoy 0:00 hasta cutoff)
+    return limDay >= nowDay && lim <= cutoff;
   });
 
   if (!atRisk.length) {
@@ -734,10 +983,14 @@ function renderBacklog() {
     return;
   }
   wrap.innerHTML = `<table>
-    <thead><tr><th>Comercio</th><th>ID Sitio</th><th>Guía</th><th>Fecha Límite</th><th>Transportadora</th><th>Estado</th><th>Riesgo</th></tr></thead>
+    <thead><tr><th>Comercio</th><th>ID Sitio</th><th>Guía</th><th>Fecha Límite</th><th>Transportadora</th><th>Estado</th><th>Tipo</th><th>Riesgo</th></tr></thead>
     <tbody>${atRisk.map(r => {
       const lim  = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
-      const hLeft= lim ? Math.round((lim-now)/3600000) : 0;
+      const limDay = lim ? new Date(lim) : null;
+      if (limDay) limDay.setHours(23,59,59,999);
+      const hLeft= limDay ? Math.round((limDay - now)/3600000) : 0;
+      const urgColor = hLeft <= 0 ? 'var(--danger)' : hLeft <= 24 ? 'var(--warning)' : 'var(--azul-cielo)';
+      const urgLabel = hLeft <= 0 ? 'VENCE HOY' : hLeft <= 24 ? `${hLeft}h` : `${Math.ceil(hLeft/24)}d`;
       return `<tr>
         <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'ID Comercio','id comercio')||'—'}</td>
@@ -745,7 +998,8 @@ function renderBacklog() {
         <td>${lim?lim.toLocaleDateString('es-CO'):'—'}</td>
         <td>${getCol(r,'TRANSPORTADORA','Transportadora','transportadora')||'—'}</td>
         <td><span class="status-pill ${statusClass(getCol(r,'ESTADO DATAFONO','estado datafono'))}">${getCol(r,'ESTADO DATAFONO','estado datafono')||'—'}</span></td>
-        <td><span class="risk-badge ${hLeft<=24?'risk-24':'risk-48'}">${hLeft}h</span></td>
+        <td style="font-size:10px;color:var(--muted)">${getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion')||'—'}</td>
+        <td><span class="risk-badge" style="background:rgba(255,255,255,.07);color:${urgColor};border:1px solid ${urgColor};border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;font-family:'JetBrains Mono',monospace">${urgLabel}</span></td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -759,11 +1013,32 @@ function renderStalledGuias() {
   if (!wrap) return;
   const now = new Date();
 
+  // Buscar la fecha de último evento en múltiples columnas posibles
+  function getLastEventDate(r) {
+    const candidateCols = [
+      'FECHA DE ENTREGA','fecha de entrega',
+      'FECHA ENTREGA AL COMERCIO','fecha entrega al comercio',
+      'FECHA VISITA TECNICA','fecha visita tecnica',
+      'End Date','end date',
+    ];
+    let best = null;
+    for (const col of candidateCols) {
+      const d = parseDate(getCol(r, col));
+      if (d && (!best || d > best)) best = d;
+    }
+    return best;
+  }
+
   const stalled = FILTERED.filter(r => {
-    const est  = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
+    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
     if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
-    const fEnt = parseDate(getCol(r,'FECHA DE ENTREGA','fecha de entrega'));
-    return fEnt !== null && diffDays(fEnt, now) >= 1;
+    const lastEvent = getLastEventDate(r);
+    if (!lastEvent) {
+      // Si no hay fecha de evento, usar fecha de solicitud como referencia
+      const fSol = parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
+      return fSol ? diffDays(fSol, now) >= 1 : false;
+    }
+    return diffDays(lastEvent, now) >= 1;
   });
 
   if (!stalled.length) {
@@ -773,24 +1048,28 @@ function renderStalledGuias() {
   wrap.innerHTML = `<table>
     <thead><tr>
       <th>Comercio</th><th>Guía</th><th>Último Evento</th>
-      <th style="color:var(--warning)">Días Sin Cambios</th>
-      <th>Transportadora</th><th>Estado</th>
+      <th style="color:var(--warning)">Sin Cambios</th>
+      <th>Transportadora</th><th>Estado</th><th>Tipo</th>
     </tr></thead>
     <tbody>${stalled.sort((a,b)=>{
-      const da=parseDate(getCol(a,'FECHA DE ENTREGA','fecha de entrega'));
-      const db=parseDate(getCol(b,'FECHA DE ENTREGA','fecha de entrega'));
-      return (da||0)-(db||0);
+      const da = getLastEventDate(a) || parseDate(getCol(a,'FECHA DE SOLICITUD','fecha de solicitud')) || new Date(0);
+      const db = getLastEventDate(b) || parseDate(getCol(b,'FECHA DE SOLICITUD','fecha de solicitud')) || new Date(0);
+      return da - db;
     }).map(r=>{
-      const fEnt = parseDate(getCol(r,'FECHA DE ENTREGA','fecha de entrega'));
-      const dias = fEnt ? diffDays(fEnt,now) : null;
+      const lastEvent = getLastEventDate(r) || parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
+      const dias = lastEvent ? diffDays(lastEvent, now) : null;
       const cls  = dias===null?'ok':dias>=7?'crit':dias>=3?'warn':'ok';
+      const label = dias === null ? '—'
+        : dias === 1 ? '1 día sin cambios'
+        : `${dias} días sin cambios`;
       return `<tr>
         <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
-        <td style="color:var(--muted)">${fEnt?fEnt.toLocaleDateString('es-CO'):'—'}</td>
-        <td><span class="days-stalled ${cls}">${dias!==null?dias+' día'+(dias!==1?'s':''):'—'}</span></td>
+        <td style="color:var(--muted)">${lastEvent?lastEvent.toLocaleDateString('es-CO'):'—'}</td>
+        <td><span class="days-stalled ${cls}">${label}</span></td>
         <td>${getCol(r,'TRANSPORTADORA','Transportadora','transportadora')||'—'}</td>
         <td><span class="status-pill ${statusClass(getCol(r,'ESTADO DATAFONO','estado datafono'))}">${getCol(r,'ESTADO DATAFONO','estado datafono')||'—'}</span></td>
+        <td style="font-size:10px;color:var(--muted)">${getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion')||'—'}</td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
@@ -802,24 +1081,74 @@ function renderStalledGuias() {
 function renderFallidos() {
   const wrap = document.getElementById('fallidos-wrap');
   if (!wrap) return;
-  const FAILED_WORDS = ['INVALIDA','INVALIDO','NO ESTÁ','NO ESTA','CERRADO','CIERRE','RECHAZO','CLIENTE AUSENTE'];
-  const fallidos = FILTERED.filter(r => {
-    const nov = (getCol(r,'NOVEDADES','novedades') + ' ' + getCol(r,'CAUSAL INC','causal inc')).toUpperCase();
-    return FAILED_WORDS.some(w => nov.includes(w));
-  });
+  const FAILED_WORDS = [
+    'INVALIDA','INVALIDO','DIRECCION INVALIDA','DIRECCIÓN INVÁLIDA',
+    'NO ESTÁ','NO ESTA','AUSENTE','CLIENTE AUSENTE','CLIENTE NO ESTA',
+    'CERRADO','CIERRE','ESTABLECIMIENTO CERRADO',
+    'RECHAZO','RECHAZADO','RECHAZA',
+    'NO RECIBE','NO ACEPTA',
+  ];
+
+  // Revisar TODAS las columnas donde puede haber novedades / culpables
+  function getFallidoReason(r) {
+    const allNovCols = [
+      'NOVEDADES','novedades',
+      'CAUSAL INCU','causal incu',
+      'CAUSAL INC','causal inc',
+      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
+      'ESTADO GUIA','estado guia',
+      'ESTADO VISITA TECNICA','estado visita tecnica',
+    ];
+    for (const col of allNovCols) {
+      const v = getCol(r, col).toUpperCase();
+      if (FAILED_WORDS.some(w => v.includes(w))) {
+        return getCol(r, col) || '—';
+      }
+    }
+    return null;
+  }
+
+  const fallidos = FILTERED.filter(r => getFallidoReason(r) !== null);
+
   if (!fallidos.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Sin intentos fallidos</p></div>';
     return;
   }
   wrap.innerHTML = `<table>
-    <thead><tr><th>Comercio</th><th>Guía</th><th style="color:var(--danger)">Motivo</th><th>Transportadora</th><th>Estado</th></tr></thead>
-    <tbody>${fallidos.map(r=>`<tr>
-      <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
-      <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
-      <td style="color:var(--danger)">${getCol(r,'NOVEDADES','novedades')||getCol(r,'CAUSAL INC','causal inc')||'—'}</td>
-      <td>${getCol(r,'TRANSPORTADORA','Transportadora','transportadora')||'—'}</td>
-      <td><span class="status-pill ${statusClass(getCol(r,'ESTADO DATAFONO','estado datafono'))}">${getCol(r,'ESTADO DATAFONO','estado datafono')||'—'}</span></td>
-    </tr>`).join('')}</tbody>
+    <thead><tr>
+      <th>Comercio</th><th>Guía</th>
+      <th style="color:var(--danger)">Motivo / Novedad</th>
+      <th>Columna</th>
+      <th>Transportadora</th><th>Estado</th><th>Tipo</th>
+    </tr></thead>
+    <tbody>${fallidos.map(r=>{
+      // Mostrar qué columna tiene la novedad y su valor
+      const allNovCols = [
+        ['NOVEDADES','novedades'],
+        ['CAUSAL INCU','causal incu'],
+        ['RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento'],
+        ['ESTADO GUIA','estado guia'],
+        ['ESTADO VISITA TECNICA','estado visita tecnica'],
+      ];
+      let colLabel = '—', colVal = '—';
+      for (const cols of allNovCols) {
+        const v = getCol(r, ...cols).toUpperCase();
+        if (FAILED_WORDS.some(w => v.includes(w))) {
+          colLabel = cols[0];
+          colVal   = getCol(r, ...cols);
+          break;
+        }
+      }
+      return `<tr>
+        <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
+        <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
+        <td style="color:var(--danger);font-weight:600">${colVal}</td>
+        <td style="font-size:10px;color:var(--muted)">${colLabel}</td>
+        <td>${getCol(r,'TRANSPORTADORA','Transportadora','transportadora')||'—'}</td>
+        <td><span class="status-pill ${statusClass(getCol(r,'ESTADO DATAFONO','estado datafono'))}">${getCol(r,'ESTADO DATAFONO','estado datafono')||'—'}</span></td>
+        <td style="font-size:10px;color:var(--muted)">${getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion')||'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
   </table>`;
 }
 
@@ -923,11 +1252,14 @@ function exportDeptExcel() {
 function exportBacklogExcel() {
   const hrs    = parseInt(document.getElementById('f-backlog-window')?.value||24);
   const now    = new Date();
-  const cutoff = new Date(now.getTime()+hrs*3600000);
+  const nowDay = new Date(now); nowDay.setHours(0,0,0,0);
+  const cutoff = new Date(nowDay.getTime()+hrs*3600000);
   const data   = FILTERED.filter(r=>{
     const lim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    return lim && est!=='ENTREGADO' && est!=='CANCELADO' && lim>=now && lim<=cutoff;
+    if (!lim || est==='ENTREGADO' || est==='CANCELADO') return false;
+    const limDay = new Date(lim); limDay.setHours(23,59,59,999);
+    return limDay >= nowDay && lim <= cutoff;
   }).map(r=>({
     Comercio:       getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO'),
     'ID Sitio':     getCol(r,'ID Comercio','id comercio'),
@@ -935,6 +1267,7 @@ function exportBacklogExcel() {
     'Fecha Límite': getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'),
     Transportadora: getCol(r,'TRANSPORTADORA','Transportadora'),
     Estado:         getCol(r,'ESTADO DATAFONO','estado datafono'),
+    Tipo:           getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion'),
   }));
   exportToExcel(data, `Backlog_Riesgo_${hrs}h`);
 }
