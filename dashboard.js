@@ -143,11 +143,11 @@ function parseDate(s) {
   ];
 
   for (const d of fmts) {
-    if (d && !isNaN(d.getTime()) && d.getFullYear() > 2000) return d;
+    if (d && !isNaN(d.getTime()) && d.getFullYear() > 2000 && d.getFullYear() < 2100) return d;
   }
   // fallback nativo
   const fb = new Date(s);
-  return (!isNaN(fb.getTime()) && fb.getFullYear() > 2000) ? fb : null;
+  return (!isNaN(fb.getTime()) && fb.getFullYear() > 2000 && fb.getFullYear() < 2100) ? fb : null;
 }
 
 function diffDays(a, b) {
@@ -313,11 +313,22 @@ function computeKPIs(data) {
   const programados     = ec['PROGRAMADO']      || ec['VISITA PROGRAMADA'] || 0;
   const en_alistamiento = ec['EN ALISTAMIENTO'] || 0;
 
-  // 3. Devueltos: DEVOLUCION | DEVUELTO | REMITENTE  (igual que vp.py)
-  const devueltos = df.filter(r => {
-    const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
-    return e.includes('DEVOLUCION') || e.includes('DEVUELTO') || e.includes('REMITENTE');
-  }).length;
+  // 3. Devueltos: buscar en TODAS las columnas relevantes (ESTADO DATAFONO, ESTADO GUIA, NOVEDADES, etc.)
+  const DEV_COLS = [
+    'ESTADO DATAFONO','estado datafono',
+    'ESTADO GUIA','estado guia',
+    'NOVEDADES','novedades',
+    'CAUSAL INCU','causal incu',
+    'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
+  ];
+  function isDevolucion(r) {
+    for (const col of DEV_COLS) {
+      const v = getCol(r, col).toUpperCase();
+      if (v.includes('DEVOLUCI') || v.includes('DEVOLUCION') || v.includes('DEVUELTO') || v.includes('REMITENTE')) return true;
+    }
+    return false;
+  }
+  const devueltos = df.filter(isDevolucion).length;
 
   // 4. n_alistados = total - en_alistamiento  (igual que vp.py)
   const n_alistados = total - en_alistamiento;
@@ -420,10 +431,7 @@ function computeKPIs(data) {
     ec,
     entregadosRows: entDf,
     vtRows, olRows,
-    devueltosRows: df.filter(r => {
-      const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
-      return e.includes('DEVOLUCION') || e.includes('DEVUELTO') || e.includes('REMITENTE');
-    }),
+    devueltosRows: df.filter(isDevolucion),
   };
 }
 
@@ -809,10 +817,21 @@ function renderCharts(k) {
 }
 
 function renderDevCharts() {
-  const devRows = FILTERED.filter(r => {
-    const e = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    return e.includes('DEVOLUCION') || e.includes('DEVUELTO') || e.includes('REMITENTE');
-  });
+  const DEV_COLS_RENDER = [
+    'ESTADO DATAFONO','estado datafono',
+    'ESTADO GUIA','estado guia',
+    'NOVEDADES','novedades',
+    'CAUSAL INCU','causal incu',
+    'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
+  ];
+  function isDevRow(r) {
+    for (const col of DEV_COLS_RENDER) {
+      const v = getCol(r, col).toUpperCase();
+      if (v.includes('DEVOLUCI') || v.includes('DEVOLUCION') || v.includes('DEVUELTO') || v.includes('REMITENTE')) return true;
+    }
+    return false;
+  }
+  const devRows = FILTERED.filter(isDevRow);
   const byTransp = {}, byCausal = {};
   devRows.forEach(r => {
     const t = getCol(r,'TRANSPORTADORA','Transportadora','transportadora') || 'Sin datos';
@@ -898,16 +917,19 @@ function renderANSAlerts(k) {
   ];
 
   function getLastEventDateLocal(r) {
+    // EXCLUIR End Date (fecha de cierre del formulario, no es evento de la guía)
+    // EXCLUIR fechas 30/12/1899 (valor nulo de Excel/SharePoint)
     const candidateCols = [
       'FECHA DE ENTREGA','fecha de entrega',
       'FECHA ENTREGA AL COMERCIO','fecha entrega al comercio',
       'FECHA VISITA TECNICA','fecha visita tecnica',
-      'End Date','end date',
     ];
     let best = null;
     for (const col of candidateCols) {
-      const d = parseDate(getCol(r, col));
-      if (d && (!best || d > best)) best = d;
+      const raw = getCol(r, col);
+      if (!raw || raw.includes('1899')) continue;  // ignorar fecha nula de Excel
+      const d = parseDate(raw);
+      if (d && d.getFullYear() > 2000 && d.getFullYear() < 2100 && (!best || d > best)) best = d;
     }
     return best;
   }
@@ -920,6 +942,9 @@ function renderANSAlerts(k) {
   });
 
   const fallidosRows = FILTERED.filter(r => {
+    // EXCLUIR registros ya entregados o cancelados
+    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
+    if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
     const allNovCols = ['NOVEDADES','novedades','CAUSAL INCU','causal incu','RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento','ESTADO GUIA','estado guia','ESTADO VISITA TECNICA','estado visita tecnica'];
     const combined = allNovCols.map(c => getCol(r, c)).join(' ').toUpperCase();
     return FAILED_WORDS_ANS.some(w => combined.includes(w));
@@ -1014,27 +1039,30 @@ function renderStalledGuias() {
   const now = new Date();
 
   // Buscar la fecha de último evento en múltiples columnas posibles
+  // EXCLUIR End Date (es fecha de llenado del formulario, no evento de la guía)
+  // EXCLUIR fechas 30/12/1899 (valor nulo de Excel/SharePoint)
   function getLastEventDate(r) {
     const candidateCols = [
       'FECHA DE ENTREGA','fecha de entrega',
       'FECHA ENTREGA AL COMERCIO','fecha entrega al comercio',
       'FECHA VISITA TECNICA','fecha visita tecnica',
-      'End Date','end date',
     ];
     let best = null;
     for (const col of candidateCols) {
-      const d = parseDate(getCol(r, col));
-      if (d && (!best || d > best)) best = d;
+      const raw = getCol(r, col);
+      if (!raw || raw.includes('1899')) continue;  // ignorar fecha nula de Excel
+      const d = parseDate(raw);
+      if (d && d.getFullYear() > 2000 && d.getFullYear() < 2100 && (!best || d > best)) best = d;
     }
     return best;
   }
 
   const stalled = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
+    if (est === 'ENTREGADO' || est === 'CANCELADO') return false;  // excluir finalizados
     const lastEvent = getLastEventDate(r);
     if (!lastEvent) {
-      // Si no hay fecha de evento, usar fecha de solicitud como referencia
+      // Si no hay fecha de evento real, usar fecha de solicitud como referencia
       const fSol = parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
       return fSol ? diffDays(fSol, now) >= 1 : false;
     }
@@ -1091,6 +1119,10 @@ function renderFallidos() {
 
   // Revisar TODAS las columnas donde puede haber novedades / culpables
   function getFallidoReason(r) {
+    // EXCLUIR registros ya entregados o cancelados
+    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
+    if (est === 'ENTREGADO' || est === 'CANCELADO') return null;
+
     const allNovCols = [
       'NOVEDADES','novedades',
       'CAUSAL INCU','causal incu',
