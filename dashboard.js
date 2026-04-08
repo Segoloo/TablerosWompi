@@ -313,18 +313,12 @@ function computeKPIs(data) {
   const programados     = ec['PROGRAMADO']      || ec['VISITA PROGRAMADA'] || 0;
   const en_alistamiento = ec['EN ALISTAMIENTO'] || 0;
 
-  // 3. Devueltos: buscar en TODAS las columnas relevantes (ESTADO DATAFONO, ESTADO GUIA, NOVEDADES, etc.)
-  const DEV_COLS = [
-    'ESTADO DATAFONO','estado datafono',
-    'ESTADO GUIA','estado guia',
-    'NOVEDADES','novedades',
-    'CAUSAL INCU','causal incu',
-    'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
-  ];
+  // 3. Devueltos: buscar en TODAS las columnas de la fila cualquier variante de devolución
   function isDevolucion(r) {
-    for (const col of DEV_COLS) {
-      const v = getCol(r, col).toUpperCase();
-      if (v.includes('DEVOLUCI') || v.includes('DEVOLUCION') || v.includes('DEVUELTO') || v.includes('REMITENTE')) return true;
+    for (const v of Object.values(r)) {
+      const s = String(v || '').toUpperCase();
+      if (s.includes('DEVOLUCI') || s.includes('DEVOLUCION') || s.includes('DEVOLUCIÓN') ||
+          s.includes('DEVUELTO') || s.includes('REMITENTE')) return true;
     }
     return false;
   }
@@ -817,17 +811,11 @@ function renderCharts(k) {
 }
 
 function renderDevCharts() {
-  const DEV_COLS_RENDER = [
-    'ESTADO DATAFONO','estado datafono',
-    'ESTADO GUIA','estado guia',
-    'NOVEDADES','novedades',
-    'CAUSAL INCU','causal incu',
-    'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
-  ];
   function isDevRow(r) {
-    for (const col of DEV_COLS_RENDER) {
-      const v = getCol(r, col).toUpperCase();
-      if (v.includes('DEVOLUCI') || v.includes('DEVOLUCION') || v.includes('DEVUELTO') || v.includes('REMITENTE')) return true;
+    for (const v of Object.values(r)) {
+      const s = String(v || '').toUpperCase();
+      if (s.includes('DEVOLUCI') || s.includes('DEVOLUCION') || s.includes('DEVOLUCIÓN') ||
+          s.includes('DEVUELTO') || s.includes('REMITENTE')) return true;
     }
     return false;
   }
@@ -909,45 +897,44 @@ function renderANSAlerts(k) {
   if (!grid) return;
   const now = new Date();
 
-  const FAILED_WORDS_ANS = [
-    'INVALIDA','INVALIDO','DIRECCION INVALIDA',
-    'NO ESTÁ','NO ESTA','AUSENTE','CLIENTE AUSENTE',
-    'CERRADO','CIERRE','RECHAZO','RECHAZADO',
-    'NO RECIBE','NO ACEPTA',
-  ];
-
-  function getLastEventDateLocal(r) {
-    // EXCLUIR End Date (fecha de cierre del formulario, no es evento de la guía)
-    // EXCLUIR fechas 30/12/1899 (valor nulo de Excel/SharePoint)
-    const candidateCols = [
-      'FECHA DE ENTREGA','fecha de entrega',
-      'FECHA ENTREGA AL COMERCIO','fecha entrega al comercio',
-      'FECHA VISITA TECNICA','fecha visita tecnica',
+  // Guías sin cambios = vencidas ANS con novedad
+  function getNovedadRow(r) {
+    const novCols = [
+      'NOVEDADES','novedades','NOVEDAD','novedad',
+      'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
+      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
     ];
-    let best = null;
-    for (const col of candidateCols) {
-      const raw = getCol(r, col);
-      if (!raw || raw.includes('1899')) continue;  // ignorar fecha nula de Excel
-      const d = parseDate(raw);
-      if (d && d.getFullYear() > 2000 && d.getFullYear() < 2100 && (!best || d > best)) best = d;
+    for (const col of novCols) {
+      const v = getCol(r, col).trim();
+      if (v && v !== '0' && v.toLowerCase() !== 'nan') return true;
     }
-    return best;
+    return false;
   }
-
+  const today2 = new Date(); today2.setHours(0,0,0,0);
   const guiasEstRows = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
     if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
-    const lastEvent = getLastEventDateLocal(r) || parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
-    return lastEvent ? diffDays(lastEvent, now) >= 1 : false;
+    const fLim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
+    if (!fLim) return false;
+    const limDay = new Date(fLim); limDay.setHours(0,0,0,0);
+    return limDay <= today2 && getNovedadRow(r);
   });
 
+  // Intentos fallidos = EN TRÁNSITO con alguna novedad
   const fallidosRows = FILTERED.filter(r => {
-    // EXCLUIR registros ya entregados o cancelados
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
-    const allNovCols = ['NOVEDADES','novedades','CAUSAL INCU','causal incu','RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento','ESTADO GUIA','estado guia','ESTADO VISITA TECNICA','estado visita tecnica'];
-    const combined = allNovCols.map(c => getCol(r, c)).join(' ').toUpperCase();
-    return FAILED_WORDS_ANS.some(w => combined.includes(w));
+    if (est !== 'EN TRANSITO' && est !== 'EN TRÁNSITO') return false;
+    const novCols = [
+      'NOVEDADES','novedades','NOVEDAD','novedad',
+      'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
+      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
+      'ESTADO GUIA','estado guia','ESTADO VISITA TECNICA','estado visita tecnica',
+    ];
+    for (const col of novCols) {
+      const v = getCol(r, col).trim();
+      if (v && v !== '0' && v.toLowerCase() !== 'nan') return true;
+    }
+    return false;
   });
 
   const pctOL = k.total ? Math.round(k.totalOL/k.total*100) : 0;
@@ -957,8 +944,8 @@ function renderANSAlerts(k) {
     { label:'Vencen Hoy',           value:k.vencenHoy,           type:k.vencenHoy>0?'':'ok',    sub:'Límite hoy sin entregar',               rows:k.vencenHoyRows },
     { label:'Vencidas ANS',         value:k.vencidas,             type:k.vencidas>0?'':'ok',     sub:'Fuera de plazo (VT + OPLG)',             rows:k.vencidasRows },
     { label:'1er Intento',          value:k.pctPrimerIntento+'%', type:'ok',                     sub:`${k.primerIntento} de ${k.entregados}`,  rows:k.primerIntentoRows },
-    { label:'Guías Estancadas >24h',value:guiasEstRows.length,    type:guiasEstRows.length>0?'warn':'ok',  sub:'Sin eventos registrados',       rows:guiasEstRows },
-    { label:'Intentos Fallidos',    value:fallidosRows.length,    type:fallidosRows.length>0?'warn':'ok',  sub:'Dir. inválida, ausente, cierre, rechazo', rows:fallidosRows },
+    { label:'Guías sin Cambios',       value:guiasEstRows.length,    type:guiasEstRows.length>0?'warn':'ok',  sub:'Vencidas ANS con novedad',      rows:guiasEstRows },
+    { label:'Intentos Fallidos',       value:fallidosRows.length,    type:fallidosRows.length>0?'warn':'ok',  sub:'En tránsito con novedad',        rows:fallidosRows },
     { label:'% Op. Logístico',      value:pctOL+'%',              type:'info',                   sub:`${k.totalOL} vía OPLG`,                 rows:k.olRows },
     { label:'% Visita Técnica',     value:pctVT+'%',              type:'info',                   sub:`${k.totalVT} gestionadas por VT`,       rows:k.vtRows },
     { label:'Devoluciones',         value:k.devueltos,            type:k.devueltos>0?'warn':'ok',sub:'Total devueltos',                        rows:k.devueltosRows },
@@ -1036,65 +1023,67 @@ function renderBacklog() {
 function renderStalledGuias() {
   const wrap = document.getElementById('guias-estancadas-wrap');
   if (!wrap) return;
-  const now = new Date();
+  const now = new Date(); now.setHours(0,0,0,0);
 
-  // Buscar la fecha de último evento en múltiples columnas posibles
-  // EXCLUIR End Date (es fecha de llenado del formulario, no evento de la guía)
-  // EXCLUIR fechas 30/12/1899 (valor nulo de Excel/SharePoint)
-  function getLastEventDate(r) {
-    const candidateCols = [
-      'FECHA DE ENTREGA','fecha de entrega',
-      'FECHA ENTREGA AL COMERCIO','fecha entrega al comercio',
-      'FECHA VISITA TECNICA','fecha visita tecnica',
+  // Guías SIN CAMBIOS = vencidas ANS (fecha límite pasada, no entregadas/canceladas)
+  // que tienen algún valor en columna NOVEDADES / NOVEDAD.
+  // Los días sin cambios = días transcurridos desde la FECHA LIMITE DE ENTREGA.
+  function getNovedad(r) {
+    const novCols = [
+      'NOVEDADES','novedades','NOVEDAD','novedad',
+      'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
+      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
     ];
-    let best = null;
-    for (const col of candidateCols) {
-      const raw = getCol(r, col);
-      if (!raw || raw.includes('1899')) continue;  // ignorar fecha nula de Excel
-      const d = parseDate(raw);
-      if (d && d.getFullYear() > 2000 && d.getFullYear() < 2100 && (!best || d > best)) best = d;
+    for (const col of novCols) {
+      const v = getCol(r, col).trim();
+      if (v && v !== '0' && v.toLowerCase() !== 'nan') return v;
     }
-    return best;
+    return null;
   }
 
   const stalled = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (est === 'ENTREGADO' || est === 'CANCELADO') return false;  // excluir finalizados
-    const lastEvent = getLastEventDate(r);
-    if (!lastEvent) {
-      // Si no hay fecha de evento real, usar fecha de solicitud como referencia
-      const fSol = parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
-      return fSol ? diffDays(fSol, now) >= 1 : false;
-    }
-    return diffDays(lastEvent, now) >= 1;
+    if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
+    const fLim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
+    if (!fLim) return false;
+    const limDay = new Date(fLim); limDay.setHours(0,0,0,0);
+    // Vencida ANS: fecha límite ya pasó
+    if (limDay > now) return false;
+    // Tiene novedad registrada
+    return getNovedad(r) !== null;
   });
 
   if (!stalled.length) {
-    wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Sin guías estancadas</p></div>';
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Sin guías sin cambios</p></div>';
     return;
   }
   wrap.innerHTML = `<table>
     <thead><tr>
-      <th>Comercio</th><th>Guía</th><th>Último Evento</th>
-      <th style="color:var(--warning)">Sin Cambios</th>
+      <th>Comercio</th><th>Guía</th><th>Fecha Límite</th>
+      <th style="color:var(--warning)">Días sin cambios</th>
+      <th>Novedad</th>
       <th>Transportadora</th><th>Estado</th><th>Tipo</th>
     </tr></thead>
     <tbody>${stalled.sort((a,b)=>{
-      const da = getLastEventDate(a) || parseDate(getCol(a,'FECHA DE SOLICITUD','fecha de solicitud')) || new Date(0);
-      const db = getLastEventDate(b) || parseDate(getCol(b,'FECHA DE SOLICITUD','fecha de solicitud')) || new Date(0);
+      const da = parseDate(getCol(a,'FECHA LIMITE DE ENTREGA','fecha limite de entrega')) || new Date(0);
+      const db = parseDate(getCol(b,'FECHA LIMITE DE ENTREGA','fecha limite de entrega')) || new Date(0);
       return da - db;
     }).map(r=>{
-      const lastEvent = getLastEventDate(r) || parseDate(getCol(r,'FECHA DE SOLICITUD','fecha de solicitud'));
-      const dias = lastEvent ? diffDays(lastEvent, now) : null;
+      const fLim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
+      const limDay = fLim ? new Date(fLim) : null;
+      if (limDay) limDay.setHours(0,0,0,0);
+      const dias = limDay ? diffDays(limDay, now) : null;
       const cls  = dias===null?'ok':dias>=7?'crit':dias>=3?'warn':'ok';
       const label = dias === null ? '—'
         : dias === 1 ? '1 día sin cambios'
         : `${dias} días sin cambios`;
+      const novedad = getNovedad(r) || '—';
       return `<tr>
         <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
-        <td style="color:var(--muted)">${lastEvent?lastEvent.toLocaleDateString('es-CO'):'—'}</td>
+        <td style="color:var(--muted)">${fLim?fLim.toLocaleDateString('es-CO'):'—'}</td>
         <td><span class="days-stalled ${cls}">${label}</span></td>
+        <td style="color:var(--warning);font-size:11px">${novedad}</td>
         <td>${getCol(r,'TRANSPORTADORA','Transportadora','transportadora')||'—'}</td>
         <td><span class="status-pill ${statusClass(getCol(r,'ESTADO DATAFONO','estado datafono'))}">${getCol(r,'ESTADO DATAFONO','estado datafono')||'—'}</span></td>
         <td style="font-size:10px;color:var(--muted)">${getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion')||'—'}</td>
@@ -1109,38 +1098,29 @@ function renderStalledGuias() {
 function renderFallidos() {
   const wrap = document.getElementById('fallidos-wrap');
   if (!wrap) return;
-  const FAILED_WORDS = [
-    'INVALIDA','INVALIDO','DIRECCION INVALIDA','DIRECCIÓN INVÁLIDA',
-    'NO ESTÁ','NO ESTA','AUSENTE','CLIENTE AUSENTE','CLIENTE NO ESTA',
-    'CERRADO','CIERRE','ESTABLECIMIENTO CERRADO',
-    'RECHAZO','RECHAZADO','RECHAZA',
-    'NO RECIBE','NO ACEPTA',
-  ];
 
-  // Revisar TODAS las columnas donde puede haber novedades / culpables
-  function getFallidoReason(r) {
-    // EXCLUIR registros ya entregados o cancelados
+  // Intento fallido = EN TRÁNSITO con alguna novedad registrada en columna NOVEDADES/NOVEDAD/etc.
+  function getFallidoNovedad(r) {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (est === 'ENTREGADO' || est === 'CANCELADO') return null;
-
-    const allNovCols = [
-      'NOVEDADES','novedades',
-      'CAUSAL INCU','causal incu',
-      'CAUSAL INC','causal inc',
-      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
-      'ESTADO GUIA','estado guia',
-      'ESTADO VISITA TECNICA','estado visita tecnica',
+    // Solo aplica a registros EN TRÁNSITO
+    if (est !== 'EN TRANSITO' && est !== 'EN TRÁNSITO') return null;
+    const novCols = [
+      ['NOVEDADES','novedades'],
+      ['NOVEDAD','novedad'],
+      ['CAUSAL INCU','causal incu'],
+      ['CAUSAL INC','causal inc'],
+      ['RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento'],
+      ['ESTADO GUIA','estado guia'],
+      ['ESTADO VISITA TECNICA','estado visita tecnica'],
     ];
-    for (const col of allNovCols) {
-      const v = getCol(r, col).toUpperCase();
-      if (FAILED_WORDS.some(w => v.includes(w))) {
-        return getCol(r, col) || '—';
-      }
+    for (const cols of novCols) {
+      const v = getCol(r, ...cols).trim();
+      if (v && v !== '0' && v.toLowerCase() !== 'nan') return { col: cols[0], val: v };
     }
     return null;
   }
 
-  const fallidos = FILTERED.filter(r => getFallidoReason(r) !== null);
+  const fallidos = FILTERED.filter(r => getFallidoNovedad(r) !== null);
 
   if (!fallidos.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Sin intentos fallidos</p></div>';
@@ -1149,33 +1129,17 @@ function renderFallidos() {
   wrap.innerHTML = `<table>
     <thead><tr>
       <th>Comercio</th><th>Guía</th>
-      <th style="color:var(--danger)">Motivo / Novedad</th>
+      <th style="color:var(--danger)">Novedad</th>
       <th>Columna</th>
       <th>Transportadora</th><th>Estado</th><th>Tipo</th>
     </tr></thead>
     <tbody>${fallidos.map(r=>{
-      // Mostrar qué columna tiene la novedad y su valor
-      const allNovCols = [
-        ['NOVEDADES','novedades'],
-        ['CAUSAL INCU','causal incu'],
-        ['RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento'],
-        ['ESTADO GUIA','estado guia'],
-        ['ESTADO VISITA TECNICA','estado visita tecnica'],
-      ];
-      let colLabel = '—', colVal = '—';
-      for (const cols of allNovCols) {
-        const v = getCol(r, ...cols).toUpperCase();
-        if (FAILED_WORDS.some(w => v.includes(w))) {
-          colLabel = cols[0];
-          colVal   = getCol(r, ...cols);
-          break;
-        }
-      }
+      const info = getFallidoNovedad(r) || { col: '—', val: '—' };
       return `<tr>
         <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
-        <td style="color:var(--danger);font-weight:600">${colVal}</td>
-        <td style="font-size:10px;color:var(--muted)">${colLabel}</td>
+        <td style="color:var(--danger);font-weight:600">${info.val}</td>
+        <td style="font-size:10px;color:var(--muted)">${info.col}</td>
         <td>${getCol(r,'TRANSPORTADORA','Transportadora','transportadora')||'—'}</td>
         <td><span class="status-pill ${statusClass(getCol(r,'ESTADO DATAFONO','estado datafono'))}">${getCol(r,'ESTADO DATAFONO','estado datafono')||'—'}</span></td>
         <td style="font-size:10px;color:var(--muted)">${getCol(r,'TIPO DE SOLICITUD FACTURACIÓN','TIPO DE SOLICITUD FACTURACION','tipo de solicitud facturacion')||'—'}</td>
