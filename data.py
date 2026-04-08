@@ -35,7 +35,7 @@ SMTP_PORT      = 587
 EMAIL_USER     = "analitica@lineacom.co"
 EMAIL_PASSWORD = "Linea.2024*"
 
-TO_EMAILS = ["", "sebastian.gomez@lineacom.co"]
+TO_EMAILS = ["lini.hernandez@lineacom.co", "sebastian.gomez@lineacom.co"]
 CC_EMAILS: List[str] = []
 
 # ══════════════════════════════════════════════════════════════════
@@ -417,7 +417,7 @@ def compute_kpis(df: "pd.DataFrame") -> Dict[str, Any]:
         if lim is None:
             continue
         lim_day = lim.replace(hour=0, minute=0, second=0, microsecond=0)
-        if lim_day >= today:          # aún no vencida (hoy también se excluye para ">24h")
+        if lim_day > today:          # aún no vencida (hoy también se excluye para ">24h")
             continue
         dias = (today - lim_day).days
         if dias >= 1 and find_novedad(r) is not None:
