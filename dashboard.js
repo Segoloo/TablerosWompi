@@ -92,6 +92,26 @@ function loadData() {
     .then(payload => {
       // data.py ya no envía filas vacías, pero por si acaso:
       RAW_DATA = (payload.rows || []).filter(r => Object.values(r).some(v => v !== '' && v !== null));
+      // DEBUG: imprimir columnas del primer row para verificar nombres exactos
+      if (RAW_DATA.length > 0) {
+        console.log('[Dashboard] Columnas disponibles en data.json:', Object.keys(RAW_DATA[0]));
+        // Buscar columnas que contengan "novedad" o "causal"
+        const novCols = Object.keys(RAW_DATA[0]).filter(k => {
+          const kl = k.toLowerCase();
+          return kl.includes('novedad') || kl.includes('causal') || kl.includes('responsable');
+        });
+        console.log('[Dashboard] Columnas de novedad detectadas:', novCols);
+        // Buscar columnas que contengan "devoluci"
+        const devCols = Object.keys(RAW_DATA[0]).filter(k => k.toLowerCase().includes('devoluci'));
+        console.log('[Dashboard] Columnas de devolución detectadas:', devCols);
+        // Muestra de valores de novedad en primeras 5 filas
+        const sample = RAW_DATA.slice(0,5).map(r => {
+          const obj = {};
+          novCols.forEach(c => { obj[c] = r[c]; });
+          return obj;
+        });
+        console.log('[Dashboard] Muestra novedades (primeras 5 filas):', sample);
+      }
       document.getElementById('last-update').textContent =
         `Actualizado: ${payload.generado || '—'}`;
       populateFilters();
@@ -152,6 +172,40 @@ function parseDate(s) {
 
 function diffDays(a, b) {
   return Math.floor((b - a) / 86400000);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HELPER: busca el primer valor de novedad real en una fila,
+//  buscando por coincidencia parcial en el nombre de la columna.
+//  Excluye columnas de estado/fecha/transporte que no son novedades.
+// ══════════════════════════════════════════════════════════════════
+const NOV_KEY_INCLUDES  = ['novedad','novedades','causal','responsable incump'];
+const NOV_KEY_EXCLUDES  = ['estado','fecha','solicitud','comercio','guia','transpo','datafon','serial','departam','ciudad','tipolog','cumple','referencia','tipo de sol','id com'];
+
+function findNovedad(r) {
+  // 1. Primero buscar en columnas exactas conocidas (más rápido)
+  const exactCols = [
+    'NOVEDADES','novedades','NOVEDAD','novedad',
+    'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
+    'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
+    'CAUSAL INCUMPLIMIENTO','causal incumplimiento',
+  ];
+  for (const col of exactCols) {
+    const v = getCol(r, col).trim();
+    if (v && v !== '0' && v.toLowerCase() !== 'nan' && v !== '') return { col, val: v };
+  }
+  // 2. Búsqueda fuzzy: recorrer TODAS las claves del row buscando las que
+  //    contengan palabras clave de novedad y NO sean columnas de estado/info general
+  for (const k of Object.keys(r)) {
+    const kl = k.toLowerCase();
+    const isNovCol = NOV_KEY_INCLUDES.some(n => kl.includes(n));
+    const isExcluded = NOV_KEY_EXCLUDES.some(x => kl.includes(x));
+    if (isNovCol && !isExcluded) {
+      const v = String(r[k] || '').trim();
+      if (v && v !== '0' && v.toLowerCase() !== 'nan' && v !== '') return { col: k, val: v };
+    }
+  }
+  return null;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -314,11 +368,19 @@ function computeKPIs(data) {
   const en_alistamiento = ec['EN ALISTAMIENTO'] || 0;
 
   // 3. Devueltos: buscar en TODAS las columnas de la fila cualquier variante de devolución
+  //    tanto en el VALOR como en el NOMBRE de la columna
   function isDevolucion(r) {
-    for (const v of Object.values(r)) {
-      const s = String(v || '').toUpperCase();
-      if (s.includes('DEVOLUCI') || s.includes('DEVOLUCION') || s.includes('DEVOLUCIÓN') ||
-          s.includes('DEVUELTO') || s.includes('REMITENTE')) return true;
+    for (const [k, v] of Object.entries(r)) {
+      const kUp = k.toUpperCase();
+      const vUp = String(v || '').toUpperCase();
+      // Detectar por valor
+      if (vUp.includes('DEVOLUCI') || vUp.includes('DEVOLUCION') ||
+          vUp.includes('DEVOLUCIÓN') || vUp.includes('DEVUELTO') ||
+          vUp.includes('REMITENTE')) return true;
+      // Detectar por nombre de columna (ej: "ESTADO DEVOLUCION", "MOTIVO DEVOLUCION")
+      if (kUp.includes('DEVOLUCI') || kUp.includes('DEVOLUCION') || kUp.includes('DEVOLUCIÓN')) {
+        if (vUp && vUp !== '' && vUp !== '0' && vUp !== 'NAN') return true;
+      }
     }
     return false;
   }
@@ -812,10 +874,15 @@ function renderCharts(k) {
 
 function renderDevCharts() {
   function isDevRow(r) {
-    for (const v of Object.values(r)) {
-      const s = String(v || '').toUpperCase();
-      if (s.includes('DEVOLUCI') || s.includes('DEVOLUCION') || s.includes('DEVOLUCIÓN') ||
-          s.includes('DEVUELTO') || s.includes('REMITENTE')) return true;
+    for (const [k, v] of Object.entries(r)) {
+      const kUp = k.toUpperCase();
+      const vUp = String(v || '').toUpperCase();
+      if (vUp.includes('DEVOLUCI') || vUp.includes('DEVOLUCION') ||
+          vUp.includes('DEVOLUCIÓN') || vUp.includes('DEVUELTO') ||
+          vUp.includes('REMITENTE')) return true;
+      if (kUp.includes('DEVOLUCI') || kUp.includes('DEVOLUCION') || kUp.includes('DEVOLUCIÓN')) {
+        if (vUp && vUp !== '' && vUp !== '0' && vUp !== 'NAN') return true;
+      }
     }
     return false;
   }
@@ -897,19 +964,7 @@ function renderANSAlerts(k) {
   if (!grid) return;
   const now = new Date();
 
-  // Guías sin cambios = vencidas ANS con novedad
-  function getNovedadRow(r) {
-    const novCols = [
-      'NOVEDADES','novedades','NOVEDAD','novedad',
-      'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
-      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
-    ];
-    for (const col of novCols) {
-      const v = getCol(r, col).trim();
-      if (v && v !== '0' && v.toLowerCase() !== 'nan') return true;
-    }
-    return false;
-  }
+  // Guías sin cambios = vencidas ANS con novedad (usa findNovedad robusto)
   const today2 = new Date(); today2.setHours(0,0,0,0);
   const guiasEstRows = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
@@ -917,24 +972,14 @@ function renderANSAlerts(k) {
     const fLim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
     if (!fLim) return false;
     const limDay = new Date(fLim); limDay.setHours(0,0,0,0);
-    return limDay <= today2 && getNovedadRow(r);
+    return limDay <= today2 && findNovedad(r) !== null;
   });
 
-  // Intentos fallidos = EN TRÁNSITO con alguna novedad
+  // Intentos fallidos = EN TRÁNSITO con alguna novedad (usa findNovedad robusto)
   const fallidosRows = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
     if (est !== 'EN TRANSITO' && est !== 'EN TRÁNSITO') return false;
-    const novCols = [
-      'NOVEDADES','novedades','NOVEDAD','novedad',
-      'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
-      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
-      'ESTADO GUIA','estado guia','ESTADO VISITA TECNICA','estado visita tecnica',
-    ];
-    for (const col of novCols) {
-      const v = getCol(r, col).trim();
-      if (v && v !== '0' && v.toLowerCase() !== 'nan') return true;
-    }
-    return false;
+    return findNovedad(r) !== null;
   });
 
   const pctOL = k.total ? Math.round(k.totalOL/k.total*100) : 0;
@@ -1026,21 +1071,8 @@ function renderStalledGuias() {
   const now = new Date(); now.setHours(0,0,0,0);
 
   // Guías SIN CAMBIOS = vencidas ANS (fecha límite pasada, no entregadas/canceladas)
-  // que tienen algún valor en columna NOVEDADES / NOVEDAD.
+  // que tienen algún valor en columna NOVEDADES / NOVEDAD / CAUSAL (cualquier variante).
   // Los días sin cambios = días transcurridos desde la FECHA LIMITE DE ENTREGA.
-  function getNovedad(r) {
-    const novCols = [
-      'NOVEDADES','novedades','NOVEDAD','novedad',
-      'CAUSAL INCU','causal incu','CAUSAL INC','causal inc',
-      'RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento',
-    ];
-    for (const col of novCols) {
-      const v = getCol(r, col).trim();
-      if (v && v !== '0' && v.toLowerCase() !== 'nan') return v;
-    }
-    return null;
-  }
-
   const stalled = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
     if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
@@ -1049,8 +1081,8 @@ function renderStalledGuias() {
     const limDay = new Date(fLim); limDay.setHours(0,0,0,0);
     // Vencida ANS: fecha límite ya pasó
     if (limDay > now) return false;
-    // Tiene novedad registrada
-    return getNovedad(r) !== null;
+    // Tiene novedad registrada (búsqueda robusta)
+    return findNovedad(r) !== null;
   });
 
   if (!stalled.length) {
@@ -1077,7 +1109,7 @@ function renderStalledGuias() {
       const label = dias === null ? '—'
         : dias === 1 ? '1 día sin cambios'
         : `${dias} días sin cambios`;
-      const novedad = getNovedad(r) || '—';
+      const novedad = (findNovedad(r) || {val:'—'}).val;
       return `<tr>
         <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
@@ -1099,28 +1131,14 @@ function renderFallidos() {
   const wrap = document.getElementById('fallidos-wrap');
   if (!wrap) return;
 
-  // Intento fallido = EN TRÁNSITO con alguna novedad registrada en columna NOVEDADES/NOVEDAD/etc.
-  function getFallidoNovedad(r) {
+  // Intento fallido = EN TRÁNSITO con alguna novedad real registrada.
+  // Usamos findNovedad() que busca robustamente por nombre/valor de columna,
+  // EXCLUYENDO columnas de estado/fecha que generan falsos positivos.
+  const fallidos = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    // Solo aplica a registros EN TRÁNSITO
     if (est !== 'EN TRANSITO' && est !== 'EN TRÁNSITO') return null;
-    const novCols = [
-      ['NOVEDADES','novedades'],
-      ['NOVEDAD','novedad'],
-      ['CAUSAL INCU','causal incu'],
-      ['CAUSAL INC','causal inc'],
-      ['RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento'],
-      ['ESTADO GUIA','estado guia'],
-      ['ESTADO VISITA TECNICA','estado visita tecnica'],
-    ];
-    for (const cols of novCols) {
-      const v = getCol(r, ...cols).trim();
-      if (v && v !== '0' && v.toLowerCase() !== 'nan') return { col: cols[0], val: v };
-    }
-    return null;
-  }
-
-  const fallidos = FILTERED.filter(r => getFallidoNovedad(r) !== null);
+    return findNovedad(r) !== null;
+  });
 
   if (!fallidos.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">✅</div><p>Sin intentos fallidos</p></div>';
@@ -1134,7 +1152,7 @@ function renderFallidos() {
       <th>Transportadora</th><th>Estado</th><th>Tipo</th>
     </tr></thead>
     <tbody>${fallidos.map(r=>{
-      const info = getFallidoNovedad(r) || { col: '—', val: '—' };
+      const info = findNovedad(r) || { col: '—', val: '—' };
       return `<tr>
         <td>${getCol(r,'Nombre del comercio','nombre del comercio','NOMBRE DEL COMERCIO')||'—'}</td>
         <td style="font-family:'JetBrains Mono',monospace;font-size:11px">${getCol(r,'NÚMERO DE GUIA','NUMERO DE GUIA','numero de guia')||'—'}</td>
