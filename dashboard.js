@@ -209,6 +209,32 @@ function findNovedad(r) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  HELPER: obtener FECHA LIMITE DE ENTREGA robustamente
+//  Busca primero por nombres exactos, luego fuzzy por nombre de columna.
+// ══════════════════════════════════════════════════════════════════
+function getFechaLimite(r) {
+  const exactos = [
+    'FECHA LIMITE DE ENTREGA','fecha limite de entrega',
+    'FECHA LÍMITE DE ENTREGA','fecha límite de entrega',
+    'FECHA LIMITE','fecha limite',
+  ];
+  for (const col of exactos) {
+    const v = getCol(r, col);
+    if (v) { const d = parseDate(v); if (d) return d; }
+  }
+  // Fuzzy: columna que contenga "limite" o "límite" pero NO "solicitud" ni "comercio"
+  for (const k of Object.keys(r)) {
+    const kl = k.toLowerCase();
+    if ((kl.includes('limite') || kl.includes('límite')) &&
+        !kl.includes('solicitud') && !kl.includes('comercio')) {
+      const d = parseDate(String(r[k] || ''));
+      if (d) return d;
+    }
+  }
+  return null;
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  FILTRO GLOBAL: solo datos desde marzo 2026  (=== vp.py)
 // ══════════════════════════════════════════════════════════════════
 function applyDateFilter() {
@@ -1072,16 +1098,14 @@ function renderStalledGuias() {
 
   // Guías SIN CAMBIOS = vencidas ANS (fecha límite pasada, no entregadas/canceladas)
   // que tienen algún valor en columna NOVEDADES / NOVEDAD / CAUSAL (cualquier variante).
-  // Los días sin cambios = días transcurridos desde la FECHA LIMITE DE ENTREGA.
+  // Días sin cambios = días desde FECHA LIMITE DE ENTREGA (no desde solicitud).
   const stalled = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
     if (est === 'ENTREGADO' || est === 'CANCELADO') return false;
-    const fLim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
+    const fLim = getFechaLimite(r);
     if (!fLim) return false;
     const limDay = new Date(fLim); limDay.setHours(0,0,0,0);
-    // Vencida ANS: fecha límite ya pasó
-    if (limDay > now) return false;
-    // Tiene novedad registrada (búsqueda robusta)
+    if (limDay > now) return false;            // aún no vencida
     return findNovedad(r) !== null;
   });
 
@@ -1097,11 +1121,11 @@ function renderStalledGuias() {
       <th>Transportadora</th><th>Estado</th><th>Tipo</th>
     </tr></thead>
     <tbody>${stalled.sort((a,b)=>{
-      const da = parseDate(getCol(a,'FECHA LIMITE DE ENTREGA','fecha limite de entrega')) || new Date(0);
-      const db = parseDate(getCol(b,'FECHA LIMITE DE ENTREGA','fecha limite de entrega')) || new Date(0);
+      const da = getFechaLimite(a) || new Date(0);
+      const db = getFechaLimite(b) || new Date(0);
       return da - db;
     }).map(r=>{
-      const fLim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
+      const fLim  = getFechaLimite(r);
       const limDay = fLim ? new Date(fLim) : null;
       if (limDay) limDay.setHours(0,0,0,0);
       const dias = limDay ? diffDays(limDay, now) : null;
@@ -1136,7 +1160,7 @@ function renderFallidos() {
   // EXCLUYENDO columnas de estado/fecha que generan falsos positivos.
   const fallidos = FILTERED.filter(r => {
     const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (est !== 'EN TRANSITO' && est !== 'EN TRÁNSITO') return null;
+    if (est !== 'EN TRANSITO' && est !== 'EN TRÁNSITO') return false;
     return findNovedad(r) !== null;
   });
 
