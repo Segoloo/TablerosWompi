@@ -2432,7 +2432,7 @@ function renderRollosRefTable() {
     <th>Referencia (Material)</th><th>Cantidad</th><th>Estado</th><th>Departamento</th><th>Ciudad</th>
   </tr></thead><tbody>
     ${slice.map(r=>`<tr>
-      <td>${r.nombre_de_material||r.nombre_material||'—'}</td>
+      <td>${r.material||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--azul-cielo)">${r.cantidad??'—'}</td>
       <td>${statusPill(r.estado)}</td>
       <td>${r.departamento||'—'}</td>
@@ -2457,7 +2457,7 @@ function applyRefFilters() {
   const ciudad = (document.getElementById('rf-ref-ciudad')?.value||'').toUpperCase();
 
   ROLLOS_REF_FILTERED = (ROLLOS_RAW.referencias || []).filter(r => {
-    const ref = (r.nombre_de_material||r.nombre_material||'').toUpperCase();
+    const ref = (r.material||'').toUpperCase();
     if (nombre && !ref.includes(nombre)) return false;
     if (estado && (r.estado||'').toUpperCase() !== estado) return false;
     if (depto  && (r.departamento||'').toUpperCase() !== depto) return false;
@@ -2497,7 +2497,7 @@ function exportComercioExcel() {
 
 function exportReferenciasExcel() {
   const data = (ROLLOS_REF_FILTERED.length ? ROLLOS_REF_FILTERED : ROLLOS_RAW?.referencias || []).map(r => ({
-    'Referencia (Material)': r.nombre_de_material || r.nombre_material,
+    'Referencia (Material)': r.material,
     Cantidad: r.cantidad, Estado: r.estado,
     Departamento: r.departamento, Ciudad: r.ciudad,
   }));
