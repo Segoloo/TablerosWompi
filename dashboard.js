@@ -1541,6 +1541,7 @@ function applyRollosGlobalFilters() {
   rollosComercioPage = 1;
 
   renderRollosKPIs();
+  renderRollosKPIsTareas();
   renderRollosANSRow();
   renderRollosCharts();
   renderRollosDetalleTable();
@@ -1589,9 +1590,46 @@ function computeRollosKPIs() {
   const sla_total    = sla_cumple + sla_nc;
   const pct_sla      = pct(sla_cumple, sla_total);
 
+  // ANS por tareas únicas calculado desde fechas: fecha_entrega <= fecha_plan_fin → cumple
+  const tareasANS = new Map(); // codigo_tarea -> { plan_fin, entrega }
+  det.forEach(r => {
+    const tarea = r.codigo_tarea; if (!tarea) return;
+    if (!tareasANS.has(tarea)) tareasANS.set(tarea, { plan_fin: r.fecha_plan_fin||'', entrega: r.fecha_entrega||r.fecha_entrega_raw||'' });
+  });
+  let ans_tareas_cumple = 0, ans_tareas_nc = 0, ans_tareas_sin_info = 0;
+  tareasANS.forEach(({ plan_fin, entrega }) => {
+    if (!plan_fin || !entrega) { ans_tareas_sin_info++; return; }
+    const dPlan = new Date(plan_fin.substring(0,10));
+    const dEnt  = new Date(entrega.substring(0,10));
+    if (isNaN(dPlan) || isNaN(dEnt)) { ans_tareas_sin_info++; return; }
+    if (dEnt <= dPlan) ans_tareas_cumple++; else ans_tareas_nc++;
+  });
+  const ans_tareas_total = ans_tareas_cumple + ans_tareas_nc;
+  const pct_ans_tareas   = pct(ans_tareas_cumple, ans_tareas_total);
+
+  // Tareas únicas por estado
+  const tareasEstadoMap = new Map();
+  det.forEach(r => {
+    const tarea = r.codigo_tarea; if (!tarea) return;
+    if (!tareasEstadoMap.has(tarea)) tareasEstadoMap.set(tarea, (r.estado||'').toUpperCase());
+  });
+  let t_alistamiento = 0, t_transito = 0, t_entregados = 0, t_devueltos = 0;
+  tareasEstadoMap.forEach(est => {
+    if (est.includes('ALISTAMIENTO'))               t_alistamiento++;
+    else if (est.includes('TRANSITO') || est.includes('TRÁNSITO')) t_transito++;
+    else if (est === 'ENTREGADO')                   t_entregados++;
+    else if (est.includes('DEVOLUC'))               t_devueltos++;
+  });
+  const t_total = tareasEstadoMap.size;
+  const pct_t_entrega    = pct(t_entregados, t_total);
+  const pct_t_alistam    = pct(t_alistamiento, t_total);
+  const pct_t_transito   = pct(t_transito, t_total);
+  const pct_t_devolucion = pct(t_devueltos, t_total);
+
   // Calidad: exitoso vs cancelado
   const cal_exitoso   = det.filter(r => (r.estado_resultado||'').toUpperCase().includes('EXITOSO')).length;
   const cal_cancelado = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase(); return e.includes('CANCELADO'); }).length;
+  const cal_pendiente = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase().trim(); return !e || (!e.includes('EXITOSO') && !e.includes('CANCELADO')); }).length;
   const cal_total     = cal_exitoso + cal_cancelado;
   const pct_calidad   = pct(cal_exitoso, cal_total);
 
@@ -1606,7 +1644,10 @@ function computeRollosKPIs() {
     pct_transito: pct(rollos_transito, total_rollos),
     pct_devolucion: pct(rollos_devueltos, total_rollos),
     sla_cumple, sla_nc, sla_total, pct_sla,
-    cal_exitoso, cal_cancelado, cal_total, pct_calidad,
+    ans_tareas_cumple, ans_tareas_nc, ans_tareas_sin_info, ans_tareas_total, pct_ans_tareas,
+    t_alistamiento, t_transito, t_entregados, t_devueltos, t_total,
+    pct_t_entrega, pct_t_alistam, pct_t_transito, pct_t_devolucion,
+    cal_exitoso, cal_cancelado, cal_pendiente, cal_total, pct_calidad,
   };
 }
 
@@ -1645,6 +1686,48 @@ function renderRollosKPIs() {
       <div class="rkpi-pct-row">
         <div class="rkpi-pct-bar"><div class="rkpi-pct-fill ${c.pctColor||c.color}" style="width:${Math.min(c.pct,100)}%"></div></div>
         <span class="rkpi-pct-label" style="color:var(--${c.pctColor === 'green' ? 'verde-menta' : c.pctColor === 'lime' ? 'verde-lima' : c.pctColor === 'blue' ? 'azul-cielo' : c.pctColor === 'danger' ? 'danger' : 'warning'})">${c.pct}%</span>
+      </div>` : ''}
+    </div>`).join('');
+}
+
+// ── KPIs por Tareas ───────────────────────────────────────────────
+function renderRollosKPIsTareas() {
+  const k    = computeRollosKPIs();
+  const grid = document.getElementById('rollos-kpi-tareas-grid');
+  if (!grid) return;
+
+  const colorVal = c => c === 'green' ? 'verde-menta' : c === 'selva' ? 'verde-selva' : c === 'lime' ? 'verde-lima' : c === 'blue' ? 'azul-cielo' : c === 'danger' ? 'danger' : c === 'warn' ? 'warning' : 'blanco';
+  const colorBar = c => c === 'green' ? 'verde-menta' : c === 'lime' ? 'verde-lima' : c === 'blue' ? 'azul-cielo' : c === 'danger' ? 'danger' : 'warning';
+
+  const cards = [
+    { label:'Total Tareas',          value: k.t_total.toLocaleString('es-CO'), icon:'📋', color:'green',
+      sub: `universo de tareas únicas` },
+    { label:'Tareas Entregadas',     value: k.t_entregados.toLocaleString('es-CO'), icon:'✅', color:'selva',
+      sub: `${k.pct_t_entrega}% del total`, pct: k.pct_t_entrega, pctColor:'green' },
+    { label:'En Alistamiento',       value: k.t_alistamiento.toLocaleString('es-CO'), icon:'🔧', color:'lime',
+      sub: `${k.pct_t_alistam}% del total`, pct: k.pct_t_alistam, pctColor:'lime' },
+    { label:'En Tránsito',           value: k.t_transito.toLocaleString('es-CO'), icon:'🚚', color:'blue',
+      sub: `${k.pct_t_transito}% del total`, pct: k.pct_t_transito, pctColor:'blue' },
+    { label:'Devoluciones',          value: k.t_devueltos.toLocaleString('es-CO'), icon:'↩️', color:'danger',
+      sub: `${k.pct_t_devolucion}% del total`, pct: k.pct_t_devolucion, pctColor:'danger' },
+    { label:'% Entrega Tareas',      value: k.pct_t_entrega + '%', icon:'📊', color:'green',
+      sub: `${k.t_entregados} / ${k.t_total} tareas`, pct: k.pct_t_entrega, pctColor:'green' },
+    { label:'ANS por Fechas',        value: k.pct_ans_tareas + '%', icon:'🗓️', color: k.pct_ans_tareas >= 80 ? 'selva' : k.pct_ans_tareas >= 60 ? 'warn' : 'danger',
+      sub: `${k.ans_tareas_cumple} cumple / ${k.ans_tareas_total} evaluadas`, pct: k.pct_ans_tareas, pctColor: k.pct_ans_tareas >= 80 ? 'green' : 'warn' },
+    { label:'% Calidad Tareas',      value: k.pct_calidad + '%', icon:'💎', color:'blue',
+      sub: `${k.cal_exitoso} exitosos / ${k.cal_total} evaluados`, pct: k.pct_calidad, pctColor:'blue' },
+  ];
+
+  grid.innerHTML = cards.map((c, i) => `
+    <div class="rkpi-card ${c.color} fade-up" style="animation-delay:${i*.05}s">
+      <span class="rkpi-icon">${c.icon}</span>
+      <div class="rkpi-label">${c.label}</div>
+      <div class="rkpi-value" style="color:var(--${colorVal(c.color)})">${c.value}</div>
+      <div class="rkpi-sub">${c.sub}</div>
+      ${c.pct !== undefined ? `
+      <div class="rkpi-pct-row">
+        <div class="rkpi-pct-bar"><div class="rkpi-pct-fill ${c.pctColor||c.color}" style="width:${Math.min(c.pct,100)}%"></div></div>
+        <span class="rkpi-pct-label" style="color:var(--${colorBar(c.pctColor||c.color)})">${c.pct}%</span>
       </div>` : ''}
     </div>`).join('');
 }
@@ -1729,6 +1812,10 @@ function renderRollosCharts() {
   _destroyChart('rollos-oportunidad');
   _destroyChart('rollos-material');
   _destroyChart('rollos-funnel');
+  _destroyChart('rollos-t-estados');
+  _destroyChart('rollos-t-depto');
+  _destroyChart('rollos-t-mensual');
+  _destroyChart('rollos-t-ans');
 
   // 1. DONA — Estados
   {
@@ -1817,7 +1904,7 @@ function renderRollosCharts() {
         data: {
           labels: ['Exitoso', 'Cancelado', 'Pendiente'],
           datasets: [{
-            data: [k.cal_exitoso, k.cal_cancelado, k.total_tareas - k.cal_exitoso - k.cal_cancelado],
+            data: [k.cal_exitoso, k.cal_cancelado, k.cal_pendiente],
             backgroundColor: ['rgba(176,242,174,.7)', 'rgba(255,92,92,.7)', 'rgba(153,209,252,.5)'],
             borderColor:     ['#B0F2AE', '#FF5C5C', '#99D1FC'],
             borderWidth: 1, borderRadius: 8,
@@ -1991,6 +2078,120 @@ function renderRollosCharts() {
       });
     }
   }
+
+  // ── GRÁFICAS POR TAREAS ─────────────────────────────────────────
+
+  // T1. DONA — Estados por tareas únicas
+  {
+    const tareasEstMap = {};
+    const seen = new Set();
+    det.forEach(r => {
+      const tarea = r.codigo_tarea; if (!tarea || seen.has(tarea)) return;
+      seen.add(tarea);
+      const e = r.estado || 'SIN ESTADO';
+      tareasEstMap[e] = (tareasEstMap[e] || 0) + 1;
+    });
+    const labels = Object.keys(tareasEstMap);
+    const data   = labels.map(k => tareasEstMap[k]);
+    const colors = labels.map(l => {
+      const u = l.toUpperCase();
+      if (u === 'ENTREGADO')          return '#B0F2AE';
+      if (u.includes('TRANSITO'))     return '#99D1FC';
+      if (u.includes('ALISTAMIENTO')) return '#DFFF61';
+      if (u.includes('DEVOLUC'))      return '#FF5C5C';
+      return '#7B8CDE';
+    });
+    _buildDona('chart-rollos-t-estados', labels, data, colors, 'Tareas por estado');
+  }
+
+  // T2. BARRAS — Departamento por tareas
+  {
+    const depMap = {};
+    const seen = new Set();
+    det.forEach(r => {
+      const tarea = r.codigo_tarea;
+      const d = r.departamento; if (!d) return;
+      const key = `${tarea}||${d}`;
+      if (seen.has(key)) return; seen.add(key);
+      depMap[d] = (depMap[d] || 0) + 1;
+    });
+    const sorted = Object.entries(depMap).sort((a,b)=>b[1]-a[1]).slice(0,15);
+    const canvas = document.getElementById('chart-rollos-t-depto');
+    if (canvas && sorted.length) {
+      chartInstances['rollos-t-depto'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(x=>x[0]),
+          datasets: [{
+            label: 'Tareas',
+            data: sorted.map(x=>x[1]),
+            backgroundColor: sorted.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
+            borderColor: sorted.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
+            borderWidth: 1, borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+          plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+            y: { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
+          },
+        }
+      });
+    }
+  }
+
+  // T3. LÍNEA — Tendencia mensual por tareas únicas
+  {
+    const mesMap = {};
+    const seen = new Set();
+    det.forEach(r => {
+      const tarea = r.codigo_tarea;
+      const fp = String(r.fecha_plan_fin || '');
+      if (fp.length < 7) return;
+      const key = `${tarea}||${fp.substring(0,7)}`;
+      if (seen.has(key)) return; seen.add(key);
+      const k = fp.substring(0,7);
+      if (!mesMap[k]) mesMap[k] = 0;
+      mesMap[k]++;
+    });
+    const periodos = Object.keys(mesMap).sort();
+    const canvas = document.getElementById('chart-rollos-t-mensual');
+    if (canvas && periodos.length) {
+      chartInstances['rollos-t-mensual'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: periodos,
+          datasets: [{
+            label: 'Tareas',
+            data: periodos.map(p => mesMap[p]),
+            backgroundColor: 'rgba(153,209,252,.5)', borderColor: '#99D1FC',
+            borderWidth: 2, borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#7A7674', maxRotation:45 }, grid:{ display:false } },
+            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+          }
+        }
+      });
+    }
+  }
+
+  // T4. DONA — ANS por fechas (tareas)
+  {
+    const k = computeRollosKPIs();
+    _buildDona('chart-rollos-t-ans',
+      ['Cumple ANS', 'No Cumple', 'Sin Info'],
+      [k.ans_tareas_cumple, k.ans_tareas_nc, k.ans_tareas_sin_info],
+      ['#B0F2AE', '#FF5C5C', '#7A7674'],
+      'ANS por fechas'
+    );
+  }
 }
 
 function _buildDona(id, labels, data, colors, title) {
@@ -2023,6 +2224,7 @@ function renderRollosTab() {
     return;
   }
   renderRollosKPIs();
+  renderRollosKPIsTareas();
   renderRollosANSRow();
   renderRollosCharts();
   renderRollosDetalleTable();

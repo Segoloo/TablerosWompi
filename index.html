@@ -1454,6 +1454,12 @@ tbody tr:hover {
         <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
       </div>
 
+      <!-- ════ KPIs POR TAREAS ════ -->
+      <div class="section-label fade-up" style="margin-top:4px">KPIs por Tareas — ANS calculado por Fecha Entrega / Fecha Plan</div>
+      <div id="rollos-kpi-tareas-grid" class="fade-up" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px">
+        <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
+      </div>
+
       <!-- ════ FILA ANS / CUMPLIMIENTO ════ -->
       <div class="section-label">Cumplimiento Tiempos de Entrega (ANS)</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="rollos-ans-row">
@@ -1564,6 +1570,49 @@ tbody tr:hover {
             <div class="chart-sub">Solicitados → Entregados</div>
           </div>
           <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-funnel"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ════ GRÁFICAS POR TAREAS ════ -->
+      <div class="section-label" style="margin-top:8px">Distribución por Tareas</div>
+      <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
+
+        <!-- Dona Estados por Tareas -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Estado de Tareas</div>
+            <div class="chart-sub">Distribución por tareas únicas</div>
+          </div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-t-estados"></canvas></div>
+        </div>
+
+        <!-- ANS por Fechas -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">ANS por Fechas (Tareas)</div>
+            <div class="chart-sub">Fecha Entrega vs Fecha Plan Entrega</div>
+          </div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-t-ans"></canvas></div>
+        </div>
+
+        <!-- Tendencia mensual tareas -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Tendencia Mensual (Tareas)</div>
+            <div class="chart-sub">Tareas únicas por mes plan</div>
+          </div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-t-mensual"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="grid-template-columns:1fr;margin-bottom:28px">
+        <!-- Barras por Departamento (Tareas) -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Tareas por Departamento</div>
+            <div class="chart-sub">Top 15 departamentos — conteo de tareas</div>
+          </div>
+          <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-t-depto"></canvas></div>
         </div>
       </div>
 
