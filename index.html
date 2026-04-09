@@ -1107,6 +1107,7 @@ tbody tr:hover {
     <div class="tab active" onclick="showTab('tracking')" id="tab-tracking">📊 Tracking General</div>
     <div class="tab" onclick="showTab('detalle')" id="tab-detalle">🎯 Tracking Detalle</div>
     <div class="tab" onclick="showTab('tabla')" id="tab-tabla">📋 Tabla Completa</div>
+    <div class="tab" onclick="showTab('rollos')" id="tab-rollos">🎞️ Rollos Wompi</div>
   </div>
 
   <!-- MAIN -->
@@ -1331,6 +1332,150 @@ tbody tr:hover {
         </div>
       </div>
     </div>
+
+    <!-- ══ TAB: ROLLOS WOMPI ══ -->
+    <div id="panel-rollos" style="display:none">
+
+      <!-- KPIs Rollos -->
+      <div class="section-label fade-up fade-up-1">KPIs Rollos Wompi</div>
+      <div class="kpi-grid fade-up fade-up-2" id="rollos-kpi-grid">
+        <div class="loading"><div class="spinner"></div><span>Cargando datos rollos...</span></div>
+      </div>
+
+      <!-- ══ SECCIÓN 1: DETALLES ══ -->
+      <div class="section-label" style="margin-top:32px">Detalles de Tareas</div>
+
+      <!-- Filtros Detalles -->
+      <div class="filters-bar" style="margin-bottom:16px">
+        <div class="filters-title">Filtros — Detalles</div>
+        <div class="filters-row">
+          <div class="filter-group">
+            <label>Código Tarea</label>
+            <input type="text" id="rf-codigo-tarea" placeholder="Código de tarea...">
+          </div>
+          <div class="filter-group">
+            <label>Guía</label>
+            <input type="text" id="rf-guia" placeholder="Número de guía...">
+          </div>
+          <div class="filter-group">
+            <label>Estado Lógico Final</label>
+            <select id="rf-estado"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group filter-group--date-range">
+            <label>📅 Fecha Plan Fin</label>
+            <div class="date-range-inputs">
+              <input type="date" id="rf-fecha-desde" title="Desde">
+              <span class="date-range-sep">→</span>
+              <input type="date" id="rf-fecha-hasta" title="Hasta">
+            </div>
+          </div>
+          <div class="filter-group">
+            <label>Año</label>
+            <select id="rf-anio"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Mes</label>
+            <select id="rf-mes"><option value="">Todos</option></select>
+          </div>
+          <div class="filters-actions">
+            <button class="btn-apply" onclick="applyRollosFilters()">✦ Aplicar</button>
+            <button class="btn-reset" onclick="resetRollosFilters()">↺ Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla Detalles -->
+      <div class="table-section" style="margin-bottom:32px">
+        <div class="table-header">
+          <h3>Detalles de Tareas Rollos</h3>
+          <div class="table-actions">
+            <button class="btn-export" onclick="exportRollosDetalleExcel()">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="rollos-detalle-wrap" style="max-height:480px">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div class="table-footer">
+          <span class="table-count" id="rollos-detalle-count">0 registros</span>
+          <div class="table-pagination" id="rollos-detalle-pagination"></div>
+        </div>
+      </div>
+
+      <!-- ══ SECCIÓN 2: COMERCIOS ══ -->
+      <div class="section-label">Detalle por Comercio</div>
+
+      <!-- Filtros Comercios -->
+      <div class="filters-bar" style="margin-bottom:16px">
+        <div class="filters-title">Filtros — Comercios</div>
+        <div class="filters-row">
+          <div class="filter-group">
+            <label>Cod. Comercio</label>
+            <input type="text" id="rf-cod-comercio" placeholder="Código...">
+          </div>
+          <div class="filter-group">
+            <label>Estado</label>
+            <select id="rf-com-estado"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Tipo Envío</label>
+            <select id="rf-com-tipo"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Mes (plan fin)</label>
+            <select id="rf-com-mes"><option value="">Todos</option></select>
+          </div>
+          <div class="filters-actions">
+            <button class="btn-apply" onclick="applyComercioFilters()">✦ Aplicar</button>
+            <button class="btn-reset" onclick="resetComercioFilters()">↺ Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gráfica + Tabla Comercios -->
+      <div class="charts-grid" style="margin-bottom:24px">
+        <div class="chart-card wide">
+          <div class="chart-header">
+            <div class="chart-title">Cantidad por Departamento</div>
+            <div class="chart-sub">Rollos distribuidos por región</div>
+          </div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-depto"></canvas></div>
+        </div>
+      </div>
+
+      <div class="table-section" style="margin-bottom:32px">
+        <div class="table-header">
+          <h3>Comercios — Rollos</h3>
+          <div class="table-actions">
+            <button class="btn-export" onclick="exportComercioExcel()">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="rollos-comercio-wrap" style="max-height:400px">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div class="table-footer">
+          <span class="table-count" id="rollos-comercio-count">0 registros</span>
+          <div class="table-pagination" id="rollos-comercio-pagination"></div>
+        </div>
+      </div>
+
+      <!-- ══ SECCIÓN 3: REFERENCIAS ══ -->
+      <div class="section-label">Referencias con Cantidad</div>
+      <div class="table-section">
+        <div class="table-header">
+          <h3>Tabla Referencia</h3>
+          <div class="table-actions">
+            <button class="btn-export" onclick="exportReferenciasExcel()">⬇ Excel</button>
+          </div>
+        </div>
+        <div class="table-wrap" id="rollos-ref-wrap" style="max-height:380px">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div class="table-footer">
+          <span class="table-count" id="rollos-ref-count">0 registros</span>
+        </div>
+      </div>
+
+    </div><!-- /panel-rollos -->
 
   </div><!-- /main -->
 

@@ -1352,7 +1352,7 @@ function exportPDF() { window.print(); }
 //  TABS
 // ══════════════════════════════════════════════════════════════════
 function showTab(tab) {
-  ['tracking','detalle','tabla'].forEach(t => {
+  ['tracking','detalle','tabla','rollos'].forEach(t => {
     const panel = document.getElementById('panel-'+t);
     const btn   = document.getElementById('tab-'+t);
     if (panel) panel.style.display = t===tab ? 'block' : 'none';
@@ -1360,12 +1360,13 @@ function showTab(tab) {
   });
   if (tab==='detalle') { renderDevCharts(); renderBacklog(); renderStalledGuias(); renderFallidos(); }
   if (tab==='tabla')   renderMainTable();
+  if (tab==='rollos')  renderRollosTab();
 }
 
 // ══════════════════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════════════════
-function initDashboard() { loadData(); }
+function initDashboard() { loadData(); loadRollosData(); }
 
 // ══════════════════════════════════════════════════════════════════
 //  DEMO DATA
@@ -1409,4 +1410,431 @@ function getDemoData() {
     });
   }
   return rows;
+}
+// ══════════════════════════════════════════════════════════════════
+//  ROLLOS WOMPI — módulo independiente
+//  Carga data_rollos.json.gz (gzip → JSON), sin tocar nada de lo anterior
+// ══════════════════════════════════════════════════════════════════
+
+let ROLLOS_RAW      = null;   // payload completo del .json.gz
+let ROLLOS_DETALLE  = [];     // array de detalle filtrado
+let ROLLOS_COMERCIO = [];     // array de comercio filtrado
+let rollosDetallePage  = 1;
+let rollosComercioPage = 1;
+const ROLLOS_PAGE_SIZE = 50;
+
+// ── Carga y descompresión ─────────────────────────────────────────
+async function loadRollosData() {
+  try {
+    const res = await fetch(`data_rollos.json.gz?t=${Date.now()}`);
+    if (!res.ok) throw new Error('no file');
+    const buf  = await res.arrayBuffer();
+    // Descomprimir gzip usando DecompressionStream (disponible en browsers modernos)
+    const ds   = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(new Uint8Array(buf));
+    writer.close();
+    const out  = await new Response(ds.readable).arrayBuffer();
+    const text = new TextDecoder().decode(out);
+    ROLLOS_RAW = JSON.parse(text);
+    console.log('[Rollos] Cargado OK — detalle:', ROLLOS_RAW.detalle?.length, 'filas');
+    initRollosFilters();
+    // si el tab rollos ya está activo, renderizarlo
+    if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
+  } catch(e) {
+    console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
+  }
+}
+
+// ── Inicializar select-filters con valores únicos ─────────────────
+function initRollosFilters() {
+  if (!ROLLOS_RAW) return;
+  const detalle  = ROLLOS_RAW.detalle  || [];
+  const comercio = ROLLOS_RAW.comercio || [];
+
+  // Estado
+  const estados = [...new Set(detalle.map(r => r.estado).filter(Boolean))].sort();
+  const fEst = document.getElementById('rf-estado');
+  if (fEst) fEst.innerHTML = '<option value="">Todos</option>' + estados.map(e=>`<option value="${e}">${e}</option>`).join('');
+
+  // Año
+  const anios = [...new Set(detalle.map(r => r.anio).filter(Boolean))].sort().reverse();
+  const fAnio = document.getElementById('rf-anio');
+  if (fAnio) fAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
+
+  // Mes
+  const meses = [...new Set(detalle.map(r => r.mes).filter(Boolean))].sort();
+  const fMes = document.getElementById('rf-mes');
+  if (fMes) fMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
+
+  // Comercio estado
+  const comEst = [...new Set(comercio.map(r => r.estado).filter(Boolean))].sort();
+  const fComEst = document.getElementById('rf-com-estado');
+  if (fComEst) fComEst.innerHTML = '<option value="">Todos</option>' + comEst.map(e=>`<option value="${e}">${e}</option>`).join('');
+
+  // Comercio tipo
+  const comTipo = [...new Set(comercio.map(r => r.tipo_envio).filter(Boolean))].sort();
+  const fComTipo = document.getElementById('rf-com-tipo');
+  if (fComTipo) fComTipo.innerHTML = '<option value="">Todos</option>' + comTipo.map(t=>`<option value="${t}">${t}</option>`).join('');
+
+  // Comercio mes (basado en detalle)
+  const fComMes = document.getElementById('rf-com-mes');
+  if (fComMes) fComMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
+
+  // Aplicar datos sin filtros
+  ROLLOS_DETALLE  = detalle.slice();
+  ROLLOS_COMERCIO = comercio.slice();
+}
+
+// ── Render principal ──────────────────────────────────────────────
+function renderRollosTab() {
+  if (!ROLLOS_RAW) {
+    document.getElementById('rollos-kpi-grid').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>data_rollos.json.gz no disponible</p></div>';
+    return;
+  }
+  renderRollosKPIs();
+  renderRollosDetalleTable();
+  renderRollosComercioTable();
+  renderRollosRefTable();
+  renderRollosDeptChart();
+}
+
+// ── KPIs ──────────────────────────────────────────────────────────
+function renderRollosKPIs() {
+  const k = ROLLOS_RAW.kpis || {};
+  const grid = document.getElementById('rollos-kpi-grid');
+  if (!grid) return;
+
+  const cards = [
+    { label:'Rollos Alistamiento',   value: k.rollos_alistamiento ?? '—', icon:'🔧', color:'lime',
+      sub: `${k.tareas_alistamiento ?? 0} tareas` },
+    { label:'Rollos en Tránsito',    value: k.rollos_transito ?? '—',     icon:'🚚', color:'blue',
+      sub: `${k.tareas_transito ?? 0} tareas` },
+    { label:'Rollos Entregados',     value: k.rollos_entregados ?? '—',   icon:'✅', color:'selva',
+      sub: `${k.tareas_entregados ?? 0} tareas` },
+    { label:'Rollos Devueltos',      value: k.rollos_devueltos ?? '—',    icon:'↩️', color:'danger',
+      sub: `${k.tareas_devueltos ?? 0} tareas` },
+    { label:'Total Solicitados',     value: k.total_rollos_solicitados ?? '—', icon:'📦', color:'green',
+      sub: `${k.total_tareas_solicitadas ?? 0} tareas totales` },
+    { label:'% Cumplimiento Entrega',value: (k.pct_sla ?? 0) + '%',       icon:'🎯', color:'green',
+      sub: `${k.sla_cumple ?? 0} / ${k.sla_total ?? 0} en plazo`, pct: k.pct_sla ?? 0 },
+    { label:'% Oportunidad',         value: (k.pct_sla ?? 0) + '%',       icon:'⏱️', color:'blue',
+      sub: 'Entregas en plazo SLA', pct: k.pct_sla ?? 0 },
+    { label:'% Calidad',             value: (k.pct_calidad ?? 0) + '%',   icon:'💎', color:'blue',
+      sub: `${k.calidad_exitoso ?? 0} exitosos / ${k.calidad_total ?? 0}`, pct: k.pct_calidad ?? 0 },
+  ];
+
+  grid.innerHTML = cards.map((c,i) => `
+    <div class="kpi-card ${c.color} fade-up" style="animation-delay:${i*.04}s">
+      <span class="kpi-icon">${c.icon}</span>
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value">${c.value}</div>
+      ${c.pct !== undefined ? `
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill ${c.color}" style="width:${Math.min(c.pct,100)}%"></div></div>
+        </div>` : ''}
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+// ── Helpers tabla ─────────────────────────────────────────────────
+function statusPill(val) {
+  const v = (val||'').toUpperCase();
+  let cls = 'status-default';
+  if (v.includes('ENTREGADO'))      cls = 'status-entregado';
+  else if (v.includes('TRANSITO'))  cls = 'status-transito';
+  else if (v.includes('ALISTAM'))   cls = 'status-alistamiento';
+  else if (v.includes('DEVOLUC'))   cls = 'status-devolucion';
+  else if (v.includes('CANCELADO')) cls = 'status-cancelado';
+  return `<span class="status-pill ${cls}">${val||'—'}</span>`;
+}
+
+function diasBadge(d) {
+  const n = parseFloat(d);
+  if (isNaN(n) || d === '') return '—';
+  const cls = n < 0 ? 'crit' : n < 7 ? 'warn' : 'ok';
+  return `<span class="days-stalled ${cls}">${Math.round(n)}</span>`;
+}
+
+function mkPagination(containerId, page, pages, setPageFn) {
+  const pg = document.getElementById(containerId);
+  if (!pg) return;
+  if (pages <= 1) { pg.innerHTML = ''; return; }
+  let html = `<button class="page-btn" onclick="${setPageFn}(${page-1})" ${page===1?'disabled':''}>‹</button>`;
+  const range = [];
+  for (let i=1; i<=pages; i++) {
+    if (i===1||i===pages||Math.abs(i-page)<=1) range.push(i);
+    else if (range[range.length-1]!=='…') range.push('…');
+  }
+  range.forEach(p => {
+    if (p==='…') html+=`<span style="padding:4px 6px;color:var(--muted);display:inline-flex;align-items:center">…</span>`;
+    else html+=`<button class="page-btn ${p===page?'active':''}" onclick="${setPageFn}(${p})">${p}</button>`;
+  });
+  html += `<button class="page-btn" onclick="${setPageFn}(${page+1})" ${page===pages?'disabled':''}>›</button>`;
+  pg.innerHTML = html;
+}
+
+// ── Tabla Detalles ────────────────────────────────────────────────
+const DETALLE_COLS = [
+  { label:'Cod. Sitio',           fn: r => r.cod_sitio || '—' },
+  { label:'F. Plan Inicio',       fn: r => r.fecha_plan_inicio || '—' },
+  { label:'F. Plan Entrega',      fn: r => r.fecha_plan_fin || '—' },
+  { label:'F. Entrega',           fn: r => r.fecha_entrega || '—' },
+  { label:'Pendientes',           fn: r => (r.estado||'').toUpperCase().includes('PENDIENTE') ? '●' : '' },
+  { label:'Cantidad',             fn: r => r.cantidad ?? '—' },
+  { label:'Cod. Tarea',           fn: r => r.codigo_tarea || '—' },
+  { label:'Cod. Ubicación',       fn: r => r.cod_ubicacion || '—' },
+  { label:'Guía',                 fn: r => r.guia || '—' },
+  { label:'FO',                   fn: r => r.FO || '—' },
+  { label:'Estado',               fn: r => r.estado || '—', isStatus: true },
+  { label:'Estado Transportadora',fn: r => r.estado_transportadora || '—' },
+  { label:'Proyecto',             fn: r => r.proyecto || '—' },
+  { label:'Días Inv. Restantes',  fn: r => r.dias_inventario_restantes ?? '—', isDias: true },
+];
+
+function renderRollosDetalleTable() {
+  const wrap  = document.getElementById('rollos-detalle-wrap');
+  const count = document.getElementById('rollos-detalle-count');
+  if (!wrap) return;
+  const data  = ROLLOS_DETALLE;
+  const pages = Math.ceil(data.length / ROLLOS_PAGE_SIZE);
+  const slice = data.slice((rollosDetallePage-1)*ROLLOS_PAGE_SIZE, rollosDetallePage*ROLLOS_PAGE_SIZE);
+
+  if (!data.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin registros</p></div>';
+    if (count) count.textContent = '0 registros';
+    return;
+  }
+
+  wrap.innerHTML = `<table><thead><tr>
+    ${DETALLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}
+  </tr></thead><tbody>
+    ${slice.map(r => `<tr>${DETALLE_COLS.map(c => {
+      const v = c.fn(r);
+      if (c.isStatus) return `<td>${statusPill(v)}</td>`;
+      if (c.isDias)   return `<td>${diasBadge(v)}</td>`;
+      return `<td>${v}</td>`;
+    }).join('')}</tr>`).join('')}
+  </tbody></table>`;
+
+  if (count) count.textContent = `${data.length} registros`;
+  mkPagination('rollos-detalle-pagination', rollosDetallePage, pages, 'goRollosDetallePage');
+}
+
+function goRollosDetallePage(p) {
+  const pages = Math.ceil(ROLLOS_DETALLE.length / ROLLOS_PAGE_SIZE);
+  if (p >= 1 && p <= pages) { rollosDetallePage = p; renderRollosDetalleTable(); }
+}
+
+// ── Tabla Comercio ────────────────────────────────────────────────
+const COMERCIO_COLS = [
+  { label:'Cod. Comercio', fn: r => r.cod_comercio || '—' },
+  { label:'Cantidad',      fn: r => r.cantidad ?? '—' },
+  { label:'Nombre Sitio',  fn: r => r.nombre_sitio || '—' },
+  { label:'Dirección',     fn: r => r.direccion || '—' },
+  { label:'Ciudad',        fn: r => r.ciudad || '—' },
+  { label:'Departamento',  fn: r => r.departamento || '—' },
+  { label:'Estado',        fn: r => r.estado || '—', isStatus: true },
+  { label:'Tipo Envío',    fn: r => r.tipo_envio || '—' },
+];
+
+function renderRollosComercioTable() {
+  const wrap  = document.getElementById('rollos-comercio-wrap');
+  const count = document.getElementById('rollos-comercio-count');
+  if (!wrap) return;
+  const data  = ROLLOS_COMERCIO;
+  const pages = Math.ceil(data.length / ROLLOS_PAGE_SIZE);
+  const slice = data.slice((rollosComercioPage-1)*ROLLOS_PAGE_SIZE, rollosComercioPage*ROLLOS_PAGE_SIZE);
+
+  if (!data.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin registros</p></div>';
+    if (count) count.textContent = '0 registros';
+    return;
+  }
+
+  wrap.innerHTML = `<table><thead><tr>
+    ${COMERCIO_COLS.map(c=>`<th>${c.label}</th>`).join('')}
+  </tr></thead><tbody>
+    ${slice.map(r => `<tr>${COMERCIO_COLS.map(c => {
+      const v = c.fn(r);
+      return c.isStatus ? `<td>${statusPill(v)}</td>` : `<td>${v}</td>`;
+    }).join('')}</tr>`).join('')}
+  </tbody></table>`;
+
+  if (count) count.textContent = `${data.length} registros`;
+  mkPagination('rollos-comercio-pagination', rollosComercioPage, pages, 'goRollosComercioPage');
+}
+
+function goRollosComercioPage(p) {
+  const pages = Math.ceil(ROLLOS_COMERCIO.length / ROLLOS_PAGE_SIZE);
+  if (p >= 1 && p <= pages) { rollosComercioPage = p; renderRollosComercioTable(); }
+}
+
+// ── Tabla Referencias ─────────────────────────────────────────────
+function renderRollosRefTable() {
+  const wrap  = document.getElementById('rollos-ref-wrap');
+  const count = document.getElementById('rollos-ref-count');
+  if (!wrap) return;
+  const data = ROLLOS_RAW.referencias || [];
+
+  if (!data.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin referencias</p></div>';
+    if (count) count.textContent = '0 registros';
+    return;
+  }
+
+  wrap.innerHTML = `<table><thead><tr>
+    <th>Referencia</th><th>Cantidad</th><th>Estado</th><th>Departamento</th><th>Ciudad</th><th>Material</th>
+  </tr></thead><tbody>
+    ${data.map(r=>`<tr>
+      <td>${r.referencia||'—'}</td>
+      <td style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--azul-cielo)">${r.cantidad??'—'}</td>
+      <td>${statusPill(r.estado)}</td>
+      <td>${r.departamento||'—'}</td>
+      <td>${r.ciudad||'—'}</td>
+      <td>${r.material||'—'}</td>
+    </tr>`).join('')}
+  </tbody></table>`;
+
+  if (count) count.textContent = `${data.length} referencias`;
+}
+
+// ── Gráfica departamento ──────────────────────────────────────────
+function renderRollosDeptChart() {
+  const canvas = document.getElementById('chart-rollos-depto');
+  if (!canvas || !ROLLOS_RAW) return;
+  const por_dep = (ROLLOS_RAW.por_departamento || []).slice(0, 15);
+  if (chartInstances['rollos-depto']) { chartInstances['rollos-depto'].destroy(); }
+  chartInstances['rollos-depto'] = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: por_dep.map(d => d.departamento),
+      datasets: [{
+        label: 'Rollos',
+        data: por_dep.map(d => d.total_rollos),
+        backgroundColor: por_dep.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
+        borderColor: por_dep.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
+        borderWidth: 1, borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+      plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
+      scales: {
+        x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+        y: { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
+      },
+    }
+  });
+}
+
+// ── Filtros Detalle ───────────────────────────────────────────────
+function applyRollosFilters() {
+  if (!ROLLOS_RAW) return;
+  const codigo = (document.getElementById('rf-codigo-tarea')?.value||'').trim().toUpperCase();
+  const guia   = (document.getElementById('rf-guia')?.value||'').trim().toUpperCase();
+  const estado = (document.getElementById('rf-estado')?.value||'').toUpperCase();
+  const desde  = document.getElementById('rf-fecha-desde')?.value;
+  const hasta  = document.getElementById('rf-fecha-hasta')?.value;
+  const anio   = document.getElementById('rf-anio')?.value;
+  const mes    = document.getElementById('rf-mes')?.value;
+
+  ROLLOS_DETALLE = (ROLLOS_RAW.detalle || []).filter(r => {
+    if (codigo && !(r.codigo_tarea||'').toUpperCase().includes(codigo)) return false;
+    if (guia   && !(r.guia||'').toUpperCase().includes(guia))           return false;
+    if (estado && (r.estado||'').toUpperCase() !== estado)              return false;
+    if (anio   && String(r.anio) !== anio)                              return false;
+    if (mes    && String(r.mes).padStart(2,'0') !== mes.padStart(2,'0')) return false;
+    if (desde || hasta) {
+      const fp = r.fecha_plan_fin ? new Date(r.fecha_plan_fin.substring(0,10)) : null;
+      if (desde && fp && fp < new Date(desde)) return false;
+      if (hasta && fp && fp > new Date(hasta + 'T23:59:59')) return false;
+    }
+    return true;
+  });
+  rollosDetallePage = 1;
+  renderRollosDetalleTable();
+}
+
+function resetRollosFilters() {
+  ['rf-codigo-tarea','rf-guia','rf-fecha-desde','rf-fecha-hasta'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ['rf-estado','rf-anio','rf-mes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  ROLLOS_DETALLE = (ROLLOS_RAW?.detalle || []).slice();
+  rollosDetallePage = 1;
+  renderRollosDetalleTable();
+}
+
+// ── Filtros Comercio ──────────────────────────────────────────────
+function applyComercioFilters() {
+  if (!ROLLOS_RAW) return;
+  const cod   = (document.getElementById('rf-cod-comercio')?.value||'').trim().toUpperCase();
+  const est   = (document.getElementById('rf-com-estado')?.value||'').toUpperCase();
+  const tipo  = (document.getElementById('rf-com-tipo')?.value||'').toUpperCase();
+  const mes   = document.getElementById('rf-com-mes')?.value;
+
+  ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
+    if (cod  && !(r.cod_comercio||'').toUpperCase().includes(cod))  return false;
+    if (est  && (r.estado||'').toUpperCase() !== est)               return false;
+    if (tipo && (r.tipo_envio||'').toUpperCase() !== tipo)          return false;
+    // mes: filtrar desde detalle — si hay mes, filtrar comercios que tengan tareas en ese mes
+    if (mes) {
+      const cod_c = r.cod_comercio;
+      const hasInMes = (ROLLOS_RAW.detalle||[]).some(d =>
+        d.cod_sitio === cod_c && String(d.mes).padStart(2,'0') === mes.padStart(2,'0'));
+      if (!hasInMes) return false;
+    }
+    return true;
+  });
+  rollosComercioPage = 1;
+  renderRollosComercioTable();
+  renderRollosDeptChart();
+}
+
+function resetComercioFilters() {
+  ['rf-cod-comercio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-com-estado','rf-com-tipo','rf-com-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ROLLOS_COMERCIO = (ROLLOS_RAW?.comercio||[]).slice();
+  rollosComercioPage = 1;
+  renderRollosComercioTable();
+  renderRollosDeptChart();
+}
+
+// ── Exportar Excel (Rollos) ───────────────────────────────────────
+function exportRollosDetalleExcel() {
+  const data = ROLLOS_DETALLE.map(r => {
+    const o = {};
+    DETALLE_COLS.forEach(c => { o[c.label] = c.fn(r); });
+    return o;
+  });
+  _exportExcelRollos(data, 'Rollos_Detalle');
+}
+
+function exportComercioExcel() {
+  const data = ROLLOS_COMERCIO.map(r => {
+    const o = {};
+    COMERCIO_COLS.forEach(c => { o[c.label] = c.fn(r); });
+    return o;
+  });
+  _exportExcelRollos(data, 'Rollos_Comercios');
+}
+
+function exportReferenciasExcel() {
+  const data = (ROLLOS_RAW?.referencias || []).map(r => ({
+    Referencia: r.referencia, Cantidad: r.cantidad, Estado: r.estado,
+    Departamento: r.departamento, Ciudad: r.ciudad, Material: r.material,
+  }));
+  _exportExcelRollos(data, 'Rollos_Referencias');
+}
+
+function _exportExcelRollos(data, filename) {
+  if (!data.length) { alert('Sin datos para exportar.'); return; }
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = Object.keys(data[0]||{}).map(k => ({ wch: Math.max(k.length, ...data.slice(0,50).map(r=>String(r[k]||'').length)) }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+  XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
