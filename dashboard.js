@@ -1412,13 +1412,14 @@ function getDemoData() {
   return rows;
 }
 // ══════════════════════════════════════════════════════════════════
-//  ROLLOS WOMPI — módulo independiente
+//  ROLLOS WOMPI — módulo independiente v2 (con filtros globales)
 //  Carga data_rollos.json.gz (gzip → JSON), sin tocar nada de lo anterior
 // ══════════════════════════════════════════════════════════════════
 
-let ROLLOS_RAW      = null;   // payload completo del .json.gz
-let ROLLOS_DETALLE  = [];     // array de detalle filtrado
-let ROLLOS_COMERCIO = [];     // array de comercio filtrado
+let ROLLOS_RAW       = null;   // payload completo del .json.gz
+let ROLLOS_FILTERED  = [];     // detalle filtrado por filtros globales
+let ROLLOS_DETALLE   = [];     // detalle filtrado por búsqueda de tabla
+let ROLLOS_COMERCIO  = [];     // comercio filtrado
 let rollosDetallePage  = 1;
 let rollosComercioPage = 1;
 const ROLLOS_PAGE_SIZE = 50;
@@ -1429,7 +1430,6 @@ async function loadRollosData() {
     const res = await fetch(`data_rollos.json.gz?t=${Date.now()}`);
     if (!res.ok) throw new Error('no file');
     const buf  = await res.arrayBuffer();
-    // Descomprimir gzip usando DecompressionStream (disponible en browsers modernos)
     const ds   = new DecompressionStream('gzip');
     const writer = ds.writable.getWriter();
     writer.write(new Uint8Array(buf));
@@ -1438,114 +1438,607 @@ async function loadRollosData() {
     const text = new TextDecoder().decode(out);
     ROLLOS_RAW = JSON.parse(text);
     console.log('[Rollos] Cargado OK — detalle:', ROLLOS_RAW.detalle?.length, 'filas');
-    initRollosFilters();
-    // si el tab rollos ya está activo, renderizarlo
+    initRollosGlobalFilters();
+    applyRollosGlobalFilters();
     if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
   } catch(e) {
     console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
   }
 }
 
-// ── Inicializar select-filters con valores únicos ─────────────────
-function initRollosFilters() {
+// ── Inicializar selects de filtros GLOBALES ───────────────────────
+function initRollosGlobalFilters() {
   if (!ROLLOS_RAW) return;
-  const detalle  = ROLLOS_RAW.detalle  || [];
-  const comercio = ROLLOS_RAW.comercio || [];
+  const det = ROLLOS_RAW.detalle || [];
 
-  // Estado
-  const estados = [...new Set(detalle.map(r => r.estado).filter(Boolean))].sort();
+  const uniq = (key) => [...new Set(det.map(r => r[key]).filter(Boolean))].sort();
+
+  const populate = (id, vals) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  };
+
+  populate('rg-estado',      uniq('estado'));
+  populate('rg-departamento',uniq('departamento'));
+  populate('rg-tipo-flujo',  uniq('tipo_flujo'));
+  populate('rg-material',    uniq('material'));
+  populate('rg-proyecto',    uniq('proyecto'));
+
+  // También inicializar filtros de tabla detalle
+  const estados = uniq('estado');
+  const anios   = [...new Set(det.map(r=>r.anio).filter(Boolean))].sort().reverse();
+  const meses   = [...new Set(det.map(r=>r.mes).filter(Boolean))].sort();
+
   const fEst = document.getElementById('rf-estado');
   if (fEst) fEst.innerHTML = '<option value="">Todos</option>' + estados.map(e=>`<option value="${e}">${e}</option>`).join('');
-
-  // Año
-  const anios = [...new Set(detalle.map(r => r.anio).filter(Boolean))].sort().reverse();
   const fAnio = document.getElementById('rf-anio');
   if (fAnio) fAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
-
-  // Mes
-  const meses = [...new Set(detalle.map(r => r.mes).filter(Boolean))].sort();
   const fMes = document.getElementById('rf-mes');
   if (fMes) fMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
 
-  // Comercio estado
-  const comEst = [...new Set(comercio.map(r => r.estado).filter(Boolean))].sort();
+  const comercio = ROLLOS_RAW.comercio || [];
+  const comEst  = [...new Set(comercio.map(r=>r.estado).filter(Boolean))].sort();
+  const comTipo = [...new Set(comercio.map(r=>r.tipo_envio).filter(Boolean))].sort();
   const fComEst = document.getElementById('rf-com-estado');
   if (fComEst) fComEst.innerHTML = '<option value="">Todos</option>' + comEst.map(e=>`<option value="${e}">${e}</option>`).join('');
-
-  // Comercio tipo
-  const comTipo = [...new Set(comercio.map(r => r.tipo_envio).filter(Boolean))].sort();
   const fComTipo = document.getElementById('rf-com-tipo');
   if (fComTipo) fComTipo.innerHTML = '<option value="">Todos</option>' + comTipo.map(t=>`<option value="${t}">${t}</option>`).join('');
-
-  // Comercio mes (basado en detalle)
-  const fComMes = document.getElementById('rf-com-mes');
-  if (fComMes) fComMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
-
-  // Aplicar datos sin filtros
-  ROLLOS_DETALLE  = detalle.slice();
-  ROLLOS_COMERCIO = comercio.slice();
 }
 
-// ── Render principal ──────────────────────────────────────────────
-function renderRollosTab() {
-  if (!ROLLOS_RAW) {
-    document.getElementById('rollos-kpi-grid').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>data_rollos.json.gz no disponible</p></div>';
-    return;
+// ── Aplicar filtros GLOBALES — recalcula TODO ─────────────────────
+function applyRollosGlobalFilters() {
+  if (!ROLLOS_RAW) return;
+  const det = ROLLOS_RAW.detalle || [];
+
+  const desde   = document.getElementById('rg-fecha-desde')?.value;
+  const hasta   = document.getElementById('rg-fecha-hasta')?.value;
+  const estado  = document.getElementById('rg-estado')?.value || '';
+  const depto   = document.getElementById('rg-departamento')?.value || '';
+  const flujo   = document.getElementById('rg-tipo-flujo')?.value || '';
+  const material= document.getElementById('rg-material')?.value || '';
+  const proyecto= document.getElementById('rg-proyecto')?.value || '';
+
+  ROLLOS_FILTERED = det.filter(r => {
+    if (estado   && (r.estado||'').toUpperCase() !== estado.toUpperCase())       return false;
+    if (depto    && (r.departamento||'').toUpperCase() !== depto.toUpperCase())   return false;
+    if (flujo    && (r.tipo_flujo||'').toUpperCase() !== flujo.toUpperCase())     return false;
+    if (material && (r.material||'').toUpperCase() !== material.toUpperCase())    return false;
+    if (proyecto && (r.proyecto||'').toUpperCase() !== proyecto.toUpperCase())    return false;
+    if (desde || hasta) {
+      const fp = r.fecha_plan_fin ? new Date(r.fecha_plan_fin.substring(0,10)) : null;
+      if (!fp) return !(desde || hasta);
+      if (desde && fp < new Date(desde)) return false;
+      if (hasta && fp > new Date(hasta + 'T23:59:59')) return false;
+    }
+    return true;
+  });
+
+  // Actualizar sumario de filtros
+  const activos = [];
+  if (desde || hasta) activos.push(`Fecha: ${desde||'…'} → ${hasta||'…'}`);
+  if (estado)   activos.push(`Estado: ${estado}`);
+  if (depto)    activos.push(`Depto: ${depto}`);
+  if (flujo)    activos.push(`Flujo: ${flujo}`);
+  if (material) activos.push(`Material: ${material}`);
+  if (proyecto) activos.push(`Proyecto: ${proyecto}`);
+  const summary = document.getElementById('rg-filter-summary');
+  if (summary) {
+    summary.textContent = activos.length
+      ? `🔍 Filtros activos: ${activos.join('  ·  ')}  |  ${ROLLOS_FILTERED.length} registros`
+      : `Sin filtros activos — mostrando ${ROLLOS_FILTERED.length} registros`;
   }
+
+  // También filtrar comercio por estados que coincidan con detalle filtrado
+  const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
+  ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
+    if (!estado && !depto && !flujo && !material && !proyecto && !desde && !hasta) return true;
+    return sitiosFiltrados.has(r.cod_comercio);
+  });
+
+  ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
+  rollosDetallePage  = 1;
+  rollosComercioPage = 1;
+
   renderRollosKPIs();
+  renderRollosANSRow();
+  renderRollosCharts();
   renderRollosDetalleTable();
   renderRollosComercioTable();
   renderRollosRefTable();
-  renderRollosDeptChart();
 }
 
-// ── KPIs ──────────────────────────────────────────────────────────
+function resetRollosGlobalFilters() {
+  ['rg-fecha-desde','rg-fecha-hasta'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rg-estado','rg-departamento','rg-tipo-flujo','rg-material','rg-proyecto'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  applyRollosGlobalFilters();
+}
+
+// ── Calcular KPIs desde ROLLOS_FILTERED ──────────────────────────
+function computeRollosKPIs() {
+  const det   = ROLLOS_FILTERED;
+  const kRaw  = ROLLOS_RAW?.kpis || {};
+
+  // Conteos por estado (desde detalle filtrado)
+  let rollos_alistamiento = 0, tareas_alistamiento = 0;
+  let rollos_transito = 0, tareas_transito = 0;
+  let rollos_entregados = 0, tareas_entregados = 0;
+  let rollos_devueltos = 0, tareas_devueltos = 0;
+  let total_rollos = 0, total_tareas = 0;
+
+  const tareasSet = new Set();
+  det.forEach(r => {
+    const est = (r.estado||'').toUpperCase();
+    const qty = parseFloat(r.cantidad) || 0;
+    const tarea = r.codigo_tarea;
+    total_rollos += qty;
+    if (tarea && !tareasSet.has(tarea)) { tareasSet.add(tarea); total_tareas++; }
+
+    if (est.includes('ALISTAMIENTO'))          { rollos_alistamiento += qty; tareas_alistamiento++; }
+    else if (est.includes('TRANSITO') || est.includes('TRÁNSITO')) { rollos_transito += qty; tareas_transito++; }
+    else if (est === 'ENTREGADO')               { rollos_entregados += qty; tareas_entregados++; }
+    else if (est.includes('DEVOLUC'))           { rollos_devueltos += qty; tareas_devueltos++; }
+  });
+
+  const pct = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
+
+  // ANS desde indicador (si no hay filtro temporal, usar raw del extractor)
+  // Si hay filtro, recalcular desde detalle con campo oportunidad
+  const sla_cumple   = det.filter(r => (r.oportunidad||'').toUpperCase() === 'CUMPLE').length;
+  const sla_nc       = det.filter(r => { const op = (r.oportunidad||'').toUpperCase(); return op === 'NC' || op.includes('MOTIVO'); }).length;
+  const sla_total    = sla_cumple + sla_nc;
+  const pct_sla      = pct(sla_cumple, sla_total);
+
+  // Calidad: exitoso vs cancelado
+  const cal_exitoso   = det.filter(r => (r.estado_resultado||'').toUpperCase().includes('EXITOSO')).length;
+  const cal_cancelado = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase(); return e.includes('CANCELADO'); }).length;
+  const cal_total     = cal_exitoso + cal_cancelado;
+  const pct_calidad   = pct(cal_exitoso, cal_total);
+
+  return {
+    rollos_alistamiento: Math.round(rollos_alistamiento), tareas_alistamiento,
+    rollos_transito: Math.round(rollos_transito), tareas_transito,
+    rollos_entregados: Math.round(rollos_entregados), tareas_entregados,
+    rollos_devueltos: Math.round(rollos_devueltos), tareas_devueltos,
+    total_rollos: Math.round(total_rollos), total_tareas,
+    pct_entrega: pct(rollos_entregados, total_rollos),
+    pct_alistamiento: pct(rollos_alistamiento, total_rollos),
+    pct_transito: pct(rollos_transito, total_rollos),
+    pct_devolucion: pct(rollos_devueltos, total_rollos),
+    sla_cumple, sla_nc, sla_total, pct_sla,
+    cal_exitoso, cal_cancelado, cal_total, pct_calidad,
+  };
+}
+
+// ── Render KPIs ───────────────────────────────────────────────────
 function renderRollosKPIs() {
-  const k = ROLLOS_RAW.kpis || {};
+  const k    = computeRollosKPIs();
   const grid = document.getElementById('rollos-kpi-grid');
   if (!grid) return;
 
   const cards = [
-    { label:'Rollos Alistamiento',   value: k.rollos_alistamiento ?? '—', icon:'🔧', color:'lime',
-      sub: `${k.tareas_alistamiento ?? 0} tareas` },
-    { label:'Rollos en Tránsito',    value: k.rollos_transito ?? '—',     icon:'🚚', color:'blue',
-      sub: `${k.tareas_transito ?? 0} tareas` },
-    { label:'Rollos Entregados',     value: k.rollos_entregados ?? '—',   icon:'✅', color:'selva',
-      sub: `${k.tareas_entregados ?? 0} tareas` },
-    { label:'Rollos Devueltos',      value: k.rollos_devueltos ?? '—',    icon:'↩️', color:'danger',
-      sub: `${k.tareas_devueltos ?? 0} tareas` },
-    { label:'Total Solicitados',     value: k.total_rollos_solicitados ?? '—', icon:'📦', color:'green',
-      sub: `${k.total_tareas_solicitadas ?? 0} tareas totales` },
-    { label:'% Cumplimiento Entrega',value: (k.pct_sla ?? 0) + '%',       icon:'🎯', color:'green',
-      sub: `${k.sla_cumple ?? 0} / ${k.sla_total ?? 0} en plazo`, pct: k.pct_sla ?? 0 },
-    { label:'% Oportunidad',         value: (k.pct_sla ?? 0) + '%',       icon:'⏱️', color:'blue',
-      sub: 'Entregas en plazo SLA', pct: k.pct_sla ?? 0 },
-    { label:'% Calidad',             value: (k.pct_calidad ?? 0) + '%',   icon:'💎', color:'blue',
-      sub: `${k.calidad_exitoso ?? 0} exitosos / ${k.calidad_total ?? 0}`, pct: k.pct_calidad ?? 0 },
+    { label:'Total Rollos',        value: k.total_rollos.toLocaleString('es-CO'), icon:'📦', color:'green',
+      sub: `${k.total_tareas} tareas` },
+    { label:'Rollos Entregados',   value: k.rollos_entregados.toLocaleString('es-CO'), icon:'✅', color:'selva',
+      sub: `${k.pct_entrega}% del total`, pct: k.pct_entrega, pctColor:'green' },
+    { label:'En Alistamiento',     value: k.rollos_alistamiento.toLocaleString('es-CO'), icon:'🔧', color:'lime',
+      sub: `${k.pct_alistamiento}% · ${k.tareas_alistamiento} tareas`, pct: k.pct_alistamiento, pctColor:'lime' },
+    { label:'En Tránsito',         value: k.rollos_transito.toLocaleString('es-CO'), icon:'🚚', color:'blue',
+      sub: `${k.pct_transito}% · ${k.tareas_transito} tareas`, pct: k.pct_transito, pctColor:'blue' },
+    { label:'Devoluciones',        value: k.rollos_devueltos.toLocaleString('es-CO'), icon:'↩️', color:'danger',
+      sub: `${k.pct_devolucion}% del total`, pct: k.pct_devolucion, pctColor:'danger' },
+    { label:'% Entrega',           value: k.pct_entrega + '%', icon:'📊', color:'green',
+      sub: `${k.rollos_entregados} / ${k.total_rollos} rollos`, pct: k.pct_entrega, pctColor:'green' },
+    { label:'ANS Oportunidad',     value: k.pct_sla + '%', icon:'🎯', color: k.pct_sla >= 80 ? 'selva' : k.pct_sla >= 60 ? 'warn' : 'danger',
+      sub: `${k.sla_cumple} cumple / ${k.sla_total} evaluados`, pct: k.pct_sla, pctColor: k.pct_sla >= 80 ? 'green' : 'warn' },
+    { label:'% Calidad',           value: k.pct_calidad + '%', icon:'💎', color:'blue',
+      sub: `${k.cal_exitoso} exitosos / ${k.cal_total} total`, pct: k.pct_calidad, pctColor:'blue' },
   ];
 
-  grid.innerHTML = cards.map((c,i) => `
-    <div class="kpi-card ${c.color} fade-up" style="animation-delay:${i*.04}s">
-      <span class="kpi-icon">${c.icon}</span>
-      <div class="kpi-label">${c.label}</div>
-      <div class="kpi-value">${c.value}</div>
+  grid.innerHTML = cards.map((c, i) => `
+    <div class="rkpi-card ${c.color} fade-up" style="animation-delay:${i*.05}s">
+      <span class="rkpi-icon">${c.icon}</span>
+      <div class="rkpi-label">${c.label}</div>
+      <div class="rkpi-value" style="color:var(--${c.color === 'green' ? 'verde-menta' : c.color === 'selva' ? 'verde-selva' : c.color === 'lime' ? 'verde-lima' : c.color === 'blue' ? 'azul-cielo' : c.color === 'danger' ? 'danger' : c.color === 'warn' ? 'warning' : 'blanco'})">${c.value}</div>
+      <div class="rkpi-sub">${c.sub}</div>
       ${c.pct !== undefined ? `
-        <div class="progress-wrap">
-          <div class="progress-track"><div class="progress-fill ${c.color}" style="width:${Math.min(c.pct,100)}%"></div></div>
-        </div>` : ''}
-      <div class="kpi-sub">${c.sub}</div>
+      <div class="rkpi-pct-row">
+        <div class="rkpi-pct-bar"><div class="rkpi-pct-fill ${c.pctColor||c.color}" style="width:${Math.min(c.pct,100)}%"></div></div>
+        <span class="rkpi-pct-label" style="color:var(--${c.pctColor === 'green' ? 'verde-menta' : c.pctColor === 'lime' ? 'verde-lima' : c.pctColor === 'blue' ? 'azul-cielo' : c.pctColor === 'danger' ? 'danger' : 'warning'})">${c.pct}%</span>
+      </div>` : ''}
     </div>`).join('');
 }
 
-// ── Helpers tabla ─────────────────────────────────────────────────
+// ── ANS Big Row ────────────────────────────────────────────────────
+function renderRollosANSRow() {
+  const k   = computeRollosKPIs();
+  const row = document.getElementById('rollos-ans-row');
+  if (!row) return;
+
+  const pctNc  = 100 - k.pct_sla;
+  const pctDev = k.pct_devolucion;
+  const pctOk  = k.pct_entrega;
+
+  row.innerHTML = `
+    <div class="ans-big-card" style="border-top:3px solid var(--verde-menta)">
+      <canvas id="ans-mini-entrega" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
+      <div class="ans-big-pct" style="color:var(--verde-menta)">${k.pct_entrega}%</div>
+      <div class="ans-big-label">Tasa de Entrega</div>
+      <div class="ans-detail-row">
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.rollos_entregados.toLocaleString()}</div><div class="ans-detail-lbl">Entregados</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--muted)">${k.total_rollos.toLocaleString()}</div><div class="ans-detail-lbl">Total</div></div>
+      </div>
+    </div>
+    <div class="ans-big-card" style="border-top:3px solid var(--azul-cielo)">
+      <canvas id="ans-mini-sla" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
+      <div class="ans-big-pct" style="color:var(--azul-cielo)">${k.pct_sla}%</div>
+      <div class="ans-big-label">Cumplimiento ANS</div>
+      <div class="ans-detail-row">
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.sla_cumple}</div><div class="ans-detail-lbl">Cumple</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--danger)">${k.sla_nc}</div><div class="ans-detail-lbl">No Cumple</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--muted)">${k.sla_total}</div><div class="ans-detail-lbl">Total eval.</div></div>
+      </div>
+    </div>
+    <div class="ans-big-card" style="border-top:3px solid ${k.pct_devolucion < 5 ? 'var(--verde-menta)' : k.pct_devolucion < 10 ? 'var(--warning)' : 'var(--danger)'}">
+      <canvas id="ans-mini-devol" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
+      <div class="ans-big-pct" style="color:${k.pct_devolucion < 5 ? 'var(--verde-menta)' : k.pct_devolucion < 10 ? 'var(--warning)' : 'var(--danger)'}">${k.pct_devolucion}%</div>
+      <div class="ans-big-label">Tasa de Devolución</div>
+      <div class="ans-detail-row">
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--danger)">${k.rollos_devueltos.toLocaleString()}</div><div class="ans-detail-lbl">Devueltos</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--warning)">${k.pct_calidad}%</div><div class="ans-detail-lbl">Calidad</div></div>
+      </div>
+    </div>`;
+
+  // Dibujar mini donuts (después de insertar el DOM)
+  requestAnimationFrame(() => {
+    _miniDonut('ans-mini-entrega', k.pct_entrega, '#B0F2AE', '#1a2a1a');
+    _miniDonut('ans-mini-sla',     k.pct_sla,     '#99D1FC', '#1a1f2a');
+    _miniDonut('ans-mini-devol',   100 - k.pct_devolucion,
+      k.pct_devolucion < 5 ? '#B0F2AE' : k.pct_devolucion < 10 ? '#FFC04D' : '#FF5C5C', '#1a1a1a');
+  });
+}
+
+function _miniDonut(id, pct, color, bg) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const cx = 60, cy = 60, r = 48, lw = 10;
+  ctx.clearRect(0, 0, 120, 120);
+  // background arc
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = bg || 'rgba(255,255,255,.06)'; ctx.lineWidth = lw;
+  ctx.stroke();
+  // value arc
+  const angle = (pct / 100) * Math.PI * 2 - Math.PI / 2;
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI/2, angle);
+  ctx.strokeStyle = color; ctx.lineWidth = lw;
+  ctx.lineCap = 'round'; ctx.stroke();
+}
+
+// ── Render todas las gráficas ─────────────────────────────────────
+function renderRollosCharts() {
+  const det = ROLLOS_FILTERED;
+
+  _destroyChart('rollos-estados');
+  _destroyChart('rollos-tipo-flujo');
+  _destroyChart('rollos-sla');
+  _destroyChart('rollos-depto');
+  _destroyChart('rollos-calidad');
+  _destroyChart('rollos-mensual');
+  _destroyChart('rollos-cumplimiento-mes');
+  _destroyChart('rollos-oportunidad');
+  _destroyChart('rollos-material');
+  _destroyChart('rollos-funnel');
+
+  // 1. DONA — Estados
+  {
+    const stateMap = {};
+    det.forEach(r => {
+      const e = r.estado || 'SIN ESTADO';
+      stateMap[e] = (stateMap[e] || 0) + (parseFloat(r.cantidad) || 0);
+    });
+    const labels = Object.keys(stateMap);
+    const data   = labels.map(k => Math.round(stateMap[k]));
+    const colors = labels.map(l => {
+      const u = l.toUpperCase();
+      if (u === 'ENTREGADO')          return '#B0F2AE';
+      if (u.includes('TRANSITO'))     return '#99D1FC';
+      if (u.includes('ALISTAMIENTO')) return '#DFFF61';
+      if (u.includes('DEVOLUC'))      return '#FF5C5C';
+      return '#7B8CDE';
+    });
+    _buildDona('chart-rollos-estados', labels, data, colors, 'Rollos por estado');
+  }
+
+  // 2. DONA — Tipo flujo
+  {
+    const map = {};
+    det.forEach(r => { const k=r.tipo_flujo||'Sin tipo'; map[k]=(map[k]||0)+(parseFloat(r.cantidad)||0); });
+    const labels = Object.keys(map);
+    const data   = labels.map(k => Math.round(map[k]));
+    _buildDona('chart-rollos-tipo-flujo', labels, data, WOMPI_COLORS, 'Rollos por tipo flujo');
+  }
+
+  // 3. DONA — SLA
+  {
+    const k = computeRollosKPIs();
+    _buildDona('chart-rollos-sla',
+      ['Cumple ANS', 'No Cumple'],
+      [k.sla_cumple, k.sla_nc],
+      ['#B0F2AE', '#FF5C5C'],
+      'ANS Oportunidad'
+    );
+  }
+
+  // 4. BARRAS HORIZONTALES — Departamento
+  {
+    const por_dep = [];
+    const depMap = {};
+    det.forEach(r => {
+      const d = r.departamento; if (!d) return;
+      depMap[d] = (depMap[d] || 0) + (parseFloat(r.cantidad) || 0);
+    });
+    Object.entries(depMap).forEach(([dep, qty]) => por_dep.push({ departamento: dep, total_rollos: Math.round(qty) }));
+    por_dep.sort((a,b) => b.total_rollos - a.total_rollos);
+    const top = por_dep.slice(0,15);
+    const canvas = document.getElementById('chart-rollos-depto');
+    if (canvas) {
+      chartInstances['rollos-depto'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: top.map(d => d.departamento),
+          datasets: [{
+            label: 'Rollos',
+            data: top.map(d => d.total_rollos),
+            backgroundColor: top.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
+            borderColor: top.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
+            borderWidth: 1, borderRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+          plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+            y: { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
+          },
+        }
+      });
+    }
+  }
+
+  // 5. BARRAS — Calidad
+  {
+    const k = computeRollosKPIs();
+    const canvas = document.getElementById('chart-rollos-calidad');
+    if (canvas) {
+      chartInstances['rollos-calidad'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: ['Exitoso', 'Cancelado', 'Pendiente'],
+          datasets: [{
+            data: [k.cal_exitoso, k.cal_cancelado, k.total_tareas - k.cal_exitoso - k.cal_cancelado],
+            backgroundColor: ['rgba(176,242,174,.7)', 'rgba(255,92,92,.7)', 'rgba(153,209,252,.5)'],
+            borderColor:     ['#B0F2AE', '#FF5C5C', '#99D1FC'],
+            borderWidth: 1, borderRadius: 8,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#FAFAFA' }, grid:{ display:false } },
+            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+          }
+        }
+      });
+    }
+  }
+
+  // 6. LÍNEA — Tendencia mensual
+  {
+    const mesMap = {};
+    det.forEach(r => {
+      const fp = String(r.fecha_plan_fin || '');
+      if (fp.length < 7) return;
+      const k = fp.substring(0,7);
+      if (!mesMap[k]) mesMap[k] = { tareas:0, rollos:0 };
+      mesMap[k].tareas++;
+      mesMap[k].rollos += parseFloat(r.cantidad) || 0;
+    });
+    const periodos = Object.keys(mesMap).sort();
+    const canvas = document.getElementById('chart-rollos-mensual');
+    if (canvas && periodos.length) {
+      chartInstances['rollos-mensual'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: periodos,
+          datasets: [
+            { label:'Rollos', data: periodos.map(p=>Math.round(mesMap[p].rollos)),
+              backgroundColor:'rgba(176,242,174,.5)', borderColor:'#B0F2AE', borderWidth:2, borderRadius:4, type:'bar', yAxisID:'y' },
+            { label:'Tareas', data: periodos.map(p=>mesMap[p].tareas),
+              borderColor:'#99D1FC', backgroundColor:'rgba(153,209,252,.15)', borderWidth:2, fill:true, tension:.4, type:'line', yAxisID:'y1' },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#7A7674', maxRotation:45 }, grid:{ display:false } },
+            y:  { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' }, position:'left' },
+            y1: { ticks:{ color:'#99D1FC' }, grid:{ display:false }, position:'right' },
+          }
+        }
+      });
+    }
+  }
+
+  // 7. BARRAS APILADAS — Cumplimiento por mes
+  {
+    const mesMap = {};
+    det.forEach(r => {
+      const fp = String(r.fecha_plan_fin || '');
+      if (fp.length < 7) return;
+      const k = fp.substring(0,7);
+      if (!mesMap[k]) mesMap[k] = { entregado:0, devuelto:0, otros:0 };
+      const est = (r.estado||'').toUpperCase();
+      if (est === 'ENTREGADO')              mesMap[k].entregado++;
+      else if (est.includes('DEVOLUC'))     mesMap[k].devuelto++;
+      else                                  mesMap[k].otros++;
+    });
+    const periodos = Object.keys(mesMap).sort();
+    const canvas = document.getElementById('chart-rollos-cumplimiento-mes');
+    if (canvas && periodos.length) {
+      chartInstances['rollos-cumplimiento-mes'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: periodos,
+          datasets: [
+            { label:'Entregado',    data: periodos.map(p=>mesMap[p].entregado),    backgroundColor:'rgba(176,242,174,.7)', borderRadius:3 },
+            { label:'Devuelto',     data: periodos.map(p=>mesMap[p].devuelto),     backgroundColor:'rgba(255,92,92,.65)',  borderRadius:3 },
+            { label:'En Proceso',   data: periodos.map(p=>mesMap[p].otros),        backgroundColor:'rgba(153,209,252,.45)',borderRadius:3 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { stacked:true, ticks:{ color:'#7A7674', maxRotation:45 }, grid:{ display:false } },
+            y: { stacked:true, ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+          }
+        }
+      });
+    }
+  }
+
+  // 8. DONA — Oportunidad normalizada
+  {
+    const map = { 'CUMPLE': 0, 'NC': 0, 'MOTIVO NC': 0, 'SIN INFO': 0 };
+    det.forEach(r => {
+      const op = (r.oportunidad||'').toUpperCase();
+      if (op === 'CUMPLE')           map['CUMPLE']++;
+      else if (op === 'NC')          map['NC']++;
+      else if (op.includes('MOTIVO')) map['MOTIVO NC']++;
+      else                           map['SIN INFO']++;
+    });
+    _buildDona('chart-rollos-oportunidad',
+      Object.keys(map), Object.values(map),
+      ['#B0F2AE', '#FF5C5C', '#FFC04D', '#7A7674'],
+      'Oportunidad'
+    );
+  }
+
+  // 9. BARRAS — Top materiales
+  {
+    const map = {};
+    det.forEach(r => { const m=r.material||'Sin material'; map[m]=(map[m]||0)+(parseFloat(r.cantidad)||0); });
+    const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
+    const canvas = document.getElementById('chart-rollos-material');
+    if (canvas) {
+      chartInstances['rollos-material'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(x=>x[0].length > 18 ? x[0].substring(0,18)+'…' : x[0]),
+          datasets: [{
+            data: sorted.map(x=>Math.round(x[1])),
+            backgroundColor: sorted.map((_,i)=>WOMPI_COLORS[i%WOMPI_COLORS.length]+'BB'),
+            borderColor: sorted.map((_,i)=>WOMPI_COLORS[i%WOMPI_COLORS.length]),
+            borderWidth:1, borderRadius:6,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, indexAxis:'y',
+          plugins: { legend:{display:false}, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+            y: { ticks:{ color:'#FAFAFA', font:{size:10} }, grid:{display:false} },
+          }
+        }
+      });
+    }
+  }
+
+  // 10. EMBUDO — Proceso
+  {
+    const k = computeRollosKPIs();
+    const canvas = document.getElementById('chart-rollos-funnel');
+    if (canvas) {
+      const stages = [
+        { label:'Solicitados', value: k.total_rollos,          color:'rgba(176,242,174,.6)' },
+        { label:'Alistados',   value: k.total_rollos - k.rollos_alistamiento, color:'rgba(223,255,97,.6)' },
+        { label:'En Tránsito', value: k.rollos_transito,       color:'rgba(153,209,252,.6)' },
+        { label:'Entregados',  value: k.rollos_entregados,     color:'rgba(0,130,90,.7)' },
+      ];
+      chartInstances['rollos-funnel'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: stages.map(s=>s.label),
+          datasets: [{
+            data: stages.map(s=>s.value),
+            backgroundColor: stages.map(s=>s.color),
+            borderColor: stages.map(s=>s.color.replace(',.6)',',1)').replace(',.7)',',1)')),
+            borderWidth:1, borderRadius:8,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{display:false}, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#FAFAFA' }, grid:{ display:false } },
+            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+          }
+        }
+      });
+    }
+  }
+}
+
+function _buildDona(id, labels, data, colors, title) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return;
+  if (chartInstances[id]) { chartInstances[id].destroy(); }
+  chartInstances[id] = new Chart(canvas, {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data, backgroundColor: labels.map((_,i)=>(colors[i%colors.length]||'#7B8CDE')+'CC'), borderColor:'rgba(0,0,0,.0)', hoverOffset:8 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '65%',
+      plugins: {
+        legend: { position:'bottom', labels:{ color:'#FAFAFA', font:{size:11}, padding:10, boxWidth:12 } },
+        tooltip: CHART_OPTS.tooltip,
+        title: { display:false }
+      }
+    }
+  });
+}
+
+function _destroyChart(key) {
+  if (chartInstances[key]) { chartInstances[key].destroy(); delete chartInstances[key]; }
+}
+
+// ── Render principal del tab ──────────────────────────────────────
+function renderRollosTab() {
+  if (!ROLLOS_RAW) {
+    document.getElementById('rollos-kpi-grid').innerHTML =
+      '<div class="empty-state"><div class="icon">⚠️</div><p>data_rollos.json.gz no disponible</p></div>';
+    return;
+  }
+  renderRollosKPIs();
+  renderRollosANSRow();
+  renderRollosCharts();
+  renderRollosDetalleTable();
+  renderRollosComercioTable();
+  renderRollosRefTable();
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
 function statusPill(val) {
   const v = (val||'').toUpperCase();
   let cls = 'status-default';
-  if (v.includes('ENTREGADO'))      cls = 'status-entregado';
-  else if (v.includes('TRANSITO'))  cls = 'status-transito';
-  else if (v.includes('ALISTAM'))   cls = 'status-alistamiento';
-  else if (v.includes('DEVOLUC'))   cls = 'status-devolucion';
-  else if (v.includes('CANCELADO')) cls = 'status-cancelado';
+  if (v === 'ENTREGADO')                       cls = 'status-entregado';
+  else if (v.includes('TRANSITO'))             cls = 'status-transito';
+  else if (v.includes('ALISTAM'))              cls = 'status-alistamiento';
+  else if (v.includes('DEVOLUC'))              cls = 'status-devolucion';
+  else if (v === 'CANCELADO')                  cls = 'status-cancelado';
   return `<span class="status-pill ${cls}">${val||'—'}</span>`;
 }
 
@@ -1574,31 +2067,33 @@ function mkPagination(containerId, page, pages, setPageFn) {
   pg.innerHTML = html;
 }
 
-// ── Tabla Detalles ────────────────────────────────────────────────
+// ── Tabla Detalle ─────────────────────────────────────────────────
 const DETALLE_COLS = [
-  { label:'Cod. Sitio',           fn: r => r.cod_sitio || '—' },
-  { label:'F. Plan Inicio',       fn: r => r.fecha_plan_inicio || '—' },
-  { label:'F. Plan Entrega',      fn: r => r.fecha_plan_fin || '—' },
-  { label:'F. Entrega',           fn: r => r.fecha_entrega || '—' },
-  { label:'Pendientes',           fn: r => (r.estado||'').toUpperCase().includes('PENDIENTE') ? '●' : '' },
-  { label:'Cantidad',             fn: r => r.cantidad ?? '—' },
-  { label:'Cod. Tarea',           fn: r => r.codigo_tarea || '—' },
-  { label:'Cod. Ubicación',       fn: r => r.cod_ubicacion || '—' },
-  { label:'Guía',                 fn: r => r.guia || '—' },
-  { label:'FO',                   fn: r => r.FO || '—' },
-  { label:'Estado',               fn: r => r.estado || '—', isStatus: true },
-  { label:'Estado Transportadora',fn: r => r.estado_transportadora || '—' },
-  { label:'Proyecto',             fn: r => r.proyecto || '—' },
-  { label:'Días Inv. Restantes',  fn: r => r.dias_inventario_restantes ?? '—', isDias: true },
+  { label:'Cod. Sitio',            fn: r => r.cod_sitio || '—' },
+  { label:'F. Plan Inicio',        fn: r => r.fecha_plan_inicio || '—' },
+  { label:'F. Plan Entrega',       fn: r => r.fecha_plan_fin || '—' },
+  { label:'F. Entrega',            fn: r => r.fecha_entrega_raw || r.fecha_entrega || '—' },
+  { label:'Cantidad',              fn: r => r.cantidad ?? '—' },
+  { label:'Cod. Tarea',            fn: r => r.codigo_tarea || '—' },
+  { label:'Guía',                  fn: r => r.guia || '—' },
+  { label:'FO',                    fn: r => r.FO || '—' },
+  { label:'Estado',                fn: r => r.estado || '—', isStatus: true },
+  { label:'Estado Transportadora', fn: r => r.estado_transportadora || '—' },
+  { label:'Oportunidad',           fn: r => r.oportunidad || '—' },
+  { label:'Tipo Flujo',            fn: r => r.tipo_flujo || '—' },
+  { label:'Proyecto',              fn: r => r.proyecto || '—' },
+  { label:'Departamento',          fn: r => r.departamento || '—' },
+  { label:'Ciudad',                fn: r => r.ciudad || '—' },
+  { label:'Días Inv. Rest.',       fn: r => r.dias_inventario_restantes ?? '—', isDias: true },
 ];
 
 function renderRollosDetalleTable() {
   const wrap  = document.getElementById('rollos-detalle-wrap');
   const count = document.getElementById('rollos-detalle-count');
   if (!wrap) return;
-  const data  = ROLLOS_DETALLE;
-  const pages = Math.ceil(data.length / ROLLOS_PAGE_SIZE);
-  const slice = data.slice((rollosDetallePage-1)*ROLLOS_PAGE_SIZE, rollosDetallePage*ROLLOS_PAGE_SIZE);
+  const data   = ROLLOS_DETALLE;
+  const pages  = Math.max(1, Math.ceil(data.length / ROLLOS_PAGE_SIZE));
+  const slice  = data.slice((rollosDetallePage-1)*ROLLOS_PAGE_SIZE, rollosDetallePage*ROLLOS_PAGE_SIZE);
 
   if (!data.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin registros</p></div>';
@@ -1626,16 +2121,45 @@ function goRollosDetallePage(p) {
   if (p >= 1 && p <= pages) { rollosDetallePage = p; renderRollosDetalleTable(); }
 }
 
-// ── Tabla Comercio ────────────────────────────────────────────────
+function applyRollosDetalleSearch() {
+  if (!ROLLOS_RAW) return;
+  const codigo = (document.getElementById('rf-codigo-tarea')?.value||'').trim().toUpperCase();
+  const guia   = (document.getElementById('rf-guia')?.value||'').trim().toUpperCase();
+  const estado = (document.getElementById('rf-estado')?.value||'').toUpperCase();
+  const anio   = document.getElementById('rf-anio')?.value;
+  const mes    = document.getElementById('rf-mes')?.value;
+
+  ROLLOS_DETALLE = ROLLOS_FILTERED.filter(r => {
+    if (codigo && !(r.codigo_tarea||'').toUpperCase().includes(codigo)) return false;
+    if (guia   && !(r.guia||'').toUpperCase().includes(guia))           return false;
+    if (estado && (r.estado||'').toUpperCase() !== estado)              return false;
+    if (anio   && String(r.anio) !== anio)                              return false;
+    if (mes    && String(r.mes).padStart(2,'0') !== mes.padStart(2,'0')) return false;
+    return true;
+  });
+  rollosDetallePage = 1;
+  renderRollosDetalleTable();
+}
+
+function resetRollosDetalleSearch() {
+  ['rf-codigo-tarea','rf-guia'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-estado','rf-anio','rf-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
+  rollosDetallePage = 1;
+  renderRollosDetalleTable();
+}
+
+// ── Tabla Comercio ─────────────────────────────────────────────────
 const COMERCIO_COLS = [
-  { label:'Cod. Comercio', fn: r => r.cod_comercio || '—' },
-  { label:'Cantidad',      fn: r => r.cantidad ?? '—' },
-  { label:'Nombre Sitio',  fn: r => r.nombre_sitio || '—' },
-  { label:'Dirección',     fn: r => r.direccion || '—' },
-  { label:'Ciudad',        fn: r => r.ciudad || '—' },
-  { label:'Departamento',  fn: r => r.departamento || '—' },
-  { label:'Estado',        fn: r => r.estado || '—', isStatus: true },
-  { label:'Tipo Envío',    fn: r => r.tipo_envio || '—' },
+  { label:'Cod. Comercio',  fn: r => r.cod_comercio || '—' },
+  { label:'Nombre Sitio',   fn: r => r.nombre_sitio || '—' },
+  { label:'Dirección',      fn: r => r.direccion || '—' },
+  { label:'Ciudad',         fn: r => r.ciudad || '—' },
+  { label:'Departamento',   fn: r => r.departamento || '—' },
+  { label:'Estado',         fn: r => r.estado || '—', isStatus: true },
+  { label:'Tipo Envío',     fn: r => r.tipo_envio || '—' },
+  { label:'Cantidad',       fn: r => r.cantidad ?? '—' },
+  { label:'Tareas',         fn: r => r.tareas ?? '—' },
 ];
 
 function renderRollosComercioTable() {
@@ -1643,7 +2167,7 @@ function renderRollosComercioTable() {
   const count = document.getElementById('rollos-comercio-count');
   if (!wrap) return;
   const data  = ROLLOS_COMERCIO;
-  const pages = Math.ceil(data.length / ROLLOS_PAGE_SIZE);
+  const pages = Math.max(1, Math.ceil(data.length / ROLLOS_PAGE_SIZE));
   const slice = data.slice((rollosComercioPage-1)*ROLLOS_PAGE_SIZE, rollosComercioPage*ROLLOS_PAGE_SIZE);
 
   if (!data.length) {
@@ -1670,12 +2194,46 @@ function goRollosComercioPage(p) {
   if (p >= 1 && p <= pages) { rollosComercioPage = p; renderRollosComercioTable(); }
 }
 
+function applyComercioFilters() {
+  if (!ROLLOS_RAW) return;
+  const cod  = (document.getElementById('rf-cod-comercio')?.value||'').trim().toUpperCase();
+  const est  = (document.getElementById('rf-com-estado')?.value||'').toUpperCase();
+  const tipo = (document.getElementById('rf-com-tipo')?.value||'').toUpperCase();
+  const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
+
+  ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
+    if (cod  && !(r.cod_comercio||'').toUpperCase().includes(cod))  return false;
+    if (est  && (r.estado||'').toUpperCase() !== est)               return false;
+    if (tipo && (r.tipo_envio||'').toUpperCase() !== tipo)          return false;
+    // mantener consistencia con filtros globales
+    if (sitiosFiltrados.size && !sitiosFiltrados.has(r.cod_comercio)) {
+      // si hay filtros globales activos, respetar
+      const hayFiltros = ROLLOS_FILTERED.length < (ROLLOS_RAW.detalle||[]).length;
+      if (hayFiltros && !sitiosFiltrados.has(r.cod_comercio)) return false;
+    }
+    return true;
+  });
+  rollosComercioPage = 1;
+  renderRollosComercioTable();
+}
+
+function resetComercioFilters() {
+  ['rf-cod-comercio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-com-estado','rf-com-tipo'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
+  ROLLOS_COMERCIO = (ROLLOS_RAW?.comercio||[]).filter(r =>
+    ROLLOS_FILTERED.length === (ROLLOS_RAW.detalle||[]).length || sitiosFiltrados.has(r.cod_comercio)
+  );
+  rollosComercioPage = 1;
+  renderRollosComercioTable();
+}
+
 // ── Tabla Referencias ─────────────────────────────────────────────
 function renderRollosRefTable() {
   const wrap  = document.getElementById('rollos-ref-wrap');
   const count = document.getElementById('rollos-ref-count');
   if (!wrap) return;
-  const data = ROLLOS_RAW.referencias || [];
+  const data = ROLLOS_RAW?.referencias || [];
 
   if (!data.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin referencias</p></div>';
@@ -1697,110 +2255,6 @@ function renderRollosRefTable() {
   </tbody></table>`;
 
   if (count) count.textContent = `${data.length} referencias`;
-}
-
-// ── Gráfica departamento ──────────────────────────────────────────
-function renderRollosDeptChart() {
-  const canvas = document.getElementById('chart-rollos-depto');
-  if (!canvas || !ROLLOS_RAW) return;
-  const por_dep = (ROLLOS_RAW.por_departamento || []).slice(0, 15);
-  if (chartInstances['rollos-depto']) { chartInstances['rollos-depto'].destroy(); }
-  chartInstances['rollos-depto'] = new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels: por_dep.map(d => d.departamento),
-      datasets: [{
-        label: 'Rollos',
-        data: por_dep.map(d => d.total_rollos),
-        backgroundColor: por_dep.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
-        borderColor: por_dep.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
-        borderWidth: 1, borderRadius: 6,
-      }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-      plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
-      scales: {
-        x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-        y: { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
-      },
-    }
-  });
-}
-
-// ── Filtros Detalle ───────────────────────────────────────────────
-function applyRollosFilters() {
-  if (!ROLLOS_RAW) return;
-  const codigo = (document.getElementById('rf-codigo-tarea')?.value||'').trim().toUpperCase();
-  const guia   = (document.getElementById('rf-guia')?.value||'').trim().toUpperCase();
-  const estado = (document.getElementById('rf-estado')?.value||'').toUpperCase();
-  const desde  = document.getElementById('rf-fecha-desde')?.value;
-  const hasta  = document.getElementById('rf-fecha-hasta')?.value;
-  const anio   = document.getElementById('rf-anio')?.value;
-  const mes    = document.getElementById('rf-mes')?.value;
-
-  ROLLOS_DETALLE = (ROLLOS_RAW.detalle || []).filter(r => {
-    if (codigo && !(r.codigo_tarea||'').toUpperCase().includes(codigo)) return false;
-    if (guia   && !(r.guia||'').toUpperCase().includes(guia))           return false;
-    if (estado && (r.estado||'').toUpperCase() !== estado)              return false;
-    if (anio   && String(r.anio) !== anio)                              return false;
-    if (mes    && String(r.mes).padStart(2,'0') !== mes.padStart(2,'0')) return false;
-    if (desde || hasta) {
-      const fp = r.fecha_plan_fin ? new Date(r.fecha_plan_fin.substring(0,10)) : null;
-      if (desde && fp && fp < new Date(desde)) return false;
-      if (hasta && fp && fp > new Date(hasta + 'T23:59:59')) return false;
-    }
-    return true;
-  });
-  rollosDetallePage = 1;
-  renderRollosDetalleTable();
-}
-
-function resetRollosFilters() {
-  ['rf-codigo-tarea','rf-guia','rf-fecha-desde','rf-fecha-hasta'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  ['rf-estado','rf-anio','rf-mes'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.value = '';
-  });
-  ROLLOS_DETALLE = (ROLLOS_RAW?.detalle || []).slice();
-  rollosDetallePage = 1;
-  renderRollosDetalleTable();
-}
-
-// ── Filtros Comercio ──────────────────────────────────────────────
-function applyComercioFilters() {
-  if (!ROLLOS_RAW) return;
-  const cod   = (document.getElementById('rf-cod-comercio')?.value||'').trim().toUpperCase();
-  const est   = (document.getElementById('rf-com-estado')?.value||'').toUpperCase();
-  const tipo  = (document.getElementById('rf-com-tipo')?.value||'').toUpperCase();
-  const mes   = document.getElementById('rf-com-mes')?.value;
-
-  ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
-    if (cod  && !(r.cod_comercio||'').toUpperCase().includes(cod))  return false;
-    if (est  && (r.estado||'').toUpperCase() !== est)               return false;
-    if (tipo && (r.tipo_envio||'').toUpperCase() !== tipo)          return false;
-    // mes: filtrar desde detalle — si hay mes, filtrar comercios que tengan tareas en ese mes
-    if (mes) {
-      const cod_c = r.cod_comercio;
-      const hasInMes = (ROLLOS_RAW.detalle||[]).some(d =>
-        d.cod_sitio === cod_c && String(d.mes).padStart(2,'0') === mes.padStart(2,'0'));
-      if (!hasInMes) return false;
-    }
-    return true;
-  });
-  rollosComercioPage = 1;
-  renderRollosComercioTable();
-  renderRollosDeptChart();
-}
-
-function resetComercioFilters() {
-  ['rf-cod-comercio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-com-estado','rf-com-tipo','rf-com-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ROLLOS_COMERCIO = (ROLLOS_RAW?.comercio||[]).slice();
-  rollosComercioPage = 1;
-  renderRollosComercioTable();
-  renderRollosDeptChart();
 }
 
 // ── Exportar Excel (Rollos) ───────────────────────────────────────

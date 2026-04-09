@@ -1051,6 +1051,73 @@ tbody tr:hover {
   .topbar { padding: 0 16px; }
   .main { padding: 16px; }
 }
+
+/* ═══ ROLLOS KPI CARDS ENHANCED ═══════════════════════════════════════ */
+.rkpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  box-shadow: var(--shadow-card);
+  cursor: default;
+}
+.rkpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.rkpi-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 110%, rgba(176,242,174,.03) 0%, transparent 70%);
+  pointer-events: none;
+}
+.rkpi-card:hover { border-color: rgba(176,242,174,.3); transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,.6), var(--glow-green); }
+.rkpi-card.green::before { background: linear-gradient(90deg, var(--verde-menta), var(--verde-selva)); }
+.rkpi-card.blue::before  { background: linear-gradient(90deg, var(--azul-cielo), #5b9fd4); }
+.rkpi-card.lime::before  { background: linear-gradient(90deg, var(--verde-lima), #a8d43b); }
+.rkpi-card.danger::before{ background: linear-gradient(90deg, var(--danger), #c04040); }
+.rkpi-card.warn::before  { background: linear-gradient(90deg, var(--warning), #d4941d); }
+.rkpi-card.purple::before{ background: linear-gradient(90deg, #b78af7, #8b5cf6); }
+.rkpi-card.selva::before { background: linear-gradient(90deg, var(--verde-selva), #005c40); }
+
+.rkpi-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+.rkpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 6px; }
+.rkpi-value { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+.rkpi-sub   { font-size: 11px; color: var(--muted); }
+.rkpi-pct-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
+.rkpi-pct-bar { flex: 1; height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.rkpi-pct-fill { height: 100%; border-radius: 2px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+.rkpi-pct-fill.green  { background: linear-gradient(90deg, var(--verde-menta), var(--verde-selva)); }
+.rkpi-pct-fill.blue   { background: linear-gradient(90deg, var(--azul-cielo), #5b9fd4); }
+.rkpi-pct-fill.lime   { background: linear-gradient(90deg, var(--verde-lima), #a8d43b); }
+.rkpi-pct-fill.danger { background: linear-gradient(90deg, var(--danger), #c04040); }
+.rkpi-pct-fill.warn   { background: linear-gradient(90deg, var(--warning), #d4941d); }
+.rkpi-pct-fill.purple { background: linear-gradient(90deg, #b78af7, #8b5cf6); }
+.rkpi-pct-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; min-width: 36px; text-align: right; }
+
+/* ANS Big Cards */
+.ans-big-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; position: relative; overflow: hidden;
+  transition: var(--transition);
+  box-shadow: var(--shadow-card);
+}
+.ans-big-card:hover { transform: translateY(-2px); }
+.ans-big-donut { width: 120px; height: 120px; margin: 0 auto 16px; }
+.ans-big-pct { font-family: 'JetBrains Mono', monospace; font-size: 42px; font-weight: 700; line-height: 1; }
+.ans-big-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-top: 6px; margin-bottom: 12px; }
+.ans-detail-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.ans-detail-item { text-align: center; }
+.ans-detail-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; }
+.ans-detail-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -1336,18 +1403,174 @@ tbody tr:hover {
     <!-- ══ TAB: ROLLOS WOMPI ══ -->
     <div id="panel-rollos" style="display:none">
 
-      <!-- KPIs Rollos -->
-      <div class="section-label fade-up fade-up-1">KPIs Rollos Wompi</div>
-      <div class="kpi-grid fade-up fade-up-2" id="rollos-kpi-grid">
-        <div class="loading"><div class="spinner"></div><span>Cargando datos rollos...</span></div>
+      <!-- ════ FILTROS GLOBALES ROLLOS ════ -->
+      <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
+        <div class="filters-title" style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:18px">⚙️</span>
+          <span>Filtros Globales — aplican a KPIs, gráficas y tablas</span>
+        </div>
+        <div class="filters-row">
+          <div class="filter-group filter-group--date-range">
+            <label>📅 Fecha Plan Fin</label>
+            <div class="date-range-inputs">
+              <input type="date" id="rg-fecha-desde" title="Desde">
+              <span class="date-range-sep">→</span>
+              <input type="date" id="rg-fecha-hasta" title="Hasta">
+            </div>
+          </div>
+          <div class="filter-group">
+            <label>Estado</label>
+            <select id="rg-estado"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Departamento</label>
+            <select id="rg-departamento"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Tipo Flujo</label>
+            <select id="rg-tipo-flujo"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Material</label>
+            <select id="rg-material"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Proyecto</label>
+            <select id="rg-proyecto"><option value="">Todos</option></select>
+          </div>
+          <div class="filters-actions">
+            <button class="btn-apply" onclick="applyRollosGlobalFilters()">✦ Aplicar</button>
+            <button class="btn-reset" onclick="resetRollosGlobalFilters()">↺ Reset</button>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(176,242,174,.1);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)" id="rg-filter-summary">
+          Sin filtros activos — mostrando todos los datos
+        </div>
       </div>
 
-      <!-- ══ SECCIÓN 1: DETALLES ══ -->
-      <div class="section-label" style="margin-top:32px">Detalles de Tareas</div>
+      <!-- ════ KPIs ROLLOS ════ -->
+      <div class="section-label fade-up fade-up-1">KPIs Rollos Wompi</div>
+      <div id="rollos-kpi-grid" class="fade-up fade-up-2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px">
+        <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
+      </div>
 
-      <!-- Filtros Detalles -->
+      <!-- ════ FILA ANS / CUMPLIMIENTO ════ -->
+      <div class="section-label">Cumplimiento Tiempos de Entrega (ANS)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="rollos-ans-row">
+        <!-- generado por JS -->
+      </div>
+
+      <!-- ════ GRÁFICAS ROW 1 ════ -->
+      <div class="section-label">Distribución y Tendencias</div>
+      <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
+
+        <!-- Dona Estados -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Estado de Rollos</div>
+            <div class="chart-sub">Distribución por estado lógico</div>
+          </div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-estados"></canvas></div>
+        </div>
+
+        <!-- Dona tipo flujo -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Por Tipo de Envío</div>
+            <div class="chart-sub">Distribución tipo_flujo</div>
+          </div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-tipo-flujo"></canvas></div>
+        </div>
+
+        <!-- Gauge SLA -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">ANS Oportunidad</div>
+            <div class="chart-sub">% Cumple / No Cumple</div>
+          </div>
+          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-sla"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ════ GRÁFICAS ROW 2 ════ -->
+      <div class="charts-grid" style="grid-template-columns:2fr 1fr;margin-bottom:24px">
+
+        <!-- Barras por Departamento -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Rollos por Departamento</div>
+            <div class="chart-sub">Top 15 departamentos</div>
+          </div>
+          <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-depto"></canvas></div>
+        </div>
+
+        <!-- Barras Calidad -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Calidad Operación</div>
+            <div class="chart-sub">Exitoso vs Cancelado</div>
+          </div>
+          <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-calidad"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ════ GRÁFICAS ROW 3 ════ -->
+      <div class="charts-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
+
+        <!-- Tendencia mensual rollos -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Tendencia Mensual</div>
+            <div class="chart-sub">Rollos y tareas por mes</div>
+          </div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-mensual"></canvas></div>
+        </div>
+
+        <!-- Cumplimiento entregas por mes -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Cumplimiento de Entregas por Mes</div>
+            <div class="chart-sub">Entregados vs Devueltos vs En proceso</div>
+          </div>
+          <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-cumplimiento-mes"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ════ GRÁFICAS ROW 4 ════ -->
+      <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:28px">
+
+        <!-- Oportunidad por estado -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Oportunidad Normalizada</div>
+            <div class="chart-sub">Cumple / NC / Motivo NC</div>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-oportunidad"></canvas></div>
+        </div>
+
+        <!-- Top materiales -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Top Materiales / Tipología</div>
+            <div class="chart-sub">Rollos por material</div>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-material"></canvas></div>
+        </div>
+
+        <!-- Embudo de proceso -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">Embudo de Proceso</div>
+            <div class="chart-sub">Solicitados → Entregados</div>
+          </div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-funnel"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ════ SECCIÓN TABLA DETALLE ════ -->
+      <div class="section-label" style="margin-top:8px">Detalles de Tareas</div>
       <div class="filters-bar" style="margin-bottom:16px">
-        <div class="filters-title">Filtros — Detalles</div>
+        <div class="filters-title">Búsqueda en tabla detalle</div>
         <div class="filters-row">
           <div class="filter-group">
             <label>Código Tarea</label>
@@ -1361,14 +1584,6 @@ tbody tr:hover {
             <label>Estado Lógico Final</label>
             <select id="rf-estado"><option value="">Todos</option></select>
           </div>
-          <div class="filter-group filter-group--date-range">
-            <label>📅 Fecha Plan Fin</label>
-            <div class="date-range-inputs">
-              <input type="date" id="rf-fecha-desde" title="Desde">
-              <span class="date-range-sep">→</span>
-              <input type="date" id="rf-fecha-hasta" title="Hasta">
-            </div>
-          </div>
           <div class="filter-group">
             <label>Año</label>
             <select id="rf-anio"><option value="">Todos</option></select>
@@ -1378,13 +1593,11 @@ tbody tr:hover {
             <select id="rf-mes"><option value="">Todos</option></select>
           </div>
           <div class="filters-actions">
-            <button class="btn-apply" onclick="applyRollosFilters()">✦ Aplicar</button>
-            <button class="btn-reset" onclick="resetRollosFilters()">↺ Reset</button>
+            <button class="btn-apply" onclick="applyRollosDetalleSearch()">✦ Filtrar</button>
+            <button class="btn-reset" onclick="resetRollosDetalleSearch()">↺ Reset</button>
           </div>
         </div>
       </div>
-
-      <!-- Tabla Detalles -->
       <div class="table-section" style="margin-bottom:32px">
         <div class="table-header">
           <h3>Detalles de Tareas Rollos</h3>
@@ -1401,12 +1614,10 @@ tbody tr:hover {
         </div>
       </div>
 
-      <!-- ══ SECCIÓN 2: COMERCIOS ══ -->
+      <!-- ════ COMERCIOS ════ -->
       <div class="section-label">Detalle por Comercio</div>
-
-      <!-- Filtros Comercios -->
       <div class="filters-bar" style="margin-bottom:16px">
-        <div class="filters-title">Filtros — Comercios</div>
+        <div class="filters-title">Búsqueda Comercios</div>
         <div class="filters-row">
           <div class="filter-group">
             <label>Cod. Comercio</label>
@@ -1420,28 +1631,12 @@ tbody tr:hover {
             <label>Tipo Envío</label>
             <select id="rf-com-tipo"><option value="">Todos</option></select>
           </div>
-          <div class="filter-group">
-            <label>Mes (plan fin)</label>
-            <select id="rf-com-mes"><option value="">Todos</option></select>
-          </div>
           <div class="filters-actions">
             <button class="btn-apply" onclick="applyComercioFilters()">✦ Aplicar</button>
             <button class="btn-reset" onclick="resetComercioFilters()">↺ Reset</button>
           </div>
         </div>
       </div>
-
-      <!-- Gráfica + Tabla Comercios -->
-      <div class="charts-grid" style="margin-bottom:24px">
-        <div class="chart-card wide">
-          <div class="chart-header">
-            <div class="chart-title">Cantidad por Departamento</div>
-            <div class="chart-sub">Rollos distribuidos por región</div>
-          </div>
-          <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-depto"></canvas></div>
-        </div>
-      </div>
-
       <div class="table-section" style="margin-bottom:32px">
         <div class="table-header">
           <h3>Comercios — Rollos</h3>
@@ -1458,7 +1653,7 @@ tbody tr:hover {
         </div>
       </div>
 
-      <!-- ══ SECCIÓN 3: REFERENCIAS ══ -->
+      <!-- ════ REFERENCIAS ════ -->
       <div class="section-label">Referencias con Cantidad</div>
       <div class="table-section">
         <div class="table-header">
