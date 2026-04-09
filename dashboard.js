@@ -1590,19 +1590,24 @@ function computeRollosKPIs() {
   const sla_total    = sla_cumple + sla_nc;
   const pct_sla      = pct(sla_cumple, sla_total);
 
-  // ANS por tareas únicas calculado desde fechas: fecha_entrega <= fecha_plan_fin → cumple
-  const tareasANS = new Map(); // codigo_tarea -> { plan_fin, entrega }
+  // ANS por tareas únicas calculado desde fechas: fecha_entrega <= fecha_limite_entrega → cumple
+  // fecha_limite_entrega = FECHA_LIMITE_ENTREGA_EXTERNA (fecha plan de entrega real del ANS)
+  // fecha_entrega = FECHA_ENTREGA_AL_COMERCIO_EXTERNA o fecha_entrega_comercio (real de entrega)
+  const tareasANS = new Map(); // codigo_tarea -> { plan_fin, entrega, limite }
   det.forEach(r => {
     const tarea = r.codigo_tarea; if (!tarea) return;
-    if (!tareasANS.has(tarea)) tareasANS.set(tarea, { plan_fin: r.fecha_plan_fin||'', entrega: r.fecha_entrega||r.fecha_entrega_raw||'' });
+    if (!tareasANS.has(tarea)) tareasANS.set(tarea, {
+      limite: r.fecha_limite_entrega || r.fecha_plan_fin || '',
+      entrega: r.fecha_entrega || ''
+    });
   });
   let ans_tareas_cumple = 0, ans_tareas_nc = 0, ans_tareas_sin_info = 0;
-  tareasANS.forEach(({ plan_fin, entrega }) => {
-    if (!plan_fin || !entrega) { ans_tareas_sin_info++; return; }
-    const dPlan = new Date(plan_fin.substring(0,10));
-    const dEnt  = new Date(entrega.substring(0,10));
-    if (isNaN(dPlan) || isNaN(dEnt)) { ans_tareas_sin_info++; return; }
-    if (dEnt <= dPlan) ans_tareas_cumple++; else ans_tareas_nc++;
+  tareasANS.forEach(({ limite, entrega }) => {
+    if (!limite || !entrega) { ans_tareas_sin_info++; return; }
+    const dLimite = new Date(limite.substring(0,10));
+    const dEnt    = new Date(entrega.substring(0,10));
+    if (isNaN(dLimite) || isNaN(dEnt)) { ans_tareas_sin_info++; return; }
+    if (dEnt <= dLimite) ans_tareas_cumple++; else ans_tareas_nc++;
   });
   const ans_tareas_total = ans_tareas_cumple + ans_tareas_nc;
   const pct_ans_tareas   = pct(ans_tareas_cumple, ans_tareas_total);
