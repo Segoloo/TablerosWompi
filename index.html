@@ -1551,13 +1551,13 @@ tbody tr:hover {
           <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-oportunidad"></canvas></div>
         </div>
 
-        <!-- Top materiales -->
+        <!-- Tendencia mensual tareas -->
         <div class="chart-card">
           <div class="chart-header">
-            <div class="chart-title">Top Materiales / Tipología</div>
-            <div class="chart-sub">Rollos por material</div>
+            <div class="chart-title">Tendencia Mensual (Tareas)</div>
+            <div class="chart-sub">Tareas únicas por mes plan</div>
           </div>
-          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-material"></canvas></div>
+          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-t-mensual"></canvas></div>
         </div>
 
         <!-- Embudo de proceso -->
@@ -1567,49 +1567,6 @@ tbody tr:hover {
             <div class="chart-sub">Solicitados → Entregados</div>
           </div>
           <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-funnel"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ════ GRÁFICAS POR TAREAS ════ -->
-      <div class="section-label" style="margin-top:8px">Distribución por Tareas</div>
-      <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
-
-        <!-- Dona Estados por Tareas -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Estado de Tareas</div>
-            <div class="chart-sub">Distribución por tareas únicas</div>
-          </div>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-t-estados"></canvas></div>
-        </div>
-
-        <!-- ANS por Fechas -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">ANS por Fechas (Tareas)</div>
-            <div class="chart-sub">Fecha Entrega vs Fecha Límite Entrega Externa</div>
-          </div>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-t-ans"></canvas></div>
-        </div>
-
-        <!-- Tendencia mensual tareas -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Tendencia Mensual (Tareas)</div>
-            <div class="chart-sub">Tareas únicas por mes plan</div>
-          </div>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-t-mensual"></canvas></div>
-        </div>
-      </div>
-
-      <div class="charts-grid" style="grid-template-columns:1fr;margin-bottom:28px">
-        <!-- Barras por Departamento (Tareas) -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Tareas por Departamento</div>
-            <div class="chart-sub">Top 15 departamentos — conteo de tareas</div>
-          </div>
-          <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-t-depto"></canvas></div>
         </div>
       </div>
 
@@ -1623,12 +1580,32 @@ tbody tr:hover {
             <input type="text" id="rf-codigo-tarea" placeholder="Código de tarea...">
           </div>
           <div class="filter-group">
+            <label>Cód. Sitio</label>
+            <input type="text" id="rf-cod-sitio" placeholder="Cód. Sitio...">
+          </div>
+          <div class="filter-group">
             <label>Guía</label>
             <input type="text" id="rf-guia" placeholder="Número de guía...">
           </div>
           <div class="filter-group">
             <label>Estado Lógico Final</label>
             <select id="rf-estado"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Tipo Flujo</label>
+            <select id="rf-tipo-flujo-det"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Departamento</label>
+            <select id="rf-departamento-det"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Ciudad</label>
+            <select id="rf-ciudad-det"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Proyecto</label>
+            <select id="rf-proyecto-det"><option value="">Todos</option></select>
           </div>
           <div class="filter-group">
             <label>Año</label>
@@ -1670,6 +1647,18 @@ tbody tr:hover {
             <input type="text" id="rf-cod-comercio" placeholder="Código...">
           </div>
           <div class="filter-group">
+            <label>Nombre Sitio</label>
+            <input type="text" id="rf-nombre-sitio" placeholder="Nombre...">
+          </div>
+          <div class="filter-group">
+            <label>Ciudad</label>
+            <input type="text" id="rf-com-ciudad" placeholder="Ciudad...">
+          </div>
+          <div class="filter-group">
+            <label>Departamento</label>
+            <select id="rf-com-departamento"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
             <label>Estado</label>
             <select id="rf-com-estado"><option value="">Todos</option></select>
           </div>
@@ -1701,6 +1690,31 @@ tbody tr:hover {
 
       <!-- ════ REFERENCIAS ════ -->
       <div class="section-label">Referencias con Cantidad</div>
+      <div class="filters-bar" style="margin-bottom:16px">
+        <div class="filters-title">Búsqueda Referencias</div>
+        <div class="filters-row">
+          <div class="filter-group">
+            <label>Referencia (Material)</label>
+            <input type="text" id="rf-ref-nombre" placeholder="Nombre de material...">
+          </div>
+          <div class="filter-group">
+            <label>Estado</label>
+            <select id="rf-ref-estado"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Departamento</label>
+            <select id="rf-ref-departamento"><option value="">Todos</option></select>
+          </div>
+          <div class="filter-group">
+            <label>Ciudad</label>
+            <select id="rf-ref-ciudad"><option value="">Todos</option></select>
+          </div>
+          <div class="filters-actions">
+            <button class="btn-apply" onclick="applyRefFilters()">✦ Filtrar</button>
+            <button class="btn-reset" onclick="resetRefFilters()">↺ Reset</button>
+          </div>
+        </div>
+      </div>
       <div class="table-section">
         <div class="table-header">
           <h3>Tabla Referencia</h3>
@@ -1713,6 +1727,7 @@ tbody tr:hover {
         </div>
         <div class="table-footer">
           <span class="table-count" id="rollos-ref-count">0 registros</span>
+          <div class="table-pagination" id="rollos-ref-pagination"></div>
         </div>
       </div>
 

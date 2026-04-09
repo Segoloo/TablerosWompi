@@ -1465,25 +1465,37 @@ function initRollosGlobalFilters() {
   populate('rg-material',    uniq('material'));
   populate('rg-proyecto',    uniq('proyecto'));
 
-  // También inicializar filtros de tabla detalle
-  const estados = uniq('estado');
-  const anios   = [...new Set(det.map(r=>r.anio).filter(Boolean))].sort().reverse();
-  const meses   = [...new Set(det.map(r=>r.mes).filter(Boolean))].sort();
+  // Filtros tabla detalle
+  const estados   = uniq('estado');
+  const anios     = [...new Set(det.map(r=>r.anio).filter(Boolean))].sort().reverse();
+  const meses     = [...new Set(det.map(r=>r.mes).filter(Boolean))].sort();
+  const tiposFlujo= uniq('tipo_flujo');
+  const deptos    = uniq('departamento');
+  const ciudades  = uniq('ciudad');
+  const proyectos = uniq('proyecto');
 
-  const fEst = document.getElementById('rf-estado');
-  if (fEst) fEst.innerHTML = '<option value="">Todos</option>' + estados.map(e=>`<option value="${e}">${e}</option>`).join('');
+  populate('rf-estado',           estados);
+  populate('rf-tipo-flujo-det',   tiposFlujo);
+  populate('rf-departamento-det', deptos);
+  populate('rf-ciudad-det',       ciudades);
+  populate('rf-proyecto-det',     proyectos);
+
   const fAnio = document.getElementById('rf-anio');
   if (fAnio) fAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
   const fMes = document.getElementById('rf-mes');
   if (fMes) fMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
 
+  // Filtros tabla comercio
   const comercio = ROLLOS_RAW.comercio || [];
-  const comEst  = [...new Set(comercio.map(r=>r.estado).filter(Boolean))].sort();
-  const comTipo = [...new Set(comercio.map(r=>r.tipo_envio).filter(Boolean))].sort();
-  const fComEst = document.getElementById('rf-com-estado');
-  if (fComEst) fComEst.innerHTML = '<option value="">Todos</option>' + comEst.map(e=>`<option value="${e}">${e}</option>`).join('');
-  const fComTipo = document.getElementById('rf-com-tipo');
-  if (fComTipo) fComTipo.innerHTML = '<option value="">Todos</option>' + comTipo.map(t=>`<option value="${t}">${t}</option>`).join('');
+  const comEst   = [...new Set(comercio.map(r=>r.estado).filter(Boolean))].sort();
+  const comTipo  = [...new Set(comercio.map(r=>r.tipo_envio).filter(Boolean))].sort();
+  const comDeptos= [...new Set(comercio.map(r=>r.departamento).filter(Boolean))].sort();
+  populate('rf-com-estado',       comEst);
+  populate('rf-com-tipo',         comTipo);
+  populate('rf-com-departamento', comDeptos);
+
+  // Inicializar referencias filtradas
+  ROLLOS_REF_FILTERED = (ROLLOS_RAW.referencias || []).slice();
 }
 
 // ── Aplicar filtros GLOBALES — recalcula TODO ─────────────────────
@@ -1537,8 +1549,10 @@ function applyRollosGlobalFilters() {
   });
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
+  ROLLOS_REF_FILTERED = (ROLLOS_RAW?.referencias || []).slice();
   rollosDetallePage  = 1;
   rollosComercioPage = 1;
+  rollosRefPage      = 1;
 
   renderRollosKPIs();
   renderRollosKPIsTareas();
@@ -1821,12 +1835,8 @@ function renderRollosCharts() {
   _destroyChart('rollos-mensual');
   _destroyChart('rollos-cumplimiento-mes');
   _destroyChart('rollos-oportunidad');
-  _destroyChart('rollos-material');
   _destroyChart('rollos-funnel');
-  _destroyChart('rollos-t-estados');
-  _destroyChart('rollos-t-depto');
   _destroyChart('rollos-t-mensual');
-  _destroyChart('rollos-t-ans');
 
   // 1. DONA — Estados
   {
@@ -2052,36 +2062,6 @@ function renderRollosCharts() {
     }
   }
 
-  // 9. BARRAS — Top materiales
-  {
-    const map = {};
-    det.forEach(r => { const m=r.material||'Sin material'; map[m]=(map[m]||0)+(parseFloat(r.cantidad)||0); });
-    const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
-    const canvas = document.getElementById('chart-rollos-material');
-    if (canvas) {
-      chartInstances['rollos-material'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: sorted.map(x=>x[0].length > 18 ? x[0].substring(0,18)+'…' : x[0]),
-          datasets: [{
-            data: sorted.map(x=>Math.round(x[1])),
-            backgroundColor: sorted.map((_,i)=>WOMPI_COLORS[i%WOMPI_COLORS.length]+'BB'),
-            borderColor: sorted.map((_,i)=>WOMPI_COLORS[i%WOMPI_COLORS.length]),
-            borderWidth:1, borderRadius:6,
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false, indexAxis:'y',
-          plugins: { legend:{display:false}, tooltip: CHART_OPTS.tooltip },
-          scales: {
-            x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-            y: { ticks:{ color:'#FAFAFA', font:{size:10} }, grid:{display:false} },
-          }
-        }
-      });
-    }
-  }
-
   // 10. EMBUDO — Proceso
   {
     const k = computeRollosKPIs();
@@ -2116,68 +2096,7 @@ function renderRollosCharts() {
     }
   }
 
-  // ── GRÁFICAS POR TAREAS ─────────────────────────────────────────
-
-  // T1. DONA — Estados por tareas únicas
-  {
-    const tareasEstMap = {};
-    const seen = new Set();
-    det.forEach(r => {
-      const tarea = r.codigo_tarea; if (!tarea || seen.has(tarea)) return;
-      seen.add(tarea);
-      const e = r.estado || 'SIN ESTADO';
-      tareasEstMap[e] = (tareasEstMap[e] || 0) + 1;
-    });
-    const labels = Object.keys(tareasEstMap);
-    const data   = labels.map(k => tareasEstMap[k]);
-    const colors = labels.map(l => {
-      const u = l.toUpperCase();
-      if (u === 'ENTREGADO')          return '#B0F2AE';
-      if (u.includes('TRANSITO'))     return '#99D1FC';
-      if (u.includes('ALISTAMIENTO')) return '#DFFF61';
-      if (u.includes('DEVOLUC'))      return '#FF5C5C';
-      return '#7B8CDE';
-    });
-    _buildDona('chart-rollos-t-estados', labels, data, colors, 'Tareas por estado');
-  }
-
-  // T2. BARRAS — Departamento por tareas
-  {
-    const depMap = {};
-    const seen = new Set();
-    det.forEach(r => {
-      const tarea = r.codigo_tarea;
-      const d = r.departamento; if (!d) return;
-      const key = `${tarea}||${d}`;
-      if (seen.has(key)) return; seen.add(key);
-      depMap[d] = (depMap[d] || 0) + 1;
-    });
-    const sorted = Object.entries(depMap).sort((a,b)=>b[1]-a[1]).slice(0,15);
-    const canvas = document.getElementById('chart-rollos-t-depto');
-    if (canvas && sorted.length) {
-      chartInstances['rollos-t-depto'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: sorted.map(x=>x[0]),
-          datasets: [{
-            label: 'Tareas',
-            data: sorted.map(x=>x[1]),
-            backgroundColor: sorted.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
-            borderColor: sorted.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
-            borderWidth: 1, borderRadius: 6,
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-          plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
-          scales: {
-            x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-            y: { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
-          },
-        }
-      });
-    }
-  }
+  // ── GRÁFICA TENDENCIA MENSUAL TAREAS (movida a Row 4) ───────────
 
   // T3. LÍNEA — Tendencia mensual por tareas únicas
   {
@@ -2219,16 +2138,6 @@ function renderRollosCharts() {
     }
   }
 
-  // T4. DONA — ANS por fechas (tareas)
-  {
-    const k = computeRollosKPIs();
-    _buildDona('chart-rollos-t-ans',
-      ['Cumple ANS', 'No Cumple'],
-      [k.sla_cumple, k.sla_nc],
-      ['#B0F2AE', '#FF5C5C'],
-      'ANS por fechas'
-    );
-  }
 }
 
 function _buildDona(id, labels, data, colors, title) {
@@ -2362,18 +2271,28 @@ function goRollosDetallePage(p) {
 
 function applyRollosDetalleSearch() {
   if (!ROLLOS_RAW) return;
-  const codigo = (document.getElementById('rf-codigo-tarea')?.value||'').trim().toUpperCase();
-  const guia   = (document.getElementById('rf-guia')?.value||'').trim().toUpperCase();
-  const estado = (document.getElementById('rf-estado')?.value||'').toUpperCase();
-  const anio   = document.getElementById('rf-anio')?.value;
-  const mes    = document.getElementById('rf-mes')?.value;
+  const codigo  = (document.getElementById('rf-codigo-tarea')?.value||'').trim().toUpperCase();
+  const codSitio= (document.getElementById('rf-cod-sitio')?.value||'').trim().toUpperCase();
+  const guia    = (document.getElementById('rf-guia')?.value||'').trim().toUpperCase();
+  const estado  = (document.getElementById('rf-estado')?.value||'').toUpperCase();
+  const flujo   = (document.getElementById('rf-tipo-flujo-det')?.value||'').toUpperCase();
+  const depto   = (document.getElementById('rf-departamento-det')?.value||'').toUpperCase();
+  const ciudad  = (document.getElementById('rf-ciudad-det')?.value||'').toUpperCase();
+  const proyecto= (document.getElementById('rf-proyecto-det')?.value||'').toUpperCase();
+  const anio    = document.getElementById('rf-anio')?.value;
+  const mes     = document.getElementById('rf-mes')?.value;
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.filter(r => {
-    if (codigo && !(r.codigo_tarea||'').toUpperCase().includes(codigo)) return false;
-    if (guia   && !(r.guia||'').toUpperCase().includes(guia))           return false;
-    if (estado && (r.estado||'').toUpperCase() !== estado)              return false;
-    if (anio   && String(r.anio) !== anio)                              return false;
-    if (mes    && String(r.mes).padStart(2,'0') !== mes.padStart(2,'0')) return false;
+    if (codigo   && !(r.codigo_tarea||'').toUpperCase().includes(codigo))    return false;
+    if (codSitio && !(r.cod_sitio||'').toUpperCase().includes(codSitio))     return false;
+    if (guia     && !(r.guia||'').toUpperCase().includes(guia))              return false;
+    if (estado   && (r.estado||'').toUpperCase() !== estado)                 return false;
+    if (flujo    && (r.tipo_flujo||'').toUpperCase() !== flujo)              return false;
+    if (depto    && (r.departamento||'').toUpperCase() !== depto)            return false;
+    if (ciudad   && (r.ciudad||'').toUpperCase() !== ciudad)                 return false;
+    if (proyecto && (r.proyecto||'').toUpperCase() !== proyecto)             return false;
+    if (anio     && String(r.anio) !== anio)                                 return false;
+    if (mes      && String(r.mes).padStart(2,'0') !== mes.padStart(2,'0'))   return false;
     return true;
   });
   rollosDetallePage = 1;
@@ -2381,8 +2300,8 @@ function applyRollosDetalleSearch() {
 }
 
 function resetRollosDetalleSearch() {
-  ['rf-codigo-tarea','rf-guia'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-estado','rf-anio','rf-mes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-codigo-tarea','rf-guia','rf-cod-sitio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
   rollosDetallePage = 1;
   renderRollosDetalleTable();
@@ -2435,21 +2354,23 @@ function goRollosComercioPage(p) {
 
 function applyComercioFilters() {
   if (!ROLLOS_RAW) return;
-  const cod  = (document.getElementById('rf-cod-comercio')?.value||'').trim().toUpperCase();
-  const est  = (document.getElementById('rf-com-estado')?.value||'').toUpperCase();
-  const tipo = (document.getElementById('rf-com-tipo')?.value||'').toUpperCase();
+  const cod    = (document.getElementById('rf-cod-comercio')?.value||'').trim().toUpperCase();
+  const nombre = (document.getElementById('rf-nombre-sitio')?.value||'').trim().toUpperCase();
+  const ciudad = (document.getElementById('rf-com-ciudad')?.value||'').trim().toUpperCase();
+  const depto  = (document.getElementById('rf-com-departamento')?.value||'').toUpperCase();
+  const est    = (document.getElementById('rf-com-estado')?.value||'').toUpperCase();
+  const tipo   = (document.getElementById('rf-com-tipo')?.value||'').toUpperCase();
   const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
 
   ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
-    if (cod  && !(r.cod_comercio||'').toUpperCase().includes(cod))  return false;
-    if (est  && (r.estado||'').toUpperCase() !== est)               return false;
-    if (tipo && (r.tipo_envio||'').toUpperCase() !== tipo)          return false;
-    // mantener consistencia con filtros globales
-    if (sitiosFiltrados.size && !sitiosFiltrados.has(r.cod_comercio)) {
-      // si hay filtros globales activos, respetar
-      const hayFiltros = ROLLOS_FILTERED.length < (ROLLOS_RAW.detalle||[]).length;
-      if (hayFiltros && !sitiosFiltrados.has(r.cod_comercio)) return false;
-    }
+    if (cod    && !(r.cod_comercio||'').toUpperCase().includes(cod))    return false;
+    if (nombre && !(r.nombre_sitio||'').toUpperCase().includes(nombre)) return false;
+    if (ciudad && !(r.ciudad||'').toUpperCase().includes(ciudad))       return false;
+    if (depto  && (r.departamento||'').toUpperCase() !== depto)         return false;
+    if (est    && (r.estado||'').toUpperCase() !== est)                 return false;
+    if (tipo   && (r.tipo_envio||'').toUpperCase() !== tipo)            return false;
+    const hayFiltros = ROLLOS_FILTERED.length < (ROLLOS_RAW.detalle||[]).length;
+    if (hayFiltros && !sitiosFiltrados.has(r.cod_comercio)) return false;
     return true;
   });
   rollosComercioPage = 1;
@@ -2457,8 +2378,8 @@ function applyComercioFilters() {
 }
 
 function resetComercioFilters() {
-  ['rf-cod-comercio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-com-estado','rf-com-tipo'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-cod-comercio','rf-nombre-sitio','rf-com-ciudad'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-com-estado','rf-com-tipo','rf-com-departamento'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
   ROLLOS_COMERCIO = (ROLLOS_RAW?.comercio||[]).filter(r =>
     ROLLOS_FILTERED.length === (ROLLOS_RAW.detalle||[]).length || sitiosFiltrados.has(r.cod_comercio)
@@ -2468,11 +2389,38 @@ function resetComercioFilters() {
 }
 
 // ── Tabla Referencias ─────────────────────────────────────────────
+let ROLLOS_REF_FILTERED = [];
+let rollosRefPage = 1;
+
 function renderRollosRefTable() {
   const wrap  = document.getElementById('rollos-ref-wrap');
   const count = document.getElementById('rollos-ref-count');
   if (!wrap) return;
-  const data = ROLLOS_RAW?.referencias || [];
+  const allData = ROLLOS_RAW?.referencias || [];
+
+  // Si no está inicializado aún, inicializar con todos
+  if (!ROLLOS_REF_FILTERED.length && allData.length) ROLLOS_REF_FILTERED = allData.slice();
+
+  // Poblar selects de filtros referencias si están vacíos
+  const refEstEl  = document.getElementById('rf-ref-estado');
+  const refDepEl  = document.getElementById('rf-ref-departamento');
+  const refCiuEl  = document.getElementById('rf-ref-ciudad');
+  if (refEstEl && refEstEl.options.length <= 1) {
+    const estados = [...new Set(allData.map(r=>r.estado).filter(Boolean))].sort();
+    refEstEl.innerHTML = '<option value="">Todos</option>' + estados.map(e=>`<option value="${e}">${e}</option>`).join('');
+  }
+  if (refDepEl && refDepEl.options.length <= 1) {
+    const deptos = [...new Set(allData.map(r=>r.departamento).filter(Boolean))].sort();
+    refDepEl.innerHTML = '<option value="">Todos</option>' + deptos.map(d=>`<option value="${d}">${d}</option>`).join('');
+  }
+  if (refCiuEl && refCiuEl.options.length <= 1) {
+    const ciudades = [...new Set(allData.map(r=>r.ciudad).filter(Boolean))].sort();
+    refCiuEl.innerHTML = '<option value="">Todos</option>' + ciudades.map(c=>`<option value="${c}">${c}</option>`).join('');
+  }
+
+  const data  = ROLLOS_REF_FILTERED;
+  const pages = Math.max(1, Math.ceil(data.length / ROLLOS_PAGE_SIZE));
+  const slice = data.slice((rollosRefPage-1)*ROLLOS_PAGE_SIZE, rollosRefPage*ROLLOS_PAGE_SIZE);
 
   if (!data.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin referencias</p></div>';
@@ -2481,19 +2429,51 @@ function renderRollosRefTable() {
   }
 
   wrap.innerHTML = `<table><thead><tr>
-    <th>Referencia</th><th>Cantidad</th><th>Estado</th><th>Departamento</th><th>Ciudad</th><th>Material</th>
+    <th>Referencia (Material)</th><th>Cantidad</th><th>Estado</th><th>Departamento</th><th>Ciudad</th>
   </tr></thead><tbody>
-    ${data.map(r=>`<tr>
-      <td>${r.referencia||'—'}</td>
+    ${slice.map(r=>`<tr>
+      <td>${r.nombre_de_material||r.nombre_material||'—'}</td>
       <td style="font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--azul-cielo)">${r.cantidad??'—'}</td>
       <td>${statusPill(r.estado)}</td>
       <td>${r.departamento||'—'}</td>
       <td>${r.ciudad||'—'}</td>
-      <td>${r.nombre_de_material||r.nombre_material||r.material||'—'}</td>
     </tr>`).join('')}
   </tbody></table>`;
 
   if (count) count.textContent = `${data.length} referencias`;
+  mkPagination('rollos-ref-pagination', rollosRefPage, pages, 'goRollosRefPage');
+}
+
+function goRollosRefPage(p) {
+  const pages = Math.ceil(ROLLOS_REF_FILTERED.length / ROLLOS_PAGE_SIZE);
+  if (p >= 1 && p <= pages) { rollosRefPage = p; renderRollosRefTable(); }
+}
+
+function applyRefFilters() {
+  if (!ROLLOS_RAW) return;
+  const nombre = (document.getElementById('rf-ref-nombre')?.value||'').trim().toUpperCase();
+  const estado = (document.getElementById('rf-ref-estado')?.value||'').toUpperCase();
+  const depto  = (document.getElementById('rf-ref-departamento')?.value||'').toUpperCase();
+  const ciudad = (document.getElementById('rf-ref-ciudad')?.value||'').toUpperCase();
+
+  ROLLOS_REF_FILTERED = (ROLLOS_RAW.referencias || []).filter(r => {
+    const ref = (r.nombre_de_material||r.nombre_material||'').toUpperCase();
+    if (nombre && !ref.includes(nombre)) return false;
+    if (estado && (r.estado||'').toUpperCase() !== estado) return false;
+    if (depto  && (r.departamento||'').toUpperCase() !== depto) return false;
+    if (ciudad && (r.ciudad||'').toUpperCase() !== ciudad) return false;
+    return true;
+  });
+  rollosRefPage = 1;
+  renderRollosRefTable();
+}
+
+function resetRefFilters() {
+  ['rf-ref-nombre'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-ref-estado','rf-ref-departamento','rf-ref-ciudad'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ROLLOS_REF_FILTERED = (ROLLOS_RAW?.referencias||[]).slice();
+  rollosRefPage = 1;
+  renderRollosRefTable();
 }
 
 // ── Exportar Excel (Rollos) ───────────────────────────────────────
@@ -2516,10 +2496,10 @@ function exportComercioExcel() {
 }
 
 function exportReferenciasExcel() {
-  const data = (ROLLOS_RAW?.referencias || []).map(r => ({
-    Referencia: r.referencia, Cantidad: r.cantidad, Estado: r.estado,
+  const data = (ROLLOS_REF_FILTERED.length ? ROLLOS_REF_FILTERED : ROLLOS_RAW?.referencias || []).map(r => ({
+    'Referencia (Material)': r.nombre_de_material || r.nombre_material,
+    Cantidad: r.cantidad, Estado: r.estado,
     Departamento: r.departamento, Ciudad: r.ciudad,
-    Material: r.nombre_de_material || r.nombre_material || r.material,
   }));
   _exportExcelRollos(data, 'Rollos_Referencias');
 }
