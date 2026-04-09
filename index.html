@@ -1333,6 +1333,90 @@ tbody tr:hover {
       </div>
     </div>
 
+
+    <!-- ══ TAB: ROLLOS ══ -->
+    <div id="panel-rollos" style="display:none">
+
+      <!-- FILTROS -->
+      <div class="filters-bar">
+        <div class="filters-title">Filtros Rollos</div>
+
+        <div class="filters-row">
+          <div class="filter-group">
+            <label>Código Tarea</label>
+            <input type="text" id="r-f-tarea">
+          </div>
+
+          <div class="filter-group">
+            <label>Guía</label>
+            <input type="text" id="r-f-guia">
+          </div>
+
+          <div class="filter-group">
+            <label>Estado</label>
+            <input type="text" id="r-f-estado">
+          </div>
+
+          <div class="filter-group filter-group--date-range">
+            <label>Fecha Plan Fin</label>
+            <div class="date-range-inputs">
+              <input type="date" id="r-f-fecha-desde">
+              <span>→</span>
+              <input type="date" id="r-f-fecha-hasta">
+            </div>
+          </div>
+
+          <div class="filters-actions">
+            <button class="btn-apply" onclick="applyRollosFilters()">Aplicar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="section-label">KPIs Rollos</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">Total <span id="r-total"></span></div>
+        <div class="kpi-card">Alistamiento <span id="r-alistamiento"></span></div>
+        <div class="kpi-card">Tránsito <span id="r-transito"></span></div>
+        <div class="kpi-card">Entregadas <span id="r-entregadas"></span></div>
+        <div class="kpi-card">Devueltas <span id="r-devueltas"></span></div>
+        <div class="kpi-card">% Cumplimiento <span id="r-cumplimiento"></span></div>
+        <div class="kpi-card">% Oportunidad <span id="r-oportunidad"></span></div>
+        <div class="kpi-card">% Calidad <span id="r-calidad"></span></div>
+      </div>
+
+      <!-- TABLA DETALLE -->
+      <div class="table-section">
+        <div class="table-header">
+          <h3>Detalle Rollos</h3>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Cod Sitio</th>
+                <th>F. Inicio</th>
+                <th>F. Fin</th>
+                <th>Entrega</th>
+                <th>Pendientes</th>
+                <th>Cantidad</th>
+                <th>Tarea</th>
+                <th>Ubicación</th>
+                <th>Guía</th>
+                <th>FO</th>
+                <th>Estado</th>
+                <th>Transportadora</th>
+                <th>Proyecto</th>
+                <th>Días Inv</th>
+              </tr>
+            </thead>
+            <tbody id="tabla-rollos-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
   </div><!-- /main -->
 
   <div class="footer">

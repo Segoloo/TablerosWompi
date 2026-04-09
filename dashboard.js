@@ -127,6 +127,71 @@ function loadData() {
     });
 }
 
+function renderDeptoChart() {
+  const counts = {};
+
+  FILTERED_ROLLOS.forEach(r => {
+    const dep = r.departamento || 'NA';
+    counts[dep] = (counts[dep] || 0) + 1;
+  });
+
+  new Chart(document.getElementById('chart-depto'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(counts),
+      datasets: [{
+        data: Object.values(counts)
+      }]
+    }
+  });
+}
+
+function renderReferenciaTable() {
+  const map = {};
+
+  FILTERED_ROLLOS.forEach(r => {
+    const key = r.referencia + '|' + r.estado;
+    map[key] = (map[key] || 0) + 1;
+  });
+
+  // render igual que otras tablas
+}
+
+
+// ══════════════════════════════════════════════════════════════════
+//  LOAD DATA ROLLOS (GZIP)
+// ══════════════════════════════════════════════════════════════════
+
+let RAW_ROLLOS = [];
+let FILTERED_ROLLOS = [];
+
+async function loadRollosData() {
+  const url = `data_rollos.json.gz?t=${Date.now()}`;
+
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+
+    // Descomprimir gzip en navegador
+    const ds = new DecompressionStream("gzip");
+    const decompressedStream = blob.stream().pipeThrough(ds);
+    const text = await new Response(decompressedStream).text();
+
+    const json = JSON.parse(text);
+
+    RAW_ROLLOS = (json.rows || []);
+    FILTERED_ROLLOS = RAW_ROLLOS.slice();
+
+    console.log('[Rollos] cargados:', RAW_ROLLOS.length);
+
+    renderRollosDashboard();
+
+  } catch (err) {
+    console.error('Error cargando rollos:', err);
+  }
+}
+
+
 // ══════════════════════════════════════════════════════════════════
 //  HELPER: acceso a columna insensible a mayúsculas / variantes
 // ══════════════════════════════════════════════════════════════════
@@ -517,6 +582,45 @@ function computeKPIs(data) {
   };
 }
 
+function computeRollosKPIs(data) {
+  let total = data.length;
+
+  let alistamiento = 0;
+  let transito = 0;
+  let entregadas = 0;
+  let devueltas = 0;
+  let aTiempo = 0;
+  let conCalidad = 0;
+
+  data.forEach(r => {
+    const estado = (r.estado || '').toLowerCase();
+    const estadoTrans = (r.estado_transportadora || '').toLowerCase();
+
+    if (estado.includes('alist')) alistamiento++;
+    if (estadoTrans.includes('transito')) transito++;
+    if (estado.includes('entreg')) entregadas++;
+    if (estado.includes('devol')) devueltas++;
+
+    // KPI tiempo
+    if (r.oportunidad === 'SI') aTiempo++;
+
+    // KPI calidad
+    if (!r.tiene_novedad || r.tiene_novedad === '0') conCalidad++;
+  });
+
+  return {
+    total,
+    alistamiento,
+    transito,
+    entregadas,
+    devueltas,
+    cumplimiento: total ? (aTiempo / total * 100).toFixed(1) : 0,
+    oportunidad: total ? (aTiempo / total * 100).toFixed(1) : 0,
+    calidad: total ? (conCalidad / total * 100).toFixed(1) : 0,
+  };
+}
+
+
 // ══════════════════════════════════════════════════════════════════
 //  MODAL DRILLDOWN
 // ══════════════════════════════════════════════════════════════════
@@ -606,6 +710,64 @@ function exportDrillExcel() {
 // ══════════════════════════════════════════════════════════════════
 //  RENDER ALL
 // ══════════════════════════════════════════════════════════════════
+
+function renderRollosDashboard() {
+  const kpi = computeRollosKPIs(FILTERED_ROLLOS);
+
+  document.getElementById('r-total').textContent = kpi.total;
+  document.getElementById('r-alistamiento').textContent = kpi.alistamiento;
+  document.getElementById('r-transito').textContent = kpi.transito;
+  document.getElementById('r-entregadas').textContent = kpi.entregadas;
+  document.getElementById('r-devueltas').textContent = kpi.devueltas;
+
+  document.getElementById('r-cumplimiento').textContent = kpi.cumplimiento + '%';
+  document.getElementById('r-oportunidad').textContent = kpi.oportunidad + '%';
+  document.getElementById('r-calidad').textContent = kpi.calidad + '%';
+
+  renderTablaRollos();
+}
+
+function renderTablaRollos() {
+  const tbody = document.getElementById('tabla-rollos-body');
+  tbody.innerHTML = '';
+
+  FILTERED_ROLLOS.forEach(r => {
+    const tr = document.createElement('tr');
+
+    tr.innerHTML = `
+      <td>${r.cod_sitio}</td>
+      <td>${r.fecha_plan_inicio}</td>
+      <td>${r.fecha_plan_fin}</td>
+      <td>${r.fecha_entrega}</td>
+      <td>${r.pendientes}</td>
+      <td>${r.cantidad}</td>
+      <td>${r.codigo_tarea}</td>
+      <td>${r.cod_ubicacion}</td>
+      <td>${r.guia}</td>
+      <td>${r.FO}</td>
+      <td>${r.estado}</td>
+      <td>${r.estado_transportadora}</td>
+      <td>${r.proyecto}</td>
+      <td>${r.dias_inventario_actual}</td>
+    `;
+
+    tbody.appendChild(tr);
+  });
+}
+
+function applyRollosFilters() {
+  const tarea = document.getElementById('f-tarea').value;
+  const guia = document.getElementById('f-guia').value;
+
+  FILTERED_ROLLOS = RAW_ROLLOS.filter(r => {
+    return (!tarea || r.codigo_tarea === tarea)
+        && (!guia || r.guia === guia);
+  });
+
+  renderRollosDashboard();
+}
+
+
 function renderAll() {
   const k = computeKPIs(FILTERED);
   renderKPIs(k);
@@ -1365,7 +1527,7 @@ function showTab(tab) {
 // ══════════════════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════════════════
-function initDashboard() { loadData(); }
+function initDashboard() { loadData(); loadRollosData(); }
 
 // ══════════════════════════════════════════════════════════════════
 //  DEMO DATA
@@ -1410,3 +1572,5 @@ function getDemoData() {
   }
   return rows;
 }
+
+<script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
