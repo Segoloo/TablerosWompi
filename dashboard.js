@@ -1583,36 +1583,25 @@ function computeRollosKPIs() {
 
   const pct = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
 
-  // ANS desde indicador (si no hay filtro temporal, usar raw del extractor)
-  // Si hay filtro, recalcular desde detalle con campo oportunidad
-  const sla_cumple   = det.filter(r => (r.oportunidad||'').toUpperCase() === 'CUMPLE').length;
-  const sla_nc       = det.filter(r => { const op = (r.oportunidad||'').toUpperCase(); return op === 'NC' || op.includes('MOTIVO'); }).length;
-  const sla_total    = sla_cumple + sla_nc;
-  const pct_sla      = pct(sla_cumple, sla_total);
-
-  // ANS por tareas únicas calculado desde fechas: fecha_entrega <= fecha_limite_entrega → cumple
-  // fecha_limite_entrega = FECHA_LIMITE_ENTREGA_EXTERNA (fecha plan de entrega real del ANS)
-  // fecha_entrega = FECHA_ENTREGA_AL_COMERCIO_EXTERNA o fecha_entrega_comercio (real de entrega)
-  const tareasANS = new Map(); // codigo_tarea -> { plan_fin, entrega, limite }
+  // ── ANS Oportunidad (replica DAX: ESTADO_ANS_ROLLOS_SIMPLE) ─────
+  // DAX: % Oportunidad = Rollos Entregados (ANS_SI) / Total_Tareas_Solicitadas
+  // = tareas con estado_ans==="CUMPLE" / total_tareas (DISTINCTCOUNT codigo_tarea)
+  // Usamos tareas únicas (Map) para respetar el DISTINCTCOUNT del DAX
+  const tareasANSMap = new Map(); // tarea -> estado_ans
   det.forEach(r => {
     const tarea = r.codigo_tarea; if (!tarea) return;
-    if (!tareasANS.has(tarea)) tareasANS.set(tarea, {
-      limite: r.fecha_limite_entrega || r.fecha_plan_fin || '',
-      entrega: r.fecha_entrega || ''
-    });
+    if (!tareasANSMap.has(tarea)) tareasANSMap.set(tarea, (r.estado_ans || '').toUpperCase());
   });
-  let ans_tareas_cumple = 0, ans_tareas_nc = 0, ans_tareas_sin_info = 0;
-  tareasANS.forEach(({ limite, entrega }) => {
-    if (!limite || !entrega) { ans_tareas_sin_info++; return; }
-    const dLimite = new Date(limite.substring(0,10));
-    const dEnt    = new Date(entrega.substring(0,10));
-    if (isNaN(dLimite) || isNaN(dEnt)) { ans_tareas_sin_info++; return; }
-    if (dEnt <= dLimite) ans_tareas_cumple++; else ans_tareas_nc++;
+  let sla_cumple = 0, sla_nc = 0;
+  tareasANSMap.forEach(ans => {
+    if (ans === 'CUMPLE')    sla_cumple++;
+    else if (ans === 'INCUMPLE') sla_nc++;
   });
-  const ans_tareas_total = ans_tareas_cumple + ans_tareas_nc;
-  const pct_ans_tareas   = pct(ans_tareas_cumple, ans_tareas_total);
+  const sla_total = sla_cumple + sla_nc;
+  // % Oportunidad = CUMPLE / Total_Tareas_Solicitadas (no solo las evaluadas)
+  const pct_sla = pct(sla_cumple, total_tareas);
 
-  // Tareas únicas por estado
+  // ── Tareas únicas por estado ──────────────────────────────────────
   const tareasEstadoMap = new Map();
   det.forEach(r => {
     const tarea = r.codigo_tarea; if (!tarea) return;
@@ -1631,12 +1620,13 @@ function computeRollosKPIs() {
   const pct_t_transito   = pct(t_transito, t_total);
   const pct_t_devolucion = pct(t_devueltos, t_total);
 
-  // Calidad: exitoso vs cancelado (por filas con estado_resultado poblado)
+  // Calidad: exitoso vs cancelado (informativo, para subtítulos)
   const cal_exitoso   = det.filter(r => (r.estado_resultado||'').toUpperCase().includes('EXITOSO')).length;
   const cal_cancelado = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase(); return e.includes('CANCELADO'); }).length;
   const cal_pendiente = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase().trim(); return !e || (!e.includes('EXITOSO') && !e.includes('CANCELADO')); }).length;
   const cal_total     = cal_exitoso + cal_cancelado;
-  const pct_calidad   = pct(cal_exitoso, cal_total);
+  // % Calidad ANS (DAX exacto): 1 - % Devoluciones
+  const pct_calidad = Math.max(0, 100 - pct(tareas_devueltos, total_tareas));
 
   // Calidad por tareas únicas
   const tareasCalMap = new Map();
@@ -1665,7 +1655,6 @@ function computeRollosKPIs() {
     pct_transito: pct(rollos_transito, total_rollos),
     pct_devolucion: pct(rollos_devueltos, total_rollos),
     sla_cumple, sla_nc, sla_total, pct_sla,
-    ans_tareas_cumple, ans_tareas_nc, ans_tareas_sin_info, ans_tareas_total, pct_ans_tareas,
     t_alistamiento, t_transito, t_entregados, t_devueltos, t_total,
     pct_t_entrega, pct_t_alistam, pct_t_transito, pct_t_devolucion,
     cal_exitoso, cal_cancelado, cal_pendiente, cal_total, pct_calidad,
@@ -1734,8 +1723,8 @@ function renderRollosKPIsTareas() {
       sub: `${k.pct_t_devolucion}% del total`, pct: k.pct_t_devolucion, pctColor:'danger' },
     { label:'% Entrega Tareas',      value: k.pct_t_entrega + '%', icon:'📊', color:'green',
       sub: `${k.t_entregados} / ${k.t_total} tareas`, pct: k.pct_t_entrega, pctColor:'green' },
-    { label:'ANS por Fechas',        value: k.pct_ans_tareas + '%', icon:'🗓️', color: k.pct_ans_tareas >= 80 ? 'selva' : k.pct_ans_tareas >= 60 ? 'warn' : 'danger',
-      sub: `${k.ans_tareas_cumple} cumple / ${k.ans_tareas_total} c/fechas (${k.ans_tareas_sin_info} sin entrega)`, pct: k.pct_ans_tareas, pctColor: k.pct_ans_tareas >= 80 ? 'green' : 'warn' },
+    { label:'ANS por Fechas',        value: k.pct_sla + '%', icon:'🗓️', color: k.pct_sla >= 80 ? 'selva' : k.pct_sla >= 60 ? 'warn' : 'danger',
+      sub: `${k.sla_cumple} cumple / ${k.sla_total} evaluados`, pct: k.pct_sla, pctColor: k.pct_sla >= 80 ? 'green' : 'warn' },
     { label:'% Calidad Tareas',      value: k.pct_cal_tareas + '%', icon:'💎', color:'blue',
       sub: `${k.cal_t_exitoso} exitosos / ${k.cal_t_total} evaluados (${k.cal_t_pendiente} pendientes)`, pct: k.pct_cal_tareas, pctColor:'blue' },
   ];
@@ -2212,9 +2201,9 @@ function renderRollosCharts() {
   {
     const k = computeRollosKPIs();
     _buildDona('chart-rollos-t-ans',
-      ['Cumple ANS', 'No Cumple', 'Sin Info'],
-      [k.ans_tareas_cumple, k.ans_tareas_nc, k.ans_tareas_sin_info],
-      ['#B0F2AE', '#FF5C5C', '#7A7674'],
+      ['Cumple ANS', 'No Cumple'],
+      [k.sla_cumple, k.sla_nc],
+      ['#B0F2AE', '#FF5C5C'],
       'ANS por fechas'
     );
   }
