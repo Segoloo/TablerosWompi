@@ -1626,12 +1626,28 @@ function computeRollosKPIs() {
   const pct_t_transito   = pct(t_transito, t_total);
   const pct_t_devolucion = pct(t_devueltos, t_total);
 
-  // Calidad: exitoso vs cancelado
+  // Calidad: exitoso vs cancelado (por filas con estado_resultado poblado)
   const cal_exitoso   = det.filter(r => (r.estado_resultado||'').toUpperCase().includes('EXITOSO')).length;
   const cal_cancelado = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase(); return e.includes('CANCELADO'); }).length;
   const cal_pendiente = det.filter(r => { const e=(r.estado_resultado||'').toUpperCase().trim(); return !e || (!e.includes('EXITOSO') && !e.includes('CANCELADO')); }).length;
   const cal_total     = cal_exitoso + cal_cancelado;
   const pct_calidad   = pct(cal_exitoso, cal_total);
+
+  // Calidad por tareas únicas
+  const tareasCalMap = new Map();
+  det.forEach(r => {
+    const tarea = r.codigo_tarea; if (!tarea) return;
+    if (tareasCalMap.has(tarea)) return;
+    tareasCalMap.set(tarea, (r.estado_resultado||'').toUpperCase().trim());
+  });
+  let cal_t_exitoso = 0, cal_t_cancelado = 0, cal_t_pendiente = 0;
+  tareasCalMap.forEach(est => {
+    if (est.includes('EXITOSO'))      cal_t_exitoso++;
+    else if (est.includes('CANCELADO')) cal_t_cancelado++;
+    else                                cal_t_pendiente++;
+  });
+  const cal_t_total   = cal_t_exitoso + cal_t_cancelado;
+  const pct_cal_tareas = pct(cal_t_exitoso, cal_t_total);
 
   return {
     rollos_alistamiento: Math.round(rollos_alistamiento), tareas_alistamiento,
@@ -1648,6 +1664,7 @@ function computeRollosKPIs() {
     t_alistamiento, t_transito, t_entregados, t_devueltos, t_total,
     pct_t_entrega, pct_t_alistam, pct_t_transito, pct_t_devolucion,
     cal_exitoso, cal_cancelado, cal_pendiente, cal_total, pct_calidad,
+    cal_t_exitoso, cal_t_cancelado, cal_t_pendiente, cal_t_total, pct_cal_tareas,
   };
 }
 
@@ -1713,9 +1730,9 @@ function renderRollosKPIsTareas() {
     { label:'% Entrega Tareas',      value: k.pct_t_entrega + '%', icon:'📊', color:'green',
       sub: `${k.t_entregados} / ${k.t_total} tareas`, pct: k.pct_t_entrega, pctColor:'green' },
     { label:'ANS por Fechas',        value: k.pct_ans_tareas + '%', icon:'🗓️', color: k.pct_ans_tareas >= 80 ? 'selva' : k.pct_ans_tareas >= 60 ? 'warn' : 'danger',
-      sub: `${k.ans_tareas_cumple} cumple / ${k.ans_tareas_total} evaluadas`, pct: k.pct_ans_tareas, pctColor: k.pct_ans_tareas >= 80 ? 'green' : 'warn' },
-    { label:'% Calidad Tareas',      value: k.pct_calidad + '%', icon:'💎', color:'blue',
-      sub: `${k.cal_exitoso} exitosos / ${k.cal_total} evaluados`, pct: k.pct_calidad, pctColor:'blue' },
+      sub: `${k.ans_tareas_cumple} cumple / ${k.ans_tareas_total} c/fechas (${k.ans_tareas_sin_info} sin entrega)`, pct: k.pct_ans_tareas, pctColor: k.pct_ans_tareas >= 80 ? 'green' : 'warn' },
+    { label:'% Calidad Tareas',      value: k.pct_cal_tareas + '%', icon:'💎', color:'blue',
+      sub: `${k.cal_t_exitoso} exitosos / ${k.cal_t_total} evaluados (${k.cal_t_pendiente} pendientes)`, pct: k.pct_cal_tareas, pctColor:'blue' },
   ];
 
   grid.innerHTML = cards.map((c, i) => `
@@ -1894,7 +1911,7 @@ function renderRollosCharts() {
     }
   }
 
-  // 5. BARRAS — Calidad
+  // 5. BARRAS — Calidad (por tareas únicas)
   {
     const k = computeRollosKPIs();
     const canvas = document.getElementById('chart-rollos-calidad');
@@ -1904,7 +1921,7 @@ function renderRollosCharts() {
         data: {
           labels: ['Exitoso', 'Cancelado', 'Pendiente'],
           datasets: [{
-            data: [k.cal_exitoso, k.cal_cancelado, k.cal_pendiente],
+            data: [k.cal_t_exitoso, k.cal_t_cancelado, k.cal_t_pendiente],
             backgroundColor: ['rgba(176,242,174,.7)', 'rgba(255,92,92,.7)', 'rgba(153,209,252,.5)'],
             borderColor:     ['#B0F2AE', '#FF5C5C', '#99D1FC'],
             borderWidth: 1, borderRadius: 8,
@@ -2000,17 +2017,21 @@ function renderRollosCharts() {
 
   // 8. DONA — Oportunidad normalizada
   {
-    const map = { 'CUMPLE': 0, 'NC': 0, 'MOTIVO NC': 0, 'SIN INFO': 0 };
+    const map = { 'Cumple': 0, 'NC': 0, 'Motivo NC': 0, 'Sin evaluar': 0 };
     det.forEach(r => {
       const op = (r.oportunidad||'').toUpperCase();
-      if (op === 'CUMPLE')           map['CUMPLE']++;
-      else if (op === 'NC')          map['NC']++;
-      else if (op.includes('MOTIVO')) map['MOTIVO NC']++;
-      else                           map['SIN INFO']++;
+      if (op === 'CUMPLE')            map['Cumple']++;
+      else if (op === 'NC')           map['NC']++;
+      else if (op.includes('MOTIVO')) map['Motivo NC']++;
+      else                            map['Sin evaluar']++;
     });
+    // Mostrar solo categorías con datos
+    const labels = Object.keys(map).filter(k => map[k] > 0);
+    const data   = labels.map(k => map[k]);
+    const colorMap = { 'Cumple':'#B0F2AE', 'NC':'#FF5C5C', 'Motivo NC':'#FFC04D', 'Sin evaluar':'#3a3f4a' };
     _buildDona('chart-rollos-oportunidad',
-      Object.keys(map), Object.values(map),
-      ['#B0F2AE', '#FF5C5C', '#FFC04D', '#7A7674'],
+      labels, data,
+      labels.map(l => colorMap[l] || '#7B8CDE'),
       'Oportunidad'
     );
   }
