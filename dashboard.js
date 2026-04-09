@@ -1659,6 +1659,8 @@ function computeRollosKPIs() {
     pct_t_entrega, pct_t_alistam, pct_t_transito, pct_t_devolucion,
     cal_exitoso, cal_cancelado, cal_pendiente, cal_total, pct_calidad,
     cal_t_exitoso, cal_t_cancelado, cal_t_pendiente, cal_t_total, pct_cal_tareas,
+    // % Calidad KPI Rollos = datáfonos devueltos / datáfonos entregados
+    pct_calidad_nueva: pct(rollos_devueltos, rollos_entregados),
   };
 }
 
@@ -1672,19 +1674,17 @@ function renderRollosKPIs() {
     { label:'Total Rollos',        value: k.total_rollos.toLocaleString('es-CO'), icon:'📦', color:'green',
       sub: `${k.total_tareas} tareas` },
     { label:'Rollos Entregados',   value: k.rollos_entregados.toLocaleString('es-CO'), icon:'✅', color:'selva',
-      sub: `${k.pct_entrega}% del total`, pct: k.pct_entrega, pctColor:'green' },
+      sub: `${k.pct_entrega}% del total · ${k.tareas_entregados} tareas`, pct: k.pct_entrega, pctColor:'green' },
     { label:'En Alistamiento',     value: k.rollos_alistamiento.toLocaleString('es-CO'), icon:'🔧', color:'lime',
-      sub: `${k.pct_alistamiento}% · ${k.tareas_alistamiento} tareas`, pct: k.pct_alistamiento, pctColor:'lime' },
+      sub: `${k.pct_alistamiento}% del total · ${k.tareas_alistamiento} tareas`, pct: k.pct_alistamiento, pctColor:'lime' },
     { label:'En Tránsito',         value: k.rollos_transito.toLocaleString('es-CO'), icon:'🚚', color:'blue',
-      sub: `${k.pct_transito}% · ${k.tareas_transito} tareas`, pct: k.pct_transito, pctColor:'blue' },
+      sub: `${k.pct_transito}% del total · ${k.tareas_transito} tareas`, pct: k.pct_transito, pctColor:'blue' },
     { label:'Devoluciones',        value: k.rollos_devueltos.toLocaleString('es-CO'), icon:'↩️', color:'danger',
-      sub: `${k.pct_devolucion}% del total`, pct: k.pct_devolucion, pctColor:'danger' },
-    { label:'% Entrega',           value: k.pct_entrega + '%', icon:'📊', color:'green',
-      sub: `${k.rollos_entregados} / ${k.total_rollos} rollos`, pct: k.pct_entrega, pctColor:'green' },
+      sub: `${k.pct_devolucion}% del total · ${k.tareas_devueltos} tareas`, pct: k.pct_devolucion, pctColor:'danger' },
     { label:'ANS Oportunidad',     value: k.pct_sla + '%', icon:'🎯', color: k.pct_sla >= 80 ? 'selva' : k.pct_sla >= 60 ? 'warn' : 'danger',
       sub: `${k.sla_cumple} cumple / ${k.sla_total} evaluados`, pct: k.pct_sla, pctColor: k.pct_sla >= 80 ? 'green' : 'warn' },
-    { label:'% Calidad',           value: k.pct_calidad + '%', icon:'💎', color:'blue',
-      sub: `${k.cal_exitoso} exitosos / ${k.cal_total} total`, pct: k.pct_calidad, pctColor:'blue' },
+    { label:'% Calidad',           value: k.pct_calidad_nueva + '%', icon:'💎', color:'blue',
+      sub: `${k.rollos_devueltos} devueltos / ${k.rollos_entregados} entregados`, pct: Math.max(0, 100 - k.pct_calidad_nueva), pctColor:'blue' },
   ];
 
   grid.innerHTML = cards.map((c, i) => `
