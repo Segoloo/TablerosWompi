@@ -1683,8 +1683,8 @@ function renderRollosKPIs() {
       sub: `${k.pct_devolucion}% del total · ${k.tareas_devueltos} tareas`, pct: k.pct_devolucion, pctColor:'danger' },
     { label:'ANS Oportunidad',     value: k.pct_sla + '%', icon:'🎯', color: k.pct_sla >= 80 ? 'selva' : k.pct_sla >= 60 ? 'warn' : 'danger',
       sub: `${k.sla_cumple} cumple / ${k.sla_total} evaluados`, pct: k.pct_sla, pctColor: k.pct_sla >= 80 ? 'green' : 'warn' },
-    { label:'% Calidad',           value: k.pct_calidad_nueva + '%', icon:'💎', color:'blue',
-      sub: `${k.rollos_devueltos} devueltos / ${k.rollos_entregados} entregados`, pct: Math.max(0, 100 - k.pct_calidad_nueva), pctColor:'blue' },
+    { label:'% Calidad',           value: (100 - k.pct_calidad_nueva) + '%', icon:'💎', color:'blue',
+      sub: `${k.rollos_devueltos.toLocaleString('es-CO')} devueltos / ${k.rollos_entregados.toLocaleString('es-CO')} entregados`, pct: Math.max(0, 100 - k.pct_calidad_nueva), pctColor:'blue' },
   ];
 
   grid.innerHTML = cards.map((c, i) => `
@@ -1773,13 +1773,13 @@ function renderRollosANSRow() {
         <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--muted)">${k.sla_total}</div><div class="ans-detail-lbl">Total eval.</div></div>
       </div>
     </div>
-    <div class="ans-big-card" style="border-top:3px solid ${k.pct_devolucion < 5 ? 'var(--verde-menta)' : k.pct_devolucion < 10 ? 'var(--warning)' : 'var(--danger)'}">
+    <div class="ans-big-card" style="border-top:3px solid ${k.pct_calidad_nueva > 10 ? 'var(--danger)' : k.pct_calidad_nueva > 5 ? 'var(--warning)' : 'var(--verde-menta)'}">
       <canvas id="ans-mini-devol" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
-      <div class="ans-big-pct" style="color:${k.pct_devolucion < 5 ? 'var(--verde-menta)' : k.pct_devolucion < 10 ? 'var(--warning)' : 'var(--danger)'}">${k.pct_devolucion}%</div>
-      <div class="ans-big-label">Tasa de Devolución</div>
+      <div class="ans-big-pct" style="color:${k.pct_calidad_nueva > 10 ? 'var(--danger)' : k.pct_calidad_nueva > 5 ? 'var(--warning)' : 'var(--verde-menta)'}">${100 - k.pct_calidad_nueva}%</div>
+      <div class="ans-big-label">% Calidad</div>
       <div class="ans-detail-row">
         <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--danger)">${k.rollos_devueltos.toLocaleString()}</div><div class="ans-detail-lbl">Devueltos</div></div>
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--warning)">${k.pct_calidad}%</div><div class="ans-detail-lbl">Calidad</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.rollos_entregados.toLocaleString()}</div><div class="ans-detail-lbl">Entregados</div></div>
       </div>
     </div>`;
 
@@ -1787,8 +1787,8 @@ function renderRollosANSRow() {
   requestAnimationFrame(() => {
     _miniDonut('ans-mini-entrega', k.pct_entrega, '#B0F2AE', '#1a2a1a');
     _miniDonut('ans-mini-sla',     k.pct_sla,     '#99D1FC', '#1a1f2a');
-    _miniDonut('ans-mini-devol',   100 - k.pct_devolucion,
-      k.pct_devolucion < 5 ? '#B0F2AE' : k.pct_devolucion < 10 ? '#FFC04D' : '#FF5C5C', '#1a1a1a');
+    _miniDonut('ans-mini-devol',   100 - k.pct_calidad_nueva,
+      k.pct_calidad_nueva <= 5 ? '#B0F2AE' : k.pct_calidad_nueva <= 10 ? '#FFC04D' : '#FF5C5C', '#1a1a1a');
   });
 }
 
@@ -1868,56 +1868,58 @@ function renderRollosCharts() {
     );
   }
 
-  // 4. BARRAS HORIZONTALES — Departamento
+  // 4. BARRAS AGRUPADAS — Departamento (Rollos + Tareas)
   {
-    const por_dep = [];
-    const depMap = {};
+    const depRollos = {}, depTareas = {};
+    const tareasSeenDep = new Set();
     det.forEach(r => {
       const d = r.departamento; if (!d) return;
-      depMap[d] = (depMap[d] || 0) + (parseFloat(r.cantidad) || 0);
+      depRollos[d] = (depRollos[d] || 0) + (parseFloat(r.cantidad) || 0);
+      const key = `${r.codigo_tarea}||${d}`;
+      if (!tareasSeenDep.has(key)) { tareasSeenDep.add(key); depTareas[d] = (depTareas[d] || 0) + 1; }
     });
-    Object.entries(depMap).forEach(([dep, qty]) => por_dep.push({ departamento: dep, total_rollos: Math.round(qty) }));
-    por_dep.sort((a,b) => b.total_rollos - a.total_rollos);
-    const top = por_dep.slice(0,15);
+    const sorted = Object.entries(depRollos).sort((a,b)=>b[1]-a[1]).slice(0,15);
     const canvas = document.getElementById('chart-rollos-depto');
     if (canvas) {
       chartInstances['rollos-depto'] = new Chart(canvas, {
         type: 'bar',
         data: {
-          labels: top.map(d => d.departamento),
-          datasets: [{
-            label: 'Rollos',
-            data: top.map(d => d.total_rollos),
-            backgroundColor: top.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
-            borderColor: top.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
-            borderWidth: 1, borderRadius: 6,
-          }]
+          labels: sorted.map(d => d[0]),
+          datasets: [
+            { label:'Rollos', data: sorted.map(d => Math.round(d[1])),
+              backgroundColor:'rgba(176,242,174,.65)', borderColor:'#B0F2AE', borderWidth:1, borderRadius:5, yAxisID:'y' },
+            { label:'Tareas', data: sorted.map(d => depTareas[d[0]] || 0),
+              backgroundColor:'rgba(153,209,252,.55)', borderColor:'#99D1FC', borderWidth:1, borderRadius:5, yAxisID:'y1' },
+          ]
         },
         options: {
           responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-          plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
+          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
           scales: {
-            x: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-            y: { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
+            x:  { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' }, position:'bottom' },
+            y:  { ticks:{ color:'#FAFAFA', font:{ size:11 } }, grid:{ display:false } },
+            y1: { ticks:{ color:'#99D1FC', font:{size:10} }, grid:{ display:false }, position:'right' },
           },
         }
       });
     }
   }
 
-  // 5. BARRAS — Calidad (por tareas únicas)
+  // 5. BARRAS — Top Proyectos (rollos por proyecto)
   {
-    const k = computeRollosKPIs();
+    const map = {};
+    det.forEach(r => { const p = r.proyecto || r.nombre_proyecto || 'Sin proyecto'; map[p] = (map[p]||0) + (parseFloat(r.cantidad)||0); });
+    const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
     const canvas = document.getElementById('chart-rollos-calidad');
     if (canvas) {
       chartInstances['rollos-calidad'] = new Chart(canvas, {
         type: 'bar',
         data: {
-          labels: ['Exitoso', 'Cancelado', 'Pendiente'],
+          labels: sorted.map(x => x[0].length > 20 ? x[0].substring(0,20)+'…' : x[0]),
           datasets: [{
-            data: [k.cal_t_exitoso, k.cal_t_cancelado, k.cal_t_pendiente],
-            backgroundColor: ['rgba(176,242,174,.7)', 'rgba(255,92,92,.7)', 'rgba(153,209,252,.5)'],
-            borderColor:     ['#B0F2AE', '#FF5C5C', '#99D1FC'],
+            data: sorted.map(x => Math.round(x[1])),
+            backgroundColor: sorted.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length] + 'BB'),
+            borderColor:     sorted.map((_,i) => WOMPI_COLORS[i % WOMPI_COLORS.length]),
             borderWidth: 1, borderRadius: 8,
           }]
         },
@@ -1925,7 +1927,7 @@ function renderRollosCharts() {
           responsive: true, maintainAspectRatio: false,
           plugins: { legend:{ display:false }, tooltip: CHART_OPTS.tooltip },
           scales: {
-            x: { ticks:{ color:'#FAFAFA' }, grid:{ display:false } },
+            x: { ticks:{ color:'#FAFAFA', font:{size:10}, maxRotation:35 }, grid:{ display:false } },
             y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
           }
         }
@@ -2009,25 +2011,45 @@ function renderRollosCharts() {
     }
   }
 
-  // 8. DONA — Oportunidad normalizada
+  // 8. LÍNEA — Devoluciones por mes
   {
-    const map = { 'Cumple': 0, 'NC': 0, 'Motivo NC': 0, 'Sin evaluar': 0 };
+    const mesMap = {};
     det.forEach(r => {
-      const op = (r.oportunidad||'').toUpperCase();
-      if (op === 'CUMPLE')            map['Cumple']++;
-      else if (op === 'NC')           map['NC']++;
-      else if (op.includes('MOTIVO')) map['Motivo NC']++;
-      else                            map['Sin evaluar']++;
+      const fp = String(r.fecha_plan_fin || '');
+      if (fp.length < 7) return;
+      const mk = fp.substring(0, 7);
+      if (!mesMap[mk]) mesMap[mk] = { devueltos: 0, entregados: 0 };
+      const est = (r.estado || '').toUpperCase();
+      const qty = parseFloat(r.cantidad) || 0;
+      if (est.includes('DEVOLUC'))  mesMap[mk].devueltos  += qty;
+      else if (est === 'ENTREGADO') mesMap[mk].entregados += qty;
     });
-    // Mostrar solo categorías con datos
-    const labels = Object.keys(map).filter(k => map[k] > 0);
-    const data   = labels.map(k => map[k]);
-    const colorMap = { 'Cumple':'#B0F2AE', 'NC':'#FF5C5C', 'Motivo NC':'#FFC04D', 'Sin evaluar':'#3a3f4a' };
-    _buildDona('chart-rollos-oportunidad',
-      labels, data,
-      labels.map(l => colorMap[l] || '#7B8CDE'),
-      'Oportunidad'
-    );
+    const periodos = Object.keys(mesMap).sort();
+    const canvas = document.getElementById('chart-rollos-oportunidad');
+    if (canvas && periodos.length) {
+      chartInstances['rollos-oportunidad'] = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: periodos,
+          datasets: [
+            { label:'Devueltos', data: periodos.map(p => Math.round(mesMap[p].devueltos)),
+              backgroundColor:'rgba(255,92,92,.6)', borderColor:'#FF5C5C', borderWidth:1, borderRadius:4 },
+            { label:'Entregados', data: periodos.map(p => Math.round(mesMap[p].entregados)),
+              backgroundColor:'rgba(176,242,174,.4)', borderColor:'#B0F2AE', borderWidth:1, borderRadius:4 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
+          scales: {
+            x: { ticks:{ color:'#7A7674', maxRotation:45, font:{size:10} }, grid:{ display:false } },
+            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
+          }
+        }
+      });
+    } else if (canvas) {
+      _buildDona('chart-rollos-oportunidad', ['Sin datos'], [1], ['#3a3f4a'], 'Devoluciones');
+    }
   }
 
   // 9. BARRAS — Top materiales
@@ -2467,7 +2489,7 @@ function renderRollosRefTable() {
       <td>${statusPill(r.estado)}</td>
       <td>${r.departamento||'—'}</td>
       <td>${r.ciudad||'—'}</td>
-      <td>${r.material||'—'}</td>
+      <td>${r.nombre_de_material||r.nombre_material||r.material||'—'}</td>
     </tr>`).join('')}
   </tbody></table>`;
 
@@ -2496,7 +2518,8 @@ function exportComercioExcel() {
 function exportReferenciasExcel() {
   const data = (ROLLOS_RAW?.referencias || []).map(r => ({
     Referencia: r.referencia, Cantidad: r.cantidad, Estado: r.estado,
-    Departamento: r.departamento, Ciudad: r.ciudad, Material: r.material,
+    Departamento: r.departamento, Ciudad: r.ciudad,
+    Material: r.nombre_de_material || r.nombre_material || r.material,
   }));
   _exportExcelRollos(data, 'Rollos_Referencias');
 }
