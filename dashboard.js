@@ -1455,7 +1455,7 @@ function _showAllPanels(activeTab) {
     'rollos-comercio': 'panel-rollos-comercio',
   };
   // Hide all
-  ['panel-home','panel-tracking','panel-detalle','panel-tabla',
+  ['panel-home','panel-tracking','panel-detalle','panel-tabla','panel-incump',
    'panel-rollos','panel-rollos-detalle','panel-rollos-comercio'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
