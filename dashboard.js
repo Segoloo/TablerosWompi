@@ -117,6 +117,8 @@ function loadData() {
       populateFilters();
       applyDateFilter();   // aplica el filtro global de marzo 2026
       renderAll();
+      _mainLoaded = true;
+      _updateLoadingUI();
     })
     .catch(() => {
       // Demo data si no hay data.json
@@ -124,6 +126,8 @@ function loadData() {
       populateFilters();
       applyDateFilter();
       renderAll();
+      _mainLoaded = true;
+      _updateLoadingUI();
     });
 }
 
@@ -1349,7 +1353,7 @@ function exportToExcel(data, filename) {
 function exportPDF() { window.print(); }
 
 // ══════════════════════════════════════════════════════════════════
-//  TABS
+//  TABS (mantiene compatibilidad original)
 // ══════════════════════════════════════════════════════════════════
 function showTab(tab) {
   ['tracking','detalle','tabla','rollos'].forEach(t => {
@@ -1364,9 +1368,131 @@ function showTab(tab) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  SIDEBAR NAVIGATION
+// ══════════════════════════════════════════════════════════════════
+let _currentBoard = 'datafonos';
+let _currentTab   = 'tracking';
+
+function selectBoard(board) {
+  _currentBoard = board;
+
+  // Toggle sidebar board sections open/closed
+  ['datafonos','rollos'].forEach(b => {
+    const section = document.getElementById('sb-board-' + b);
+    const btn     = document.getElementById('sb-btn-' + b);
+    if (section) section.classList.toggle('open', b === board);
+    if (btn)     btn.classList.toggle('active', b === board);
+  });
+
+  // Update topbar label
+  const label = document.getElementById('topbar-board-label');
+  if (label) {
+    label.textContent = board === 'datafonos'
+      ? 'Tracking VP · Datafonos'
+      : 'Tracking Rollos Trim y VP';
+  }
+
+  // Show first tab of selected board
+  if (board === 'datafonos') {
+    selectBoardTab('datafonos', 'tracking');
+  } else {
+    selectBoardTab('rollos', 'rollos-main');
+  }
+}
+
+function selectBoardTab(board, tab) {
+  _currentTab = tab;
+
+  // Clear all sidebar tab active states for the current board
+  const allSidebarTabs = document.querySelectorAll('.sidebar-tab');
+  allSidebarTabs.forEach(el => el.classList.remove('active'));
+
+  // Activate the clicked sidebar tab
+  const activeEl = document.getElementById('sb-tab-' + tab);
+  if (activeEl) activeEl.classList.add('active');
+
+  // Hide ALL panels
+  const allPanels = [
+    'panel-tracking','panel-detalle','panel-tabla',
+    'panel-rollos','panel-rollos-detalle','panel-rollos-comercio'
+  ];
+  allPanels.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
+  // Show the right panel
+  const panelMap = {
+    'tracking':        'panel-tracking',
+    'detalle':         'panel-detalle',
+    'tabla':           'panel-tabla',
+    'rollos-main':     'panel-rollos',
+    'rollos-detalle':  'panel-rollos-detalle',
+    'rollos-comercio': 'panel-rollos-comercio',
+  };
+  const panelId = panelMap[tab];
+  if (panelId) {
+    const panel = document.getElementById(panelId);
+    if (panel) panel.style.display = 'block';
+  }
+
+  // Trigger existing render logic
+  if (tab === 'detalle')  { renderDevCharts(); renderBacklog(); renderStalledGuias(); renderFallidos(); }
+  if (tab === 'tabla')    renderMainTable();
+  if (tab === 'rollos-main') renderRollosTab();
+  if (tab === 'rollos-detalle') { if (ROLLOS_RAW) renderRollosDetalleTable(); }
+  if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  DATA LOADING OVERLAY
+// ══════════════════════════════════════════════════════════════════
+let _mainLoaded   = false;
+let _rollosLoaded = false;
+
+function _updateLoadingUI() {
+  const mainDone   = _mainLoaded;
+  const rollosDone = _rollosLoaded;
+
+  const dotMain   = document.getElementById('dl-dot-main');
+  const dotRollos = document.getElementById('dl-dot-rollos');
+  const msg       = document.getElementById('dl-msg');
+  const fill      = document.getElementById('dl-progress-fill');
+
+  if (dotMain)   dotMain.className   = 'dl-item-dot ' + (mainDone   ? 'done' : 'loading');
+  if (dotRollos) dotRollos.className = 'dl-item-dot ' + (rollosDone ? 'done' : 'loading');
+
+  const pct = ((mainDone ? 50 : 0) + (rollosDone ? 50 : 0));
+  if (fill) fill.style.width = pct + '%';
+
+  if (!mainDone && !rollosDone) {
+    if (msg) msg.textContent = 'Cargando datos...';
+  } else if (mainDone && !rollosDone) {
+    if (msg) msg.textContent = 'data.json ✓ · Descomprimiendo rollos...';
+  } else if (!mainDone && rollosDone) {
+    if (msg) msg.textContent = 'Rollos ✓ · Cargando datafonos...';
+  } else {
+    if (msg) msg.textContent = '¡Listo! Iniciando dashboard...';
+    setTimeout(() => {
+      const overlay = document.getElementById('data-loading-overlay');
+      if (overlay) overlay.classList.add('hidden');
+    }, 600);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════════════════
-function initDashboard() { loadData(); loadRollosData(); }
+function initDashboard() {
+  // Mark both as loading
+  const dotMain   = document.getElementById('dl-dot-main');
+  const dotRollos = document.getElementById('dl-dot-rollos');
+  if (dotMain)   dotMain.className   = 'dl-item-dot loading';
+  if (dotRollos) dotRollos.className = 'dl-item-dot loading';
+
+  loadData();
+  loadRollosData();
+}
 
 // ══════════════════════════════════════════════════════════════════
 //  DEMO DATA
@@ -1441,8 +1567,12 @@ async function loadRollosData() {
     initRollosGlobalFilters();
     applyRollosGlobalFilters();
     if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
+    _rollosLoaded = true;
+    _updateLoadingUI();
   } catch(e) {
     console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
+    _rollosLoaded = true;  // mark done even on error so loading screen dismisses
+    _updateLoadingUI();
   }
 }
 
