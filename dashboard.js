@@ -2707,37 +2707,45 @@ function renderIncumplimientosTab() {
   if (resumenEl) {
     const today = new Date(); today.setHours(0,0,0,0);
 
-    // Conteo por responsable
+    // KPIs de cumplimiento ANS: solo registros donde responsable === LINEACOM
+    const lineacomRows = rows.filter(r =>
+      (r['RESPONSABLE INCUMPLIMIENTO'] || '').trim().toUpperCase() === 'LINEACOM'
+    );
+
+    // Conteo por responsable y causal (sobre el total de incumplimientos)
     const porResp = {};
     const porCausal = {};
-    let totalDias = 0, conDias = 0;
-    let tardios = 0, vencidosAun = 0;
 
-    rows.forEach(r => {
-      const resp  = (r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)').trim() || '(Sin responsable)';
-      const caus  = (r['CAUSAL INCU'] || '(Sin causal)').trim() || '(Sin causal)';
-      const est   = (r['ESTADO DATAFONO'] || '').toUpperCase();
-      const lim   = getFechaLimite(r);
-      const fe    = parseDate(r['FECHA ENTREGA AL COMERCIO'] || '');
+    // Días retraso: solo LINEACOM
+    let totalDias = 0, conDias = 0, tardios = 0;
 
-      porResp[resp]   = (porResp[resp]   || 0) + 1;
-      porCausal[caus] = (porCausal[caus] || 0) + 1;
-
+    lineacomRows.forEach(r => {
+      const est = (r['ESTADO DATAFONO'] || '').toUpperCase();
+      const lim = getFechaLimite(r);
+      const fe  = parseDate(r['FECHA ENTREGA AL COMERCIO'] || '');
       if (est === 'ENTREGADO' && lim && fe) {
         const limD = new Date(lim); limD.setHours(0,0,0,0);
         const feD  = new Date(fe);  feD.setHours(0,0,0,0);
         const dias = Math.round((feD - limD) / 86400000);
         if (dias > 0) { totalDias += dias; conDias++; tardios++; }
       } else if (lim) {
-        const limD = new Date(lim); limD.setHours(0,0,0,0);
-        vencidosAun += Math.round((today - limD) / 86400000);
         conDias++;
       }
     });
 
-    const avgDias = conDias ? Math.round(totalDias / (tardios || 1)) : 0;
+    // Barras por responsable y causal: sobre todos los incumplimientos
+    rows.forEach(r => {
+      const resp = (r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)').trim() || '(Sin responsable)';
+      const caus = (r['CAUSAL INCU'] || '(Sin causal)').trim() || '(Sin causal)';
+      porResp[resp]   = (porResp[resp]   || 0) + 1;
+      porCausal[caus] = (porCausal[caus] || 0) + 1;
+    });
 
-    const topResp  = Object.entries(porResp).sort((a,b)=>b[1]-a[1]);
+    const avgDias  = conDias ? Math.round(totalDias / (tardios || 1)) : 0;
+    const lcTotal  = lineacomRows.length;
+    const lcTardios = tardios;
+
+    const topResp   = Object.entries(porResp).sort((a,b)=>b[1]-a[1]);
     const topCausal = Object.entries(porCausal).sort((a,b)=>b[1]-a[1]);
 
     resumenEl.innerHTML = `
@@ -2746,21 +2754,20 @@ function renderIncumplimientosTab() {
           <span class="kpi-icon">📛</span>
           <div class="kpi-label">Total Incumplimientos</div>
           <div class="kpi-value danger">${rows.length}</div>
-          <div class="kpi-sub">${tardios} entregados tardíos · ${rows.length - tardios} sin entregar</div>
+          <div class="kpi-sub">${rows.filter(r=>(r['ESTADO DATAFONO']||'').toUpperCase()==='ENTREGADO').length} entregados tardíos · ${rows.filter(r=>(r['ESTADO DATAFONO']||'').toUpperCase()!=='ENTREGADO').length} sin entregar</div>
+        </div>
+        <div class="kpi-card danger" style="padding:20px">
+          <span class="kpi-icon">🏢</span>
+          <div class="kpi-label">Incumplimientos LINEACOM</div>
+          <div class="kpi-value danger">${lcTotal}</div>
+          <div class="kpi-sub">${rows.length ? Math.round(lcTotal/rows.length*100) : 0}% del total · ${lcTardios} tardíos</div>
         </div>
         <div class="kpi-card warn" style="padding:20px">
           <span class="kpi-icon">⏱️</span>
           <div class="kpi-label">Promedio Días Retraso</div>
           <div class="kpi-value warn">${avgDias} días</div>
-          <div class="kpi-sub">sobre entregas tardías</div>
+          <div class="kpi-sub">solo LINEACOM · entregas tardías</div>
         </div>
-        ${topResp.map(([r,n],i) => `
-        <div class="kpi-card ${i===0?'danger':'warn'}" style="padding:20px">
-          <span class="kpi-icon">👤</span>
-          <div class="kpi-label">Resp: ${r}</div>
-          <div class="kpi-value ${i===0?'danger':'warn'}">${n}</div>
-          <div class="kpi-sub">${rows.length ? Math.round(n/rows.length*100) : 0}% del total</div>
-        </div>`).join('')}
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
         <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
