@@ -458,7 +458,14 @@ function computeKPIs(data) {
     getCol(r, 'CUMPLE ANS', 'cumple ans', 'Cumple Ans').toUpperCase() === 'SI'
   ).length;
 
-  const pctOport   = entDf.length ? Math.round(cumpleOport / entDf.length * 100) : 0;
+  // pctOport: solo cuenta como incumplimiento los entregados donde RESPONSABLE === LINEACOM.
+  // Incumplimientos por USUARIO u otro responsable no penalizan el indicador de LINEACOM.
+  const noCumpleLineacom = entDf.filter(r =>
+    getCol(r, 'CUMPLE ANS', 'cumple ans', 'Cumple Ans').toUpperCase() !== 'SI' &&
+    getCol(r, 'RESPONSABLE INCUMPLIMIENTO', 'responsable incumplimiento').toUpperCase() === 'LINEACOM'
+  ).length;
+  const pctOport = entDf.length ? Math.round((entDf.length - noCumpleLineacom) / entDf.length * 100) : 0;
+
   const pctCalidad = entregados   ? Math.round((entregados - devueltos) / entregados * 100) : 100;
 
   // 9. Vencen hoy / vencidas (incluye VT y OPLG)
@@ -527,7 +534,7 @@ function computeKPIs(data) {
     pctNAlistados:   pct(n_alistados, total),
     pctVT:           pct(entVT, vtRows.length),
     pctOL:           pct(entOL, olRows.length),
-    pctOport, pctCalidad, cumpleOport, noCumpleOport: entDf.length - cumpleOport,
+    pctOport, pctCalidad, cumpleOport, noCumpleOport: noCumpleLineacom,
     vencenHoy, vencenHoyRows,
     vencidas, vencidasRows,
     incumplimientos, incumplimientosRows,
