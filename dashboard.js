@@ -480,6 +480,32 @@ function computeKPIs(data) {
   });
   const vencidas = vencidasRows.length;
 
+  // Vencidas Total: TODOS los estados (incluye entregados tardíos) donde fecha limite < today
+  // Para entregados: compara fecha de entrega real vs fecha límite si existe, sino usa today
+  // Para no entregados: igual que vencidas pero incluye ENTREGADO y excluye solo CANCELADO
+  const vencidasTotalRows = df.filter(r => {
+    const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
+    const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
+    if (!lim || est === 'CANCELADO') return false;
+    // Para entregados: verificar si la fecha real de entrega superó la fecha límite
+    if (est === 'ENTREGADO') {
+      // Buscar fecha real de entrega
+      const fechaEntrega = parseDate(
+        getCol(r, 'FECHA DE ENTREGA', 'fecha de entrega', 'FECHA ENTREGA', 'fecha entrega')
+      );
+      if (fechaEntrega) {
+        const limD = new Date(lim); limD.setHours(0, 0, 0, 0);
+        const entD = new Date(fechaEntrega); entD.setHours(0, 0, 0, 0);
+        return entD > limD;
+      }
+      // Si no hay fecha de entrega, no podemos determinar si fue tardío
+      return false;
+    }
+    // Para no entregados: si fecha límite ya pasó
+    return lim < today;
+  });
+  const vencidasTotal = vencidasTotalRows.length;
+
   // 10. Primer intento: entregados sin novedades ni causal ni responsable de incumplimiento
   const FAILED_COLS = ['NOVEDADES','novedades','CAUSAL INCU','causal incu','RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento','CAUSAL INC','causal inc'];
   const primerIntentoRows = entDf.filter(r => {
@@ -512,6 +538,7 @@ function computeKPIs(data) {
     pctOport, pctCalidad,
     vencenHoy, vencenHoyRows,
     vencidas, vencidasRows,
+    vencidasTotal, vencidasTotalRows,
     primerIntento, primerIntentoRows,
     pctPrimerIntento: pct(primerIntento, entregados),
     ec,
@@ -666,6 +693,8 @@ function renderKPIs(k) {
       sub:'Sin entregar, límite hoy', alert:k.vencenHoy > 0, rows: k.vencenHoyRows },
     { label:'Vencidas ANS',       value:k.vencidas,       color:'danger',icon:'🚨',
       sub:'Fuera de ANS (VT + OPLG)', alert:k.vencidas > 0, rows: k.vencidasRows },
+    { label:'Vencidas ANS (Total)', value:k.vencidasTotal, color:'danger', icon:'📛',
+      sub:'Todos los estados (incl. entregadas tardías)', alert:k.vencidasTotal > 0, rows: k.vencidasTotalRows },
     { label:'1er Intento',        value:k.primerIntento,  color:'selva', icon:'🎯',
       sub:`${k.pctPrimerIntento}% del entregado`, pct:k.pctPrimerIntento, rows: k.primerIntentoRows },
   ];
@@ -2004,10 +2033,15 @@ function renderRollosCharts() {
     _buildDona('chart-rollos-estados', labels, data, colors, 'Rollos por estado');
   }
 
-  // 2. DONA — Tipo flujo
+  // 2. DONA — Tipo flujo (solo rollos_TRIM, excluye VP)
   {
     const map = {};
-    det.forEach(r => { const k=r.tipo_flujo||'Sin tipo'; map[k]=(map[k]||0)+(parseFloat(r.cantidad)||0); });
+    det.forEach(r => {
+      const flujo = r.tipo_flujo || 'Sin tipo';
+      // Excluir registros VP del tablero rollos
+      if (flujo.toUpperCase().includes('VP')) return;
+      const k=flujo; map[k]=(map[k]||0)+(parseFloat(r.cantidad)||0);
+    });
     const labels = Object.keys(map);
     const data   = labels.map(k => Math.round(map[k]));
     _buildDona('chart-rollos-tipo-flujo', labels, data, WOMPI_COLORS, 'Rollos por tipo flujo');
