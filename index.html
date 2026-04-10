@@ -1105,17 +1105,30 @@ tbody tr:hover {
   font-size: 12px; font-family: 'JetBrains Mono', monospace;
 }
 .dl-item-dot {
-  width: 8px; height: 8px; border-radius: 50%;
+  width: 8px !important; height: 8px !important; border-radius: 50% !important;
   background: rgba(255,255,255,.15); transition: background .3s;
-  flex-shrink: 0;
+  flex-shrink: 0; box-shadow: none !important;
+  animation: none !important;
 }
-.dl-item-dot.loading { background: var(--warning); animation: dotPulse 1s ease-in-out infinite; }
-.dl-item-dot.done    { background: var(--verde-menta); animation: none; }
-.dl-item-dot.error   { background: var(--danger); animation: none; }
+.dl-item-dot.loading {
+  background: var(--warning) !important;
+  box-shadow: none !important;
+  animation: dotPulse 1s ease-in-out infinite !important;
+}
+.dl-item-dot.done {
+  background: var(--verde-menta) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
+.dl-item-dot.error {
+  background: var(--danger) !important;
+  box-shadow: none !important;
+  animation: none !important;
+}
 .dl-item-text { color: var(--muted); }
 @keyframes dotPulse {
   0%,100% { opacity: 1; }
-  50%      { opacity: .4; }
+  50%      { opacity: .35; }
 }
 
 /* ═══ SIDEBAR + APP LAYOUT ══════════════════════════════════════════ */
@@ -1419,7 +1432,7 @@ tbody tr:hover {
     <div class="sidebar" id="sidebar">
       <!-- Toggle button -->
       <div class="sidebar-toggle">
-        <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Colapsar sidebar">
+        <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Colapsar sidebar">
           <span class="toggle-icon">◀</span>
         </button>
       </div>
@@ -1473,8 +1486,29 @@ tbody tr:hover {
     <div class="content-area">
       <div class="main">
 
-    <!-- ══ TAB: TRACKING GENERAL ══ -->
-    <div id="panel-tracking">
+    <!-- ══ PANEL: BIENVENIDA (menú principal) ══ -->
+    <div id="panel-home" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:32px;padding:48px 32px;">
+      <div style="text-align:center;">
+        <div style="font-size:48px;margin-bottom:16px;">📊</div>
+        <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--blanco);letter-spacing:-.5px;margin-bottom:8px;">Dashboard Tracking VP</div>
+        <div style="font-size:14px;color:var(--muted);max-width:380px;line-height:1.7;">Selecciona un tablero en el panel lateral izquierdo para comenzar a explorar los datos.</div>
+      </div>
+      <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+        <div onclick="selectBoard('datafonos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(10,28,18,.98),rgba(0,100,70,.10));border:1px solid rgba(176,242,174,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(176,242,174,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(176,242,174,.2)';this.style.transform='translateY(0)'">
+          <div style="font-size:32px;margin-bottom:12px;">📱</div>
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--verde-menta);letter-spacing:.5px;margin-bottom:6px;">TRACKING DATAFONOS VP</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, ANS, estado de envíos y tabla completa de datafonos</div>
+        </div>
+        <div onclick="selectBoard('rollos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(8,18,28,.98),rgba(0,70,110,.10));border:1px solid rgba(153,209,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(153,209,252,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(153,209,252,.2)';this.style.transform='translateY(0)'">
+          <div style="font-size:32px;margin-bottom:12px;">🎞️</div>
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--azul-cielo);letter-spacing:.5px;margin-bottom:6px;">TRACKING ROLLOS TRIM Y VP</div>
+          <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, distribución, tendencias y detalle de rollos Wompi</div>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="panel-tracking" style="display:none">
       <div class="filters-bar">
         <div class="filters-title">Filtros de búsqueda</div>
         <div class="filters-row">
@@ -2189,6 +2223,12 @@ window.doLogout = async function() {
         btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style="width:20px;height:20px;flex-shrink:0;"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg> Iniciar sesión con Microsoft`;
     }
 };
+</script>
+<script>
+// Proxies for sidebar functions — called from HTML onclicks before dashboard.js loads
+function toggleSidebar(){ if(window._sidebarReady) window._toggleSidebar(); }
+function selectBoard(b){ if(window._sidebarReady) window._selectBoard(b); }
+function selectBoardTab(b,t){ if(window._sidebarReady) window._selectBoardTab(b,t); }
 </script>
 <script src="dashboard.js"></script>
 </body>

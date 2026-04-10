@@ -1370,18 +1370,17 @@ function showTab(tab) {
 // ══════════════════════════════════════════════════════════════════
 //  SIDEBAR NAVIGATION
 // ══════════════════════════════════════════════════════════════════
-let _currentBoard = 'datafonos';
-let _currentTab   = 'tracking';
+let _currentBoard = null;
+let _currentTab   = null;
 
-function toggleSidebar() {
+function _toggleSidebar() {
   const sidebar = document.getElementById('sidebar');
   if (sidebar) sidebar.classList.toggle('collapsed');
 }
 
-function selectBoard(board) {
+function _selectBoard(board) {
   _currentBoard = board;
 
-  // Toggle open/close: if already open & active, collapse it; else open it and collapse the other
   const section = document.getElementById('sb-board-' + board);
   const isOpen  = section?.classList.contains('open');
 
@@ -1398,7 +1397,6 @@ function selectBoard(board) {
     if (btn) btn.classList.add('active');
   }
 
-  // Update topbar label
   const label = document.getElementById('topbar-board-label');
   if (label) {
     label.textContent = board === 'datafonos'
@@ -1406,35 +1404,32 @@ function selectBoard(board) {
       : 'Tracking Rollos Trim y VP';
   }
 
-  // Auto-select first tab when opening a board
   if (!isOpen) {
-    if (board === 'datafonos') selectBoardTab('datafonos', 'tracking');
-    else selectBoardTab('rollos', 'rollos-main');
+    if (board === 'datafonos') _selectBoardTab('datafonos', 'tracking');
+    else _selectBoardTab('rollos', 'rollos-main');
+  } else {
+    // Collapsed — show home panel
+    _showAllPanels(null);
   }
 }
 
-function selectBoardTab(board, tab) {
+function _selectBoardTab(board, tab) {
   _currentTab = tab;
 
-  // Clear all sidebar tab active states for the current board
-  const allSidebarTabs = document.querySelectorAll('.sidebar-tab');
-  allSidebarTabs.forEach(el => el.classList.remove('active'));
-
-  // Activate the clicked sidebar tab
+  document.querySelectorAll('.sidebar-tab').forEach(el => el.classList.remove('active'));
   const activeEl = document.getElementById('sb-tab-' + tab);
   if (activeEl) activeEl.classList.add('active');
 
-  // Hide ALL panels
-  const allPanels = [
-    'panel-tracking','panel-detalle','panel-tabla',
-    'panel-rollos','panel-rollos-detalle','panel-rollos-comercio'
-  ];
-  allPanels.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = 'none';
-  });
+  _showAllPanels(tab);
 
-  // Show the right panel
+  if (tab === 'detalle')         { renderDevCharts(); renderBacklog(); renderStalledGuias(); renderFallidos(); }
+  if (tab === 'tabla')           renderMainTable();
+  if (tab === 'rollos-main')     renderRollosTab();
+  if (tab === 'rollos-detalle')  { if (ROLLOS_RAW) renderRollosDetalleTable(); }
+  if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
+}
+
+function _showAllPanels(activeTab) {
   const panelMap = {
     'tracking':        'panel-tracking',
     'detalle':         'panel-detalle',
@@ -1443,19 +1438,37 @@ function selectBoardTab(board, tab) {
     'rollos-detalle':  'panel-rollos-detalle',
     'rollos-comercio': 'panel-rollos-comercio',
   };
-  const panelId = panelMap[tab];
-  if (panelId) {
-    const panel = document.getElementById(panelId);
-    if (panel) panel.style.display = 'block';
+  // Hide all
+  ['panel-home','panel-tracking','panel-detalle','panel-tabla',
+   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  // Show target or home
+  if (activeTab && panelMap[activeTab]) {
+    const el = document.getElementById(panelMap[activeTab]);
+    if (el) el.style.display = 'block';
+  } else {
+    const home = document.getElementById('panel-home');
+    if (home) home.style.display = 'flex';
   }
-
-  // Trigger existing render logic
-  if (tab === 'detalle')  { renderDevCharts(); renderBacklog(); renderStalledGuias(); renderFallidos(); }
-  if (tab === 'tabla')    renderMainTable();
-  if (tab === 'rollos-main') renderRollosTab();
-  if (tab === 'rollos-detalle') { if (ROLLOS_RAW) renderRollosDetalleTable(); }
-  if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
 }
+
+// Expose on window so inline HTML onclicks and the proxy script work
+window._sidebarReady   = true;
+window._toggleSidebar  = _toggleSidebar;
+window._selectBoard    = _selectBoard;
+window._selectBoardTab = _selectBoardTab;
+
+// Wire toggle button via event listener (avoids inline onclick timing issue)
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('sidebar-toggle-btn');
+  if (btn) btn.addEventListener('click', _toggleSidebar);
+  // Show welcome panel on load
+  _showAllPanels(null);
+});
+
+// (sidebar selectBoardTab handled by _selectBoardTab above)
 
 // ══════════════════════════════════════════════════════════════════
 //  DATA LOADING OVERLAY
