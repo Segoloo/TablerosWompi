@@ -1434,6 +1434,16 @@ function _selectBoardTab(board, tab) {
   const activeEl = document.getElementById('sb-tab-' + tab);
   if (activeEl) activeEl.classList.add('active');
 
+  // Si salimos de incumplimientos, limpiar su contenido para evitar que quede visible
+  if (tab !== 'incumplimientos') {
+    const resumen = document.getElementById('incump-resumen');
+    const tableWrap = document.getElementById('incump-table-wrap');
+    const pagination = document.getElementById('incump-pagination');
+    if (resumen) resumen.innerHTML = '';
+    if (tableWrap) tableWrap.innerHTML = '';
+    if (pagination) pagination.innerHTML = '';
+  }
+
   _showAllPanels(tab);
 
   if (tab === 'detalle')         { renderDevCharts(); renderBacklog(); renderStalledGuias(); renderFallidos(); }
