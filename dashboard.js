@@ -1373,16 +1373,30 @@ function showTab(tab) {
 let _currentBoard = 'datafonos';
 let _currentTab   = 'tracking';
 
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar) sidebar.classList.toggle('collapsed');
+}
+
 function selectBoard(board) {
   _currentBoard = board;
 
-  // Toggle sidebar board sections open/closed
+  // Toggle open/close: if already open & active, collapse it; else open it and collapse the other
+  const section = document.getElementById('sb-board-' + board);
+  const isOpen  = section?.classList.contains('open');
+
   ['datafonos','rollos'].forEach(b => {
-    const section = document.getElementById('sb-board-' + b);
-    const btn     = document.getElementById('sb-btn-' + b);
-    if (section) section.classList.toggle('open', b === board);
-    if (btn)     btn.classList.toggle('active', b === board);
+    const s   = document.getElementById('sb-board-' + b);
+    const btn = document.getElementById('sb-btn-' + b);
+    if (s)   s.classList.remove('open');
+    if (btn) btn.classList.remove('active');
   });
+
+  if (!isOpen) {
+    if (section) section.classList.add('open');
+    const btn = document.getElementById('sb-btn-' + board);
+    if (btn) btn.classList.add('active');
+  }
 
   // Update topbar label
   const label = document.getElementById('topbar-board-label');
@@ -1392,11 +1406,10 @@ function selectBoard(board) {
       : 'Tracking Rollos Trim y VP';
   }
 
-  // Show first tab of selected board
-  if (board === 'datafonos') {
-    selectBoardTab('datafonos', 'tracking');
-  } else {
-    selectBoardTab('rollos', 'rollos-main');
+  // Auto-select first tab when opening a board
+  if (!isOpen) {
+    if (board === 'datafonos') selectBoardTab('datafonos', 'tracking');
+    else selectBoardTab('rollos', 'rollos-main');
   }
 }
 
