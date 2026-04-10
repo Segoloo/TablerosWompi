@@ -1384,33 +1384,24 @@ function _selectBoard(board) {
   const section = document.getElementById('sb-board-' + board);
   const isOpen  = section?.classList.contains('open');
 
+  // Collapse all boards
   ['datafonos','rollos'].forEach(b => {
-    const s   = document.getElementById('sb-board-' + b);
-    const btn = document.getElementById('sb-btn-' + b);
-    if (s)   s.classList.remove('open');
-    if (btn) btn.classList.remove('active');
+    document.getElementById('sb-board-' + b)?.classList.remove('open');
+    document.getElementById('sb-btn-' + b)?.classList.remove('active');
   });
 
+  // If wasn't open, open it and navigate to first tab
   if (!isOpen) {
-    if (section) section.classList.add('open');
-    const btn = document.getElementById('sb-btn-' + board);
-    if (btn) btn.classList.add('active');
-  }
+    section?.classList.add('open');
+    document.getElementById('sb-btn-' + board)?.classList.add('active');
 
-  const label = document.getElementById('topbar-board-label');
-  if (label) {
-    label.textContent = board === 'datafonos'
-      ? 'Tracking VP · Datafonos'
-      : 'Tracking Rollos Trim y VP';
-  }
+    const label = document.getElementById('topbar-board-label');
+    if (label) label.textContent = board === 'datafonos' ? 'Tracking VP · Datafonos' : 'Tracking Rollos Trim y VP';
 
-  if (!isOpen) {
     if (board === 'datafonos') _selectBoardTab('datafonos', 'tracking');
     else _selectBoardTab('rollos', 'rollos-main');
-  } else {
-    // Collapsed — show home panel
-    _showAllPanels(null);
   }
+  // If was already open (toggle close) — just collapse, keep current panel visible (don't redirect to home)
 }
 
 function _selectBoardTab(board, tab) {
@@ -1454,19 +1445,18 @@ function _showAllPanels(activeTab) {
   }
 }
 
-// Expose on window so inline HTML onclicks and the proxy script work
 window._sidebarReady   = true;
 window._toggleSidebar  = _toggleSidebar;
 window._selectBoard    = _selectBoard;
 window._selectBoardTab = _selectBoardTab;
 
-// Wire toggle button via event listener (avoids inline onclick timing issue)
-document.addEventListener('DOMContentLoaded', () => {
+// Wire toggle button — script loads after DOM so just grab it directly
+(function() {
   const btn = document.getElementById('sidebar-toggle-btn');
   if (btn) btn.addEventListener('click', _toggleSidebar);
   // Show welcome panel on load
   _showAllPanels(null);
-});
+})();
 
 // (sidebar selectBoardTab handled by _selectBoardTab above)
 

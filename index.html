@@ -1104,11 +1104,17 @@ tbody tr:hover {
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; font-family: 'JetBrains Mono', monospace;
 }
+/* Clip wrapper prevents any box-shadow from leaking outside */
+.dl-item-dot-wrap {
+  width: 8px; height: 8px; border-radius: 50%;
+  overflow: hidden; flex-shrink: 0; position: relative;
+}
 .dl-item-dot {
-  width: 8px !important; height: 8px !important; border-radius: 50% !important;
-  background: rgba(255,255,255,.15); transition: background .3s;
-  flex-shrink: 0; box-shadow: none !important;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  box-shadow: none !important;
   animation: none !important;
+  transition: background .3s;
 }
 .dl-item-dot.loading {
   background: var(--warning) !important;
@@ -1125,11 +1131,11 @@ tbody tr:hover {
   box-shadow: none !important;
   animation: none !important;
 }
-.dl-item-text { color: var(--muted); }
 @keyframes dotPulse {
-  0%,100% { opacity: 1; }
-  50%      { opacity: .35; }
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: .45; transform: scale(.7); }
 }
+.dl-item-text { color: var(--muted); }
 
 /* ═══ SIDEBAR + APP LAYOUT ══════════════════════════════════════════ */
 .app-body {
@@ -1360,11 +1366,11 @@ tbody tr:hover {
   <div class="dl-progress"><div class="dl-progress-fill" id="dl-progress-fill"></div></div>
   <div class="dl-items">
     <div class="dl-item">
-      <div class="dl-item-dot" id="dl-dot-main"></div>
+      <div class="dl-item-dot-wrap"><div class="dl-item-dot" id="dl-dot-main"></div></div>
       <span class="dl-item-text">data.json</span>
     </div>
     <div class="dl-item">
-      <div class="dl-item-dot" id="dl-dot-rollos"></div>
+      <div class="dl-item-dot-wrap"><div class="dl-item-dot" id="dl-dot-rollos"></div></div>
       <span class="dl-item-text">data_rollos.json.gz</span>
     </div>
   </div>
