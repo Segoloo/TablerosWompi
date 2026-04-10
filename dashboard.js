@@ -461,8 +461,12 @@ function computeKPIs(data) {
   // pctOport: incumplimientos = entregados con RESPONSABLE INCUMPLIMIENTO === LINEACOM.
   // No depende del campo CUMPLE ANS (puede estar vacío); usa directamente el responsable.
   const noCumpleLineacom = entDf.filter(r =>
-    getCol(r, 'RESPONSABLE INCUMPLIMIENTO', 'responsable incumplimiento').toUpperCase() === 'LINEACOM'
+    getCol(r, 'RESPONSABLE INCUMPLIMIENTO', 'responsable incumplimiento').trim().toUpperCase().includes('LINEACOM')
   ).length;
+  // DEBUG: ver valores reales del campo en entregados
+  const _respValores = [...new Set(entDf.map(r => getCol(r, 'RESPONSABLE INCUMPLIMIENTO', 'responsable incumplimiento')))];
+  console.log('[ANS Debug] RESPONSABLE INCUMPLIMIENTO valores únicos en entregados:', _respValores);
+  console.log('[ANS Debug] entDf:', entDf.length, '| noCumpleLineacom:', noCumpleLineacom);
   const pctOport = entDf.length ? Math.round((entDf.length - noCumpleLineacom) / entDf.length * 100) : 0;
 
   const pctCalidad = entregados   ? Math.round((entregados - devueltos) / entregados * 100) : 100;
