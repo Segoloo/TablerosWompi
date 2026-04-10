@@ -2704,6 +2704,7 @@ function exportReferenciasExcel() {
 // ══════════════════════════════════════════════════════════════════
 let incumpPage = 1;
 let INCUMP_DATA = [];
+let incumpRespFilter = 'todos';
 const INCUMP_PAGE_SIZE = 50;
 
 function renderIncumplimientosTab() {
@@ -2807,7 +2808,54 @@ function renderIncumplimientosTab() {
       </div>`;
   }
 
+  // ── Botones filtro por responsable ──
+  const respFiltersEl = document.getElementById('incump-resp-filters');
+  if (respFiltersEl) {
+    // Obtener responsables únicos del total de incumplimientos
+    const respUnicos = ['todos', ...new Set(
+      rows.map(r => (r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)').trim() || '(Sin responsable)')
+    ).values()];
+
+    // Contar por responsable
+    const respCount = {};
+    rows.forEach(r => {
+      const v = (r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)').trim() || '(Sin responsable)';
+      respCount[v] = (respCount[v] || 0) + 1;
+    });
+
+    respFiltersEl.innerHTML = respUnicos.map(v => {
+      const isAll    = v === 'todos';
+      const isActive = incumpRespFilter === v;
+      const label    = isAll ? `Todos (${rows.length})` : `${v} (${respCount[v] || 0})`;
+      const colorMap = { 'LINEACOM': 'var(--azul-cielo)', 'USUARIO': 'var(--warning)' };
+      const color    = isAll ? 'var(--verde-menta)' : (colorMap[v.toUpperCase()] || 'var(--muted)');
+      const bg       = isActive ? color : 'rgba(255,255,255,.05)';
+      const textColor = isActive ? 'var(--negro-cib)' : color;
+      const border   = isActive ? color : 'rgba(255,255,255,.12)';
+      return `<button onclick="setIncumpRespFilter('${v.replace(/'/g,"\\'")}')"
+        style="padding:5px 14px;border-radius:20px;border:1px solid ${border};
+               background:${bg};color:${textColor};font-size:12px;font-weight:600;
+               cursor:pointer;transition:all .2s;font-family:'Outfit',sans-serif;white-space:nowrap">
+        ${label}
+      </button>`;
+    }).join('');
+  }
+
   _renderIncumpTable();
+}
+
+function setIncumpRespFilter(v) {
+  incumpRespFilter = v;
+  incumpPage = 1;
+  // Re-render solo los pills y la tabla (sin recalcular todo el resumen)
+  const respFiltersEl = document.getElementById('incump-resp-filters');
+  if (respFiltersEl) {
+    respFiltersEl.querySelectorAll('button').forEach(btn => {
+      const isActive = btn.textContent.trim().startsWith(v === 'todos' ? 'Todos' : v);
+      // Re-render simple: llamar renderIncumplimientosTab refresca todo limpiamente
+    });
+  }
+  renderIncumplimientosTab();
 }
 
 function _renderIncumpTable() {
@@ -2816,7 +2864,14 @@ function _renderIncumpTable() {
   if (!wrap) return;
 
   const today = new Date(); today.setHours(0,0,0,0);
-  const data  = INCUMP_DATA;
+
+  // Aplicar filtro por responsable
+  const data = incumpRespFilter === 'todos'
+    ? INCUMP_DATA
+    : INCUMP_DATA.filter(r =>
+        ((r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)').trim() || '(Sin responsable)') === incumpRespFilter
+      );
+
   const pages = Math.max(1, Math.ceil(data.length / INCUMP_PAGE_SIZE));
   const slice = data.slice((incumpPage-1)*INCUMP_PAGE_SIZE, incumpPage*INCUMP_PAGE_SIZE);
 
@@ -2876,12 +2931,15 @@ function _renderIncumpTable() {
     </tr>`).join('')}
   </tbody></table>`;
 
-  if (count) count.textContent = `${data.length} incumplimientos`;
+  if (count) count.textContent = `${data.length} incumplimientos${incumpRespFilter !== 'todos' ? ` · filtrando por: ${incumpRespFilter}` : ''}`;
   mkPagination('incump-pagination', incumpPage, pages, 'goIncumpPage');
 }
 
 function goIncumpPage(p) {
-  const pages = Math.ceil(INCUMP_DATA.length / INCUMP_PAGE_SIZE);
+  const filtered = incumpRespFilter === 'todos'
+    ? INCUMP_DATA
+    : INCUMP_DATA.filter(r => ((r['RESPONSABLE INCUMPLIMIENTO']||'(Sin responsable)').trim()||'(Sin responsable)') === incumpRespFilter);
+  const pages = Math.ceil(filtered.length / INCUMP_PAGE_SIZE);
   if (p >= 1 && p <= pages) { incumpPage = p; _renderIncumpTable(); }
 }
 
