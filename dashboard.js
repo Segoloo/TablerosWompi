@@ -480,31 +480,23 @@ function computeKPIs(data) {
   });
   const vencidas = vencidasRows.length;
 
-  // Vencidas Total: TODOS los estados (incluye entregados tardíos) donde fecha limite < today
-  // Para entregados: compara fecha de entrega real vs fecha límite si existe, sino usa today
-  // Para no entregados: igual que vencidas pero incluye ENTREGADO y excluye solo CANCELADO
-  const vencidasTotalRows = df.filter(r => {
-    const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
+  // Incumplimientos Totales (historico completo):
+  // ENTREGADO con FECHA ENTREGA AL COMERCIO > FECHA LIMITE DE ENTREGA
+  // + no entregados con fecha limite vencida
+  const incumplimientosRows = df.filter(r => {
     const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
+    const lim = getFechaLimite(r);
     if (!lim || est === 'CANCELADO') return false;
-    // Para entregados: verificar si la fecha real de entrega superó la fecha límite
+    const limD = new Date(lim); limD.setHours(0,0,0,0);
     if (est === 'ENTREGADO') {
-      // Buscar fecha real de entrega
-      const fechaEntrega = parseDate(
-        getCol(r, 'FECHA DE ENTREGA', 'fecha de entrega', 'FECHA ENTREGA', 'fecha entrega')
-      );
-      if (fechaEntrega) {
-        const limD = new Date(lim); limD.setHours(0, 0, 0, 0);
-        const entD = new Date(fechaEntrega); entD.setHours(0, 0, 0, 0);
-        return entD > limD;
-      }
-      // Si no hay fecha de entrega, no podemos determinar si fue tardío
-      return false;
+      const fe = parseDate(getCol(r, 'FECHA ENTREGA AL COMERCIO', 'fecha entrega al comercio'));
+      if (!fe) return false;
+      const feD = new Date(fe); feD.setHours(0,0,0,0);
+      return feD > limD;
     }
-    // Para no entregados: si fecha límite ya pasó
-    return lim < today;
+    return limD < today;
   });
-  const vencidasTotal = vencidasTotalRows.length;
+  const incumplimientos = incumplimientosRows.length;
 
   // 10. Primer intento: entregados sin novedades ni causal ni responsable de incumplimiento
   const FAILED_COLS = ['NOVEDADES','novedades','CAUSAL INCU','causal incu','RESPONSABLE INCUMPLIMIENTO','responsable incumplimiento','CAUSAL INC','causal inc'];
@@ -538,7 +530,7 @@ function computeKPIs(data) {
     pctOport, pctCalidad,
     vencenHoy, vencenHoyRows,
     vencidas, vencidasRows,
-    vencidasTotal, vencidasTotalRows,
+    incumplimientos, incumplimientosRows,
     primerIntento, primerIntentoRows,
     pctPrimerIntento: pct(primerIntento, entregados),
     ec,
@@ -692,9 +684,10 @@ function renderKPIs(k) {
     { label:'Vencen Hoy',         value:k.vencenHoy,      color:'warn',  icon:'⏰',
       sub:'Sin entregar, límite hoy', alert:k.vencenHoy > 0, rows: k.vencenHoyRows },
     { label:'Vencidas ANS',       value:k.vencidas,       color:'danger',icon:'🚨',
-      sub:'Fuera de ANS (VT + OPLG)', alert:k.vencidas > 0, rows: k.vencidasRows },
-    { label:'Vencidas ANS (Total)', value:k.vencidasTotal, color:'danger', icon:'📛',
-      sub:'Todos los estados (incl. entregadas tardías)', alert:k.vencidasTotal > 0, rows: k.vencidasTotalRows },
+      sub:'Sin entregar y fuera de ANS', alert:k.vencidas > 0, rows: k.vencidasRows },
+    { label:'Incumplimientos Totales', value:k.incumplimientos, color:'danger', icon:'📛',
+      sub:'Todos los estados (incl. entregados tardíos)', alert:k.incumplimientos > 0,
+      rows: k.incumplimientosRows },
     { label:'1er Intento',        value:k.primerIntento,  color:'selva', icon:'🎯',
       sub:`${k.pctPrimerIntento}% del entregado`, pct:k.pctPrimerIntento, rows: k.primerIntentoRows },
   ];
@@ -1444,6 +1437,7 @@ function _selectBoardTab(board, tab) {
 
   if (tab === 'detalle')         { renderDevCharts(); renderBacklog(); renderStalledGuias(); renderFallidos(); }
   if (tab === 'tabla')           renderMainTable();
+  if (tab === 'incumplimientos') renderIncumplimientosTab();
   if (tab === 'rollos-main')     renderRollosTab();
   if (tab === 'rollos-detalle')  { if (ROLLOS_RAW) renderRollosDetalleTable(); }
   if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
@@ -1454,6 +1448,7 @@ function _showAllPanels(activeTab) {
     'tracking':        'panel-tracking',
     'detalle':         'panel-detalle',
     'tabla':           'panel-tabla',
+    'incumplimientos': 'panel-incump',
     'rollos-main':     'panel-rollos',
     'rollos-detalle':  'panel-rollos-detalle',
     'rollos-comercio': 'panel-rollos-comercio',
@@ -2038,9 +2033,8 @@ function renderRollosCharts() {
     const map = {};
     det.forEach(r => {
       const flujo = r.tipo_flujo || 'Sin tipo';
-      // Excluir registros VP del tablero rollos
       if (flujo.toUpperCase().includes('VP')) return;
-      const k=flujo; map[k]=(map[k]||0)+(parseFloat(r.cantidad)||0);
+      map[flujo] = (map[flujo]||0) + (parseFloat(r.cantidad)||0);
     });
     const labels = Object.keys(map);
     const data   = labels.map(k => Math.round(map[k]));
@@ -2682,6 +2676,225 @@ function exportReferenciasExcel() {
     Departamento: r.departamento, Ciudad: r.ciudad,
   }));
   _exportExcelRollos(data, 'Rollos_Referencias');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB INCUMPLIMIENTOS ANS
+// ══════════════════════════════════════════════════════════════════
+let incumpPage = 1;
+let INCUMP_DATA = [];
+const INCUMP_PAGE_SIZE = 50;
+
+function renderIncumplimientosTab() {
+  const k = computeKPIs(FILTERED);
+  const rows = k.incumplimientosRows;
+  INCUMP_DATA = rows;
+  incumpPage = 1;
+
+  // ── Resumen KPIs de incumplimientos ──
+  const resumenEl = document.getElementById('incump-resumen');
+  if (resumenEl) {
+    const today = new Date(); today.setHours(0,0,0,0);
+
+    // Conteo por responsable
+    const porResp = {};
+    const porCausal = {};
+    let totalDias = 0, conDias = 0;
+    let tardios = 0, vencidosAun = 0;
+
+    rows.forEach(r => {
+      const resp  = (r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)').trim() || '(Sin responsable)';
+      const caus  = (r['CAUSAL INCU'] || '(Sin causal)').trim() || '(Sin causal)';
+      const est   = (r['ESTADO DATAFONO'] || '').toUpperCase();
+      const lim   = getFechaLimite(r);
+      const fe    = parseDate(r['FECHA ENTREGA AL COMERCIO'] || '');
+
+      porResp[resp]   = (porResp[resp]   || 0) + 1;
+      porCausal[caus] = (porCausal[caus] || 0) + 1;
+
+      if (est === 'ENTREGADO' && lim && fe) {
+        const limD = new Date(lim); limD.setHours(0,0,0,0);
+        const feD  = new Date(fe);  feD.setHours(0,0,0,0);
+        const dias = Math.round((feD - limD) / 86400000);
+        if (dias > 0) { totalDias += dias; conDias++; tardios++; }
+      } else if (lim) {
+        const limD = new Date(lim); limD.setHours(0,0,0,0);
+        vencidosAun += Math.round((today - limD) / 86400000);
+        conDias++;
+      }
+    });
+
+    const avgDias = conDias ? Math.round(totalDias / (tardios || 1)) : 0;
+
+    const topResp  = Object.entries(porResp).sort((a,b)=>b[1]-a[1]);
+    const topCausal = Object.entries(porCausal).sort((a,b)=>b[1]-a[1]);
+
+    resumenEl.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px">
+        <div class="kpi-card danger" style="padding:20px">
+          <span class="kpi-icon">📛</span>
+          <div class="kpi-label">Total Incumplimientos</div>
+          <div class="kpi-value danger">${rows.length}</div>
+          <div class="kpi-sub">${tardios} entregados tardíos · ${rows.length - tardios} sin entregar</div>
+        </div>
+        <div class="kpi-card warn" style="padding:20px">
+          <span class="kpi-icon">⏱️</span>
+          <div class="kpi-label">Promedio Días Retraso</div>
+          <div class="kpi-value warn">${avgDias} días</div>
+          <div class="kpi-sub">sobre entregas tardías</div>
+        </div>
+        ${topResp.map(([r,n],i) => `
+        <div class="kpi-card ${i===0?'danger':'warn'}" style="padding:20px">
+          <span class="kpi-icon">👤</span>
+          <div class="kpi-label">Resp: ${r}</div>
+          <div class="kpi-value ${i===0?'danger':'warn'}">${n}</div>
+          <div class="kpi-sub">${rows.length ? Math.round(n/rows.length*100) : 0}% del total</div>
+        </div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--verde-menta);margin-bottom:14px;font-size:13px;letter-spacing:.5px;text-transform:uppercase">Por Responsable</div>
+          ${topResp.map(([r,n])=>`
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="flex:1;font-size:13px;color:var(--blanco)">${r}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--danger);min-width:32px;text-align:right">${n}</div>
+              <div style="width:120px;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${rows.length?Math.round(n/rows.length*100):0}%;background:var(--danger);border-radius:3px"></div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);min-width:30px">${rows.length?Math.round(n/rows.length*100):0}%</div>
+            </div>`).join('')}
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--azul-cielo);margin-bottom:14px;font-size:13px;letter-spacing:.5px;text-transform:uppercase">Por Causal</div>
+          ${topCausal.map(([c,n])=>`
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="flex:1;font-size:13px;color:var(--blanco)">${c}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--azul-cielo);min-width:32px;text-align:right">${n}</div>
+              <div style="width:120px;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden">
+                <div style="height:100%;width:${rows.length?Math.round(n/rows.length*100):0}%;background:var(--azul-cielo);border-radius:3px"></div>
+              </div>
+              <div style="font-size:11px;color:var(--muted);min-width:30px">${rows.length?Math.round(n/rows.length*100):0}%</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  _renderIncumpTable();
+}
+
+function _renderIncumpTable() {
+  const wrap  = document.getElementById('incump-table-wrap');
+  const count = document.getElementById('incump-count');
+  if (!wrap) return;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const data  = INCUMP_DATA;
+  const pages = Math.max(1, Math.ceil(data.length / INCUMP_PAGE_SIZE));
+  const slice = data.slice((incumpPage-1)*INCUMP_PAGE_SIZE, incumpPage*INCUMP_PAGE_SIZE);
+
+  if (!data.length) {
+    wrap.innerHTML = '<div class="empty-state"><div class="icon">🎉</div><p>Sin incumplimientos registrados</p></div>';
+    if (count) count.textContent = '0 registros';
+    return;
+  }
+
+  const cols = [
+    { label:'Comercio',        fn: r => r['Nombre del comercio'] || '—' },
+    { label:'ID Sitio',        fn: r => r['ID Comercio'] || '—' },
+    { label:'Ciudad',          fn: r => (r['Ciudad'] || '—') + ', ' + (r['Departamento'] || '') },
+    { label:'Estado',          fn: r => r['ESTADO DATAFONO'] || '—', isStatus: true },
+    { label:'Tipo Solicitud',  fn: r => r['TIPO DE SOLICITUD FACTURACIÓN'] || r['TIPO DE SOLICITUD'] || '—' },
+    { label:'Fecha Límite',    fn: r => r['FECHA LIMITE DE ENTREGA'] || '—' },
+    { label:'Fecha Entrega',   fn: r => r['FECHA ENTREGA AL COMERCIO'] || '—' },
+    { label:'Días Retraso',    fn: r => {
+      const est = (r['ESTADO DATAFONO']||'').toUpperCase();
+      const lim = getFechaLimite(r);
+      if (!lim) return '—';
+      const limD = new Date(lim); limD.setHours(0,0,0,0);
+      if (est === 'ENTREGADO') {
+        const fe = parseDate(r['FECHA ENTREGA AL COMERCIO']||'');
+        if (!fe) return '—';
+        const feD = new Date(fe); feD.setHours(0,0,0,0);
+        return Math.round((feD - limD) / 86400000);
+      }
+      return Math.round((today - limD) / 86400000);
+    }, isDias: true },
+    { label:'Responsable',     fn: r => r['RESPONSABLE INCUMPLIMIENTO'] || '(Sin responsable)', isResp: true },
+    { label:'Causal',          fn: r => r['CAUSAL INCU'] || '(Sin causal)' },
+    { label:'Transportadora',  fn: r => r['TRANSPORTADORA'] || '—' },
+    { label:'Guía',            fn: r => r['NÚMERO DE GUIA'] || '—' },
+    { label:'Novedades',       fn: r => (r['NOVEDADES']||'').slice(0,120) + ((r['NOVEDADES']||'').length > 120 ? '…' : '') || '—' },
+  ];
+
+  wrap.innerHTML = `<table><thead><tr>
+    ${cols.map(c=>`<th style="white-space:nowrap">${c.label}</th>`).join('')}
+  </tr></thead><tbody>
+    ${slice.map((r,i) => `<tr style="background:${i%2?'transparent':'rgba(255,255,255,.02)'}">
+      ${cols.map(c => {
+        const v = c.fn(r);
+        if (c.isStatus) return `<td>${statusPill(String(v))}</td>`;
+        if (c.isDias) {
+          const n = parseInt(v);
+          if (isNaN(n)) return `<td>—</td>`;
+          const cls = n > 10 ? 'crit' : n > 3 ? 'warn' : 'ok';
+          return `<td><span class="days-stalled ${cls}">${n}d</span></td>`;
+        }
+        if (c.isResp) {
+          const cls = String(v).toUpperCase() === 'LINEACOM' ? 'var(--azul-cielo)' : String(v).toUpperCase() === 'USUARIO' ? 'var(--warning)' : 'var(--muted)';
+          return `<td><span style="font-weight:600;color:${cls};font-size:11px;padding:3px 8px;background:rgba(255,255,255,.06);border-radius:4px">${v}</span></td>`;
+        }
+        return `<td style="max-width:200px;white-space:normal;font-size:12px">${v}</td>`;
+      }).join('')}
+    </tr>`).join('')}
+  </tbody></table>`;
+
+  if (count) count.textContent = `${data.length} incumplimientos`;
+  mkPagination('incump-pagination', incumpPage, pages, 'goIncumpPage');
+}
+
+function goIncumpPage(p) {
+  const pages = Math.ceil(INCUMP_DATA.length / INCUMP_PAGE_SIZE);
+  if (p >= 1 && p <= pages) { incumpPage = p; _renderIncumpTable(); }
+}
+
+function exportIncumpExcel() {
+  if (!INCUMP_DATA.length) { alert('Sin datos para exportar.'); return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const data = INCUMP_DATA.map(r => {
+    const est = (r['ESTADO DATAFONO']||'').toUpperCase();
+    const lim = getFechaLimite(r);
+    let dias = '';
+    if (lim) {
+      const limD = new Date(lim); limD.setHours(0,0,0,0);
+      if (est === 'ENTREGADO') {
+        const fe = parseDate(r['FECHA ENTREGA AL COMERCIO']||'');
+        if (fe) { const feD = new Date(fe); feD.setHours(0,0,0,0); dias = Math.round((feD-limD)/86400000); }
+      } else {
+        dias = Math.round((today-limD)/86400000);
+      }
+    }
+    return {
+      'Comercio':              r['Nombre del comercio'] || '',
+      'ID Sitio':              r['ID Comercio'] || '',
+      'Ciudad':                r['Ciudad'] || '',
+      'Departamento':          r['Departamento'] || '',
+      'Estado':                r['ESTADO DATAFONO'] || '',
+      'Tipo Solicitud':        r['TIPO DE SOLICITUD FACTURACIÓN'] || r['TIPO DE SOLICITUD'] || '',
+      'Fecha Límite':          r['FECHA LIMITE DE ENTREGA'] || '',
+      'Fecha Entrega':         r['FECHA ENTREGA AL COMERCIO'] || '',
+      'Días Retraso':          dias,
+      'Responsable':           r['RESPONSABLE INCUMPLIMIENTO'] || '',
+      'Causal Incumplimiento': r['CAUSAL INCU'] || '',
+      'Transportadora':        r['TRANSPORTADORA'] || '',
+      'Guía':                  r['NÚMERO DE GUIA'] || '',
+      'Novedades':             r['NOVEDADES'] || '',
+    };
+  });
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = Object.keys(data[0]).map(k => ({ wch: Math.max(k.length+2, ...data.slice(0,50).map(r=>String(r[k]||'').length)) }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Incumplimientos');
+  XLSX.writeFile(wb, `Incumplimientos_ANS_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 function _exportExcelRollos(data, filename) {

@@ -1463,6 +1463,9 @@ tbody tr:hover {
           <div class="sidebar-tab" id="sb-tab-tabla" onclick="selectBoardTab('datafonos','tabla')">
             <span class="sidebar-tab-icon">📋</span> Tabla Completa
           </div>
+          <div class="sidebar-tab" id="sb-tab-incumplimientos" onclick="selectBoardTab('datafonos','incumplimientos')">
+            <span class="sidebar-tab-icon">📛</span> Incumplimientos ANS
+          </div>
         </div>
       </div>
 
@@ -1730,6 +1733,33 @@ tbody tr:hover {
         <div class="table-footer">
           <span class="table-count" id="table-count">0 registros</span>
           <div class="table-pagination" id="table-pagination"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: INCUMPLIMIENTOS ANS ══ -->
+    <div id="panel-incump" style="display:none">
+      <div class="table-section">
+        <div class="table-header" style="margin-bottom:8px">
+          <div>
+            <h3 style="margin:0">📛 Incumplimientos ANS — Histórico Completo</h3>
+            <p style="margin:4px 0 0;color:var(--muted);font-size:13px">Cualquier datafono entregado después de su fecha límite, más los aún sin entregar con ANS vencido</p>
+          </div>
+          <div class="table-actions">
+            <button class="btn-export" onclick="exportIncumpExcel()">⬇ Exportar Excel</button>
+          </div>
+        </div>
+        <!-- Resumen KPIs + barras de responsable/causal -->
+        <div id="incump-resumen"></div>
+        <!-- Tabla detalle -->
+        <div style="overflow-x:auto">
+          <div class="table-wrap" id="incump-table-wrap" style="min-height:200px">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+        <div class="table-footer">
+          <span class="table-count" id="incump-count">0 registros</span>
+          <div class="table-pagination" id="incump-pagination"></div>
         </div>
       </div>
     </div>
