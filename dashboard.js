@@ -458,10 +458,9 @@ function computeKPIs(data) {
     getCol(r, 'CUMPLE ANS', 'cumple ans', 'Cumple Ans').toUpperCase() === 'SI'
   ).length;
 
-  // pctOport: solo cuenta como incumplimiento los entregados donde RESPONSABLE === LINEACOM.
-  // Incumplimientos por USUARIO u otro responsable no penalizan el indicador de LINEACOM.
+  // pctOport: incumplimientos = entregados con RESPONSABLE INCUMPLIMIENTO === LINEACOM.
+  // No depende del campo CUMPLE ANS (puede estar vacío); usa directamente el responsable.
   const noCumpleLineacom = entDf.filter(r =>
-    getCol(r, 'CUMPLE ANS', 'cumple ans', 'Cumple Ans').toUpperCase() !== 'SI' &&
     getCol(r, 'RESPONSABLE INCUMPLIMIENTO', 'responsable incumplimiento').toUpperCase() === 'LINEACOM'
   ).length;
   const pctOport = entDf.length ? Math.round((entDf.length - noCumpleLineacom) / entDf.length * 100) : 0;
