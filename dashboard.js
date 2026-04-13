@@ -475,18 +475,21 @@ function computeKPIs(data) {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const vencenHoyRows = df.filter(r => {
     const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
-    const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
+    const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim();
     if (!lim) return false;
+    if (est === 'ENTREGADO' || est.includes('ENTREGADO') || est === 'CANCELADO') return false;
     const limD = new Date(lim); limD.setHours(0, 0, 0, 0);
-    return limD.getTime() === today.getTime() && est !== 'ENTREGADO' && est !== 'CANCELADO';
+    return limD.getTime() === today.getTime();
   });
   const vencenHoy = vencenHoyRows.length;
 
   // Vencidas: TODOS los registros (VT + OPLG) no entregados con fecha limite pasada
   const vencidasRows = df.filter(r => {
     const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
-    const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
-    return lim && lim < today && est !== 'ENTREGADO' && est !== 'CANCELADO';
+    const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim();
+    if (!lim) return false;
+    if (est === 'ENTREGADO' || est.includes('ENTREGADO') || est === 'CANCELADO') return false;
+    return lim < today;
   });
   const vencidas = vencidasRows.length;
 
@@ -1091,8 +1094,9 @@ function renderBacklog() {
   // O que vencen HOY (fecha límite == hoy, sin importar la hora exacta)
   const atRisk = FILTERED.filter(r => {
     const lim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
-    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (!lim || est === 'ENTREGADO' || est === 'CANCELADO') return false;
+    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase().trim();
+    if (!lim) return false;
+    if (est === 'ENTREGADO' || est.includes('ENTREGADO') || est === 'CANCELADO') return false;
     const limDay = new Date(lim); limDay.setHours(23,59,59,999);
     // Vencen en las próximas Xh (desde hoy 0:00 hasta cutoff)
     return limDay >= nowDay && lim <= cutoff;
@@ -1331,8 +1335,9 @@ function exportBacklogExcel() {
   const cutoff = new Date(nowDay.getTime()+hrs*3600000);
   const data   = FILTERED.filter(r=>{
     const lim = parseDate(getCol(r,'FECHA LIMITE DE ENTREGA','fecha limite de entrega'));
-    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase();
-    if (!lim || est==='ENTREGADO' || est==='CANCELADO') return false;
+    const est = getCol(r,'ESTADO DATAFONO','estado datafono').toUpperCase().trim();
+    if (!lim) return false;
+    if (est==='ENTREGADO' || est.includes('ENTREGADO') || est==='CANCELADO') return false;
     const limDay = new Date(lim); limDay.setHours(23,59,59,999);
     return limDay >= nowDay && lim <= cutoff;
   }).map(r=>({

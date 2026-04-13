@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manual de Usuario · Dashboard Tracking VP Wompi</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --negro: #111110;
+  --fondo: #0a1a12;
+  --surface: #161514;
+  --surface2: #1e1c1b;
+  --border: #2E2C2A;
+  --verde: #B0F2AE;
+  --azul: #99D1FC;
+  --lima: #DFFF61;
+  --selva: #00825A;
+  --peligro: #FF5C5C;
+  --warn: #FFC04D;
+  --muted: #7A7674;
+  --blanco: #FAFAFA;
+  --radius: 18px;
+  --radius-sm: 12px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--fondo);
+  color: var(--blanco);
+  line-height: 1.7;
+  overflow-x: hidden;
+}
+
+/* ── FONDO ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background:
+    radial-gradient(ellipse 70% 60% at 0% 0%, rgba(176,242,174,.12) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(153,209,252,.10) 0%, transparent 55%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0,130,90,.06) 0%, transparent 60%),
+    linear-gradient(rgba(176,242,174,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(176,242,174,.025) 1px, transparent 1px);
+  background-size: auto, auto, auto, 60px 60px, 60px 60px;
+}
+
+/* ── CONTENIDO ── */
+.wrap {
+  position: relative; z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* ── PORTADA ── */
+.portada {
+  text-align: center;
+  padding: 60px 0 80px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 64px;
+}
+
+.logo-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 32px;
+  padding: 12px 24px;
+  background: rgba(176,242,174,.06);
+  border: 1px solid rgba(176,242,174,.2);
+  border-radius: 50px;
+}
+
+.logo-wompi {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--verde);
+  letter-spacing: -0.5px;
+}
+.logo-sep { color: var(--border); font-size: 18px; }
+.logo-linea {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--azul);
+}
+
+.portada h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  font-weight: 800;
+  line-height: 1.1;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, var(--verde) 0%, var(--azul) 60%, var(--lima) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.portada .subtitulo {
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 500px;
+  margin: 0 auto 32px;
+}
+
+.badge-version {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  padding: 4px 12px;
+  background: rgba(176,242,174,.1);
+  border: 1px solid rgba(176,242,174,.25);
+  border-radius: 50px;
+  color: var(--verde);
+  letter-spacing: 1px;
+}
+
+/* ── CREDENCIALES DESTACADAS ── */
+.credenciales-box {
+  background: linear-gradient(135deg, rgba(0,130,90,.15) 0%, rgba(153,209,252,.08) 100%);
+  border: 1px solid rgba(176,242,174,.3);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin: 0 0 64px;
+  position: relative;
+  overflow: hidden;
+}
+
+.credenciales-box::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--verde), var(--azul), var(--lima));
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.cred-titulo {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--verde);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cred-icono {
+  width: 20px; height: 20px;
+  background: var(--verde);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+}
+
+.cred-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 600px) {
+  .cred-grid { grid-template-columns: 1fr; }
+}
+
+.cred-item label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.cred-valor {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  color: var(--blanco);
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cred-aviso {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.cred-aviso-icono { font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+
+/* ── SECCIONES ── */
+.seccion {
+  margin-bottom: 72px;
+}
+
+.seccion-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.seccion-num {
+  width: 44px; height: 44px;
+  background: linear-gradient(135deg, var(--verde), var(--selva));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0a1a12;
+  flex-shrink: 0;
+}
+
+.seccion-num.azul { background: linear-gradient(135deg, var(--azul), #3B82F6); }
+.seccion-num.lima { background: linear-gradient(135deg, var(--lima), #a8cc00); }
+.seccion-num.warn { background: linear-gradient(135deg, var(--warn), #e88000); }
+.seccion-num.peligro { background: linear-gradient(135deg, var(--peligro), #cc2200); }
+
+.seccion h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--blanco);
+  line-height: 1.2;
+}
+
+.seccion p {
+  font-size: 1rem;
+  color: rgba(250,250,250,.75);
+  margin-bottom: 16px;
+}
+
+/* ── PASOS ── */
+.pasos {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.paso {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.paso-num {
+  width: 36px; height: 36px;
+  background: rgba(176,242,174,.1);
+  border: 1px solid rgba(176,242,174,.3);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--verde);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.paso-contenido h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--blanco);
+  margin-bottom: 6px;
+}
+
+.paso-contenido p {
+  font-size: 0.93rem;
+  color: rgba(250,250,250,.65);
+  margin-bottom: 0;
+}
+
+/* ── CARDS DE KPIs ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.kpi-card.verde::before { background: linear-gradient(90deg, var(--verde), transparent); }
+.kpi-card.azul::before  { background: linear-gradient(90deg, var(--azul),  transparent); }
+.kpi-card.lima::before  { background: linear-gradient(90deg, var(--lima),  transparent); }
+.kpi-card.warn::before  { background: linear-gradient(90deg, var(--warn),  transparent); }
+.kpi-card.peligro::before { background: linear-gradient(90deg, var(--peligro), transparent); }
+
+.kpi-emoji { font-size: 22px; margin-bottom: 8px; }
+.kpi-nombre {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.kpi-desc { font-size: 0.85rem; color: rgba(250,250,250,.6); }
+
+.kpi-tag {
+  display: inline-block;
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  margin-top: 8px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.kpi-tag.verde { background: rgba(176,242,174,.12); color: var(--verde); }
+.kpi-tag.azul  { background: rgba(153,209,252,.12); color: var(--azul); }
+.kpi-tag.lima  { background: rgba(223,255,97,.12);  color: var(--lima); }
+.kpi-tag.warn  { background: rgba(255,192,77,.12);  color: var(--warn); }
+.kpi-tag.peligro { background: rgba(255,92,92,.12); color: var(--peligro); }
+
+/* ── FILTROS VISUAL ── */
+.filtros-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.filtro-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.filtro-icono {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+.filtro-icono.verde { background: rgba(176,242,174,.12); }
+.filtro-icono.azul  { background: rgba(153,209,252,.12); }
+.filtro-icono.lima  { background: rgba(223,255,97,.12); }
+
+.filtro-nombre {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--blanco);
+  margin-bottom: 2px;
+}
+.filtro-desc { font-size: 11px; color: var(--muted); }
+
+/* ── ALERTA BOX ── */
+.alerta {
+  border-radius: var(--radius-sm);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.alerta.warn {
+  background: rgba(255,192,77,.08);
+  border: 1px solid rgba(255,192,77,.25);
+}
+
+.alerta.peligro {
+  background: rgba(255,92,92,.08);
+  border: 1px solid rgba(255,92,92,.25);
+}
+
+.alerta.info {
+  background: rgba(153,209,252,.08);
+  border: 1px solid rgba(153,209,252,.25);
+}
+
+.alerta.exito {
+  background: rgba(176,242,174,.08);
+  border: 1px solid rgba(176,242,174,.25);
+}
+
+.alerta-icono { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+.alerta-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.alerta.warn .alerta-titulo { color: var(--warn); }
+.alerta.peligro .alerta-titulo { color: var(--peligro); }
+.alerta.info .alerta-titulo { color: var(--azul); }
+.alerta.exito .alerta-titulo { color: var(--verde); }
+
+.alerta-texto { font-size: 0.88rem; color: rgba(250,250,250,.65); }
+
+/* ── GRÁFICAS VISUAL ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .charts-grid { grid-template-columns: 1fr; }
+}
+
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 20px;
+}
+
+.chart-titulo {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--blanco);
+  margin-bottom: 8px;
+}
+
+.chart-desc {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chart-preview {
+  height: 80px;
+  margin-top: 14px;
+  border-radius: 8px;
+  opacity: 0.5;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.chart-bar {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  min-width: 8px;
+}
+
+/* ── TABLA PREVIEW ── */
+.tabla-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.tabla-header {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 0;
+  background: rgba(176,242,174,.06);
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla-th {
+  padding: 10px 14px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--verde);
+  font-weight: 700;
+}
+
+.tabla-fila {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  border-bottom: 1px solid rgba(46,44,42,.5);
+}
+
+.tabla-fila:last-child { border-bottom: none; }
+
+.tabla-td {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: rgba(250,250,250,.75);
+}
+
+.estado-pill {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.estado-pill.entregado { background: rgba(0,130,90,.2); color: #00C87A; }
+.estado-pill.transito  { background: rgba(153,209,252,.15); color: var(--azul); }
+.estado-pill.alistamiento { background: rgba(223,255,97,.12); color: var(--lima); }
+
+/* ── CONSEJO ── */
+.consejo {
+  background: var(--surface2);
+  border-left: 3px solid var(--verde);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: rgba(250,250,250,.75);
+}
+
+.consejo strong { color: var(--verde); font-weight: 600; }
+
+/* ── ÍNDICE ── */
+.indice {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+  margin-bottom: 56px;
+}
+
+.indice-titulo {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+
+.indice-lista {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.indice-lista li a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: rgba(250,250,250,.7);
+  font-size: 0.93rem;
+  transition: color .2s;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(46,44,42,.4);
+}
+
+.indice-lista li:last-child a { border-bottom: none; }
+.indice-lista li a:hover { color: var(--verde); }
+
+.indice-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 20px;
+}
+
+/* ── FOOTER ── */
+.footer {
+  text-align: center;
+  padding-top: 48px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.footer .footer-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.footer .footer-logos span {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.footer .footer-logos span.wompi { color: var(--verde); }
+.footer .footer-logos span.linea { color: var(--azul); }
+.footer .footer-logos .sep { color: var(--border); }
+
+/* ── PANTALLA LOGIN MOCKUP ── */
+.login-mockup {
+  background: #111110;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 36px 32px;
+  max-width: 380px;
+  margin: 0 auto 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-mockup::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle 200px at 20% 20%, rgba(176,242,174,.08) 0%, transparent 70%),
+    radial-gradient(circle 150px at 80% 80%, rgba(153,209,252,.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.login-mockup-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--verde);
+  margin-bottom: 4px;
+}
+
+.login-mockup-sub {
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 28px;
+}
+
+.login-field {
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: rgba(250,250,250,.5);
+  text-align: left;
+  margin-bottom: 10px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.login-field .field-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.login-field .field-val {
+  font-size: 12px;
+  color: var(--blanco);
+  opacity: 0.8;
+}
+
+.login-btn-mock {
+  width: 100%;
+  background: linear-gradient(135deg, var(--verde) 0%, #00C87A 100%);
+  color: #0a1a12;
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* ── RESPONSIVE ── */
+@media (max-width: 480px) {
+  .wrap { padding: 24px 16px 60px; }
+  .portada { padding: 40px 0 60px; }
+  .credenciales-box { padding: 20px; }
+  .seccion-header { gap: 12px; }
+  .seccion h2 { font-size: 1.3rem; }
+  .tabla-header, .tabla-fila {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+  .tabla-th:last-child, .tabla-td:last-child { display: none; }
+}
+
+/* ── HIGHLIGHT TEXT ── */
+.hi-verde { color: var(--verde); font-weight: 600; }
+.hi-azul  { color: var(--azul);  font-weight: 600; }
+.hi-lima  { color: var(--lima);  font-weight: 600; }
+.hi-warn  { color: var(--warn);  font-weight: 600; }
+.hi-peligro { color: var(--peligro); font-weight: 600; }
+
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  background: rgba(176,242,174,.1);
+  color: var(--verde);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* ── SESION WARNING ── */
+.sesion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,192,77,.1);
+  border: 1px solid rgba(255,192,77,.25);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: var(--warn);
+  margin-bottom: 16px;
+}
+
+/* ── FEATURES LISTA ── */
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.feature {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  transition: border-color .2s;
+}
+
+.feature:hover { border-color: rgba(176,242,174,.3); }
+
+.feature-icono {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.feature-titulo {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--blanco);
+  margin-bottom: 4px;
+}
+
+.feature-desc { font-size: 13px; color: var(--muted); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- PORTADA -->
+  <div class="portada">
+    <div class="logo-wrap">
+      <span class="logo-wompi">Wompi</span>
+      <span class="logo-sep">×</span>
+      <span class="logo-linea">Lineacom</span>
+    </div>
+    <h1>Manual de Usuario<br>Dashboard Tracking VP</h1>
+    <p class="subtitulo">Tu guía completa para entender y usar el tablero de seguimiento de datafonos, paso a paso y sin complicaciones.</p>
+    <span class="badge-version">✦ VERSIÓN 2026</span>
+  </div>
+
+  <!-- ÍNDICE -->
+  <div class="indice">
+    <div class="indice-titulo">📋 Contenido del manual</div>
+    <ul class="indice-lista">
+      <li><a href="#sec1"><span class="indice-num">01</span> ¿Qué es el dashboard y para qué sirve?</a></li>
+      <li><a href="#sec2"><span class="indice-num">02</span> ¿Cómo iniciar sesión?</a></li>
+      <li><a href="#sec3"><span class="indice-num">03</span> ¿Qué significan los números (KPIs)?</a></li>
+      <li><a href="#sec4"><span class="indice-num">04</span> ¿Cómo usar los filtros?</a></li>
+      <li><a href="#sec5"><span class="indice-num">05</span> Las gráficas explicadas</a></li>
+      <li><a href="#sec6"><span class="indice-num">06</span> La tabla de registros</a></li>
+      <li><a href="#sec7"><span class="indice-num">07</span> Exportar información a Excel</a></li>
+      <li><a href="#sec8"><span class="indice-num">08</span> Alertas importantes</a></li>
+      <li><a href="#sec9"><span class="indice-num">09</span> Cerrar sesión</a></li>
+    </ul>
+  </div>
+
+  <!-- CREDENCIALES DESTACADAS -->
+  <div class="credenciales-box" id="credenciales">
+    <div class="cred-titulo">
+      <span class="cred-icono">🔑</span>
+      Tus datos de acceso
+    </div>
+    <div class="cred-grid">
+      <div class="cred-item">
+        <label>📧 Usuario (correo electrónico)</label>
+        <div class="cred-valor">tableros.wompi@lineacom.co</div>
+      </div>
+      <div class="cred-item">
+        <label>🔑 Contraseña</label>
+        <div class="cred-valor">Wompi2026*TABLEROS</div>
+      </div>
+    </div>
+    <div class="cred-aviso">
+      <span class="cred-aviso-icono">⚠️</span>
+      <span>Guarda estos datos en un lugar seguro. No los compartas con nadie fuera de tu equipo. La sesión expira automáticamente después de <strong>1 hora</strong> por seguridad.</span>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 1 -->
+  <div class="seccion" id="sec1">
+    <div class="seccion-header">
+      <div class="seccion-num">1</div>
+      <h2>¿Qué es el dashboard y para qué sirve?</h2>
+    </div>
+
+    <p>Imagina que tienes muchos paquetes (datafonos) que hay que entregar a distintos comercios en todo el país. El dashboard es como un <span class="hi-verde">panel de control gigante</span> que te dice en tiempo real dónde está cada uno, cuántos ya se entregaron, cuántos están en camino y cuántos tienen problemas.</p>
+
+    <p>Con él puedes saber de un solo vistazo cómo va la operación sin tener que llamar a nadie ni revisar hojas de cálculo.</p>
+
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icono">📦</span>
+        <div>
+          <div class="feature-titulo">Ver el estado de todos los envíos</div>
+          <div class="feature-desc">Sabe cuántos datafonos están entregados, en tránsito, en alistamiento o devueltos.</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-icono">📊</span>
+        <div>
+          <div class="feature-titulo">Medir el desempeño con gráficas</div>
+          <div class="feature-desc">Visualiza tendencias, cumplimiento de plazos (ANS) y distribución por departamento.</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-icono">🔍</span>
+        <div>
+          <div class="feature-titulo">Buscar cualquier envío</div>
+          <div class="feature-desc">Filtra por transportadora, ciudad, fecha, guía o tipo de solicitud.</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-icono">⬇️</span>
+        <div>
+          <div class="feature-titulo">Descargar reportes en Excel</div>
+          <div class="feature-desc">Exporta cualquier lista o tabla con un solo clic para compartir o analizar más.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 2 -->
+  <div class="seccion" id="sec2">
+    <div class="seccion-header">
+      <div class="seccion-num azul">2</div>
+      <h2>¿Cómo iniciar sesión?</h2>
+    </div>
+
+    <p>Para entrar al dashboard necesitas usar tu cuenta de Microsoft corporativa. El proceso es muy sencillo:</p>
+
+    <div class="login-mockup">
+      <div class="login-mockup-logo">Wompi × Lineacom</div>
+      <div class="login-mockup-sub">Tracking VP · Dashboard</div>
+      <div class="login-field">
+        <div class="field-label">Correo electrónico</div>
+        <div class="field-val">tableros.wompi@lineacom.co</div>
+      </div>
+      <div class="login-field">
+        <div class="field-label">Contraseña</div>
+        <div class="field-val">••••••••••••••••</div>
+      </div>
+      <div class="login-btn-mock">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style="width:18px;height:18px">
+          <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+          <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+          <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+          <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+        </svg>
+        Iniciar sesión con Microsoft
+      </div>
+    </div>
+
+    <div class="pasos">
+      <div class="paso">
+        <div class="paso-num">1</div>
+        <div class="paso-contenido">
+          <h3>Abre el tablero en tu navegador</h3>
+          <p>Ingresa a la dirección web que te compartió el equipo de Lineacom. Te aparecerá una pantalla oscura con el logo de Wompi × Lineacom.</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">2</div>
+        <div class="paso-contenido">
+          <h3>Haz clic en "Iniciar sesión con Microsoft"</h3>
+          <p>Verás un botón con el logo de Microsoft (cuadrados de colores rojo, verde, azul y amarillo). Haz clic ahí.</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">3</div>
+        <div class="paso-contenido">
+          <h3>Ingresa tu usuario y contraseña</h3>
+          <p>Se abrirá una ventanita emergente de Microsoft. Escribe el correo: <code>tableros.wompi@lineacom.co</code> y la contraseña: <code>Wompi2026*TABLEROS</code></p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">4</div>
+        <div class="paso-contenido">
+          <h3>¡Listo! Ya estás dentro</h3>
+          <p>La ventanita se cierra y aparece el dashboard completo con todos los datos. En la parte de arriba verás tu nombre y foto de perfil.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="alerta warn" style="margin-top:24px">
+      <span class="alerta-icono">⏰</span>
+      <div>
+        <div class="alerta-titulo">La sesión dura 1 hora</div>
+        <div class="alerta-texto">Por seguridad, después de 1 hora sin actividad el sistema te pedirá que inicies sesión de nuevo. Esto es normal y protege la información.</div>
+      </div>
+    </div>
+
+    <div class="alerta peligro">
+      <span class="alerta-icono">🚫</span>
+      <div>
+        <div class="alerta-titulo">Solo cuentas @lineacom.co pueden entrar</div>
+        <div class="alerta-texto">Si intentas iniciar sesión con un correo de Gmail, Hotmail u otro dominio, el sistema te dará un error de "Acceso denegado". Debes usar exclusivamente la cuenta corporativa indicada.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 3 -->
+  <div class="seccion" id="sec3">
+    <div class="seccion-header">
+      <div class="seccion-num lima">3</div>
+      <h2>¿Qué significan los números (KPIs)?</h2>
+    </div>
+
+    <p>Al entrar al dashboard, lo primero que verás es una fila de tarjetas con números grandes. Cada una es un <span class="hi-lima">KPI</span> (indicador clave de desempeño). Aquí te explicamos qué significa cada uno, ¡como si nunca hubieras visto un dashboard antes!</p>
+
+    <div class="kpi-grid">
+      <div class="kpi-card verde">
+        <div class="kpi-emoji">📦</div>
+        <div class="kpi-nombre">Total Solicitados</div>
+        <div class="kpi-desc">El número total de datafonos que se pidieron enviar. No incluye los que fueron cancelados.</div>
+        <span class="kpi-tag verde">Punto de partida</span>
+      </div>
+
+      <div class="kpi-card lima">
+        <div class="kpi-emoji">⚙️</div>
+        <div class="kpi-nombre">Alistados</div>
+        <div class="kpi-desc">Los que ya están listos para salir. Son todos menos los que aún se están preparando en bodega.</div>
+        <span class="kpi-tag lima">Preparados</span>
+      </div>
+
+      <div class="kpi-card verde">
+        <div class="kpi-emoji">✅</div>
+        <div class="kpi-nombre">Entregados</div>
+        <div class="kpi-desc">Llegaron exitosamente a su destino. Este es el número más importante — ¡entre más alto, mejor!</div>
+        <span class="kpi-tag verde">Meta principal</span>
+      </div>
+
+      <div class="kpi-card azul">
+        <div class="kpi-emoji">🚚</div>
+        <div class="kpi-nombre">En Tránsito</div>
+        <div class="kpi-desc">Están viajando hacia su destino en este momento con la transportadora.</div>
+        <span class="kpi-tag azul">En camino</span>
+      </div>
+
+      <div class="kpi-card lima">
+        <div class="kpi-emoji">🔧</div>
+        <div class="kpi-nombre">En Alistamiento</div>
+        <div class="kpi-desc">Todavía se están preparando en bodega: empacando, etiquetando o configurando.</div>
+        <span class="kpi-tag lima">En preparación</span>
+      </div>
+
+      <div class="kpi-card peligro">
+        <div class="kpi-emoji">↩️</div>
+        <div class="kpi-nombre">Devueltos</div>
+        <div class="kpi-desc">No pudieron entregarse y regresaron. Entre más bajo sea este número, mejor va la operación.</div>
+        <span class="kpi-tag peligro">Ojo aquí</span>
+      </div>
+
+      <div class="kpi-card verde">
+        <div class="kpi-emoji">🎯</div>
+        <div class="kpi-nombre">% Oportunidad ANS</div>
+        <div class="kpi-desc">Porcentaje de entregas que llegaron a tiempo según el plazo prometido (ANS = Acuerdo de Nivel de Servicio).</div>
+        <span class="kpi-tag verde">Meta: 100%</span>
+      </div>
+
+      <div class="kpi-card azul">
+        <div class="kpi-emoji">💎</div>
+        <div class="kpi-nombre">% Calidad</div>
+        <div class="kpi-desc">De los que se entregaron, cuántos NO fueron devueltos. Un 100% significa que todo lo que se entregó, se quedó.</div>
+        <span class="kpi-tag azul">Sin devoluciones</span>
+      </div>
+
+      <div class="kpi-card lima">
+        <div class="kpi-emoji">🔧</div>
+        <div class="kpi-nombre">Visita Técnica (VT)</div>
+        <div class="kpi-desc">Solicitudes donde un técnico va al comercio a instalar y capacitar. Muestra ejecutadas vs programadas vs total.</div>
+        <span class="kpi-tag lima">Instalaciones</span>
+      </div>
+
+      <div class="kpi-card azul">
+        <div class="kpi-emoji">📮</div>
+        <div class="kpi-nombre">Op. Logístico (OPLG)</div>
+        <div class="kpi-desc">Envíos directos por mensajería sin visita técnica. El datafono llega por paquete al comercio.</div>
+        <span class="kpi-tag azul">Envíos directos</span>
+      </div>
+
+      <div class="kpi-card warn">
+        <div class="kpi-emoji">⏰</div>
+        <div class="kpi-nombre">Vencen Hoy</div>
+        <div class="kpi-desc">Pedidos que tienen como fecha límite de entrega <strong>el día de hoy</strong> y aún no se han entregado. ¡Requieren atención inmediata!</div>
+        <span class="kpi-tag warn">¡Urgente hoy!</span>
+      </div>
+
+      <div class="kpi-card peligro">
+        <div class="kpi-emoji">🚨</div>
+        <div class="kpi-nombre">Vencidas ANS</div>
+        <div class="kpi-desc">Pedidos que ya superaron su fecha límite y no se han entregado. Son incumplimientos del acuerdo de servicio.</div>
+        <span class="kpi-tag peligro">Fuera de plazo</span>
+      </div>
+
+      <div class="kpi-card verde">
+        <div class="kpi-emoji">🎯</div>
+        <div class="kpi-nombre">1er Intento</div>
+        <div class="kpi-desc">Entregas exitosas que se lograron sin necesidad de un segundo intento ni novedades. La señal de una operación perfecta.</div>
+        <span class="kpi-tag verde">Sin retrabajos</span>
+      </div>
+    </div>
+
+    <div class="consejo">
+      <strong>💡 Consejo:</strong> Haz clic en cualquier tarjeta de KPI y se abrirá una ventana con el listado detallado de todos los pedidos que hacen parte de ese número. ¡Puedes explorar cada uno!
+    </div>
+  </div>
+
+  <!-- SECCIÓN 4 -->
+  <div class="seccion" id="sec4">
+    <div class="seccion-header">
+      <div class="seccion-num">4</div>
+      <h2>¿Cómo usar los filtros?</h2>
+    </div>
+
+    <p>Los filtros son como lupas: te permiten <span class="hi-verde">ver solo lo que te interesa</span>. Por ejemplo, puedes ver solo los envíos de Bogotá, o solo los de una transportadora específica, o solo los de un mes determinado.</p>
+
+    <div class="filtros-grid">
+      <div class="filtro-item">
+        <div class="filtro-icono verde">📋</div>
+        <div>
+          <div class="filtro-nombre">Estado</div>
+          <div class="filtro-desc">Filtra por: Entregado, En Tránsito, En Alistamiento, Cancelado, etc.</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono azul">📦</div>
+        <div>
+          <div class="filtro-nombre">Tipo de Envío</div>
+          <div class="filtro-desc">Visita Técnica (VT) u Operación Logística (OPLG)</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono lima">💳</div>
+        <div>
+          <div class="filtro-nombre">Referencia (Modelo)</div>
+          <div class="filtro-desc">Modelo específico del datafono que se envió</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono verde">🗺️</div>
+        <div>
+          <div class="filtro-nombre">Departamento</div>
+          <div class="filtro-desc">Departamento de Colombia donde va el envío</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono azul">🏙️</div>
+        <div>
+          <div class="filtro-nombre">Ciudad</div>
+          <div class="filtro-desc">Ciudad específica del destino</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono lima">🚛</div>
+        <div>
+          <div class="filtro-nombre">Transportadora</div>
+          <div class="filtro-desc">Empresa de mensajería que lleva el paquete</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono verde">📅</div>
+        <div>
+          <div class="filtro-nombre">Mes</div>
+          <div class="filtro-desc">Selecciona un mes específico del año</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono azul">📆</div>
+        <div>
+          <div class="filtro-nombre">Rango de Fechas</div>
+          <div class="filtro-desc">Filtra por fecha de solicitud o fecha límite de entrega</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono lima">🔎</div>
+        <div>
+          <div class="filtro-nombre">Buscar por Guía</div>
+          <div class="filtro-desc">Escribe el número de guía para encontrar un envío específico</div>
+        </div>
+      </div>
+      <div class="filtro-item">
+        <div class="filtro-icono verde">🏪</div>
+        <div>
+          <div class="filtro-nombre">ID Sitio / Comercio</div>
+          <div class="filtro-desc">Busca por el identificador del comercio (establecimiento)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pasos">
+      <div class="paso">
+        <div class="paso-num">1</div>
+        <div class="paso-contenido">
+          <h3>Selecciona el filtro que quieras usar</h3>
+          <p>Cada filtro tiene un menú desplegable. Haz clic en él y elige la opción que buscas. Puedes combinar varios filtros al mismo tiempo.</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">2</div>
+        <div class="paso-contenido">
+          <h3>El dashboard se actualiza automáticamente</h3>
+          <p>En cuanto seleccionas una opción, todos los números, gráficas y la tabla se actualizan al instante mostrando solo la información filtrada.</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">3</div>
+        <div class="paso-contenido">
+          <h3>Para volver a ver todo, limpia los filtros</h3>
+          <p>Hay un botón que dice <span class="hi-verde">"Limpiar filtros"</span> o puedes seleccionar "Todos" en cada menú. Esto te devuelve la vista completa de todos los datos.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="consejo">
+      <strong>💡 Ejemplo práctico:</strong> Si quieres ver cuántos envíos de Medellín están en tránsito esta semana, selecciona "En Tránsito" en el filtro de Estado, "Antioquia" en Departamento y escoge el rango de fechas de la semana actual. ¡Así de fácil!
+    </div>
+  </div>
+
+  <!-- SECCIÓN 5 -->
+  <div class="seccion" id="sec5">
+    <div class="seccion-header">
+      <div class="seccion-num azul">5</div>
+      <h2>Las gráficas explicadas</h2>
+    </div>
+
+    <p>Debajo de las tarjetas de KPIs encontrarás varias gráficas. Cada una cuenta una historia diferente sobre la operación:</p>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-titulo">🍩 Estados de los Envíos</div>
+        <div class="chart-desc">Una dona que muestra qué porcentaje de los pedidos está en cada estado. Los colores son distintos para cada estado.</div>
+        <div class="chart-preview">
+          <div style="width:80px;height:80px;border-radius:50%;background:conic-gradient(#B0F2AE 0% 45%, #99D1FC 45% 65%, #DFFF61 65% 80%, #FF5C5C 80% 90%, #FFC04D 90% 100%);margin:auto;opacity:0.6"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-titulo">📊 Indicadores ANS</div>
+        <div class="chart-desc">Barras horizontales que muestran el porcentaje de Oportunidad, Calidad, VT y OPLG. Más largo = mejor desempeño.</div>
+        <div class="chart-preview">
+          <div style="width:100%;display:flex;flex-direction:column;gap:8px;margin-top:8px">
+            <div style="height:14px;background:linear-gradient(90deg,#B0F2AE 80%,rgba(176,242,174,.15) 80%);border-radius:4px;opacity:0.6"></div>
+            <div style="height:14px;background:linear-gradient(90deg,#99D1FC 65%,rgba(153,209,252,.15) 65%);border-radius:4px;opacity:0.6"></div>
+            <div style="height:14px;background:linear-gradient(90deg,#DFFF61 55%,rgba(223,255,97,.15) 55%);border-radius:4px;opacity:0.6"></div>
+            <div style="height:14px;background:linear-gradient(90deg,#00C87A 70%,rgba(0,200,122,.15) 70%);border-radius:4px;opacity:0.6"></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-titulo">📈 Solicitudes por Día</div>
+        <div class="chart-desc">Línea de tiempo que muestra cuántos pedidos llegaron cada día. Ayuda a detectar picos o caídas en la operación.</div>
+        <div class="chart-preview" style="align-items:flex-end;padding-bottom:8px">
+          <div class="chart-bar" style="height:30%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:55%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:40%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:70%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:50%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:80%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:45%;background:#B0F2AE;opacity:0.5"></div>
+          <div class="chart-bar" style="height:60%;background:#B0F2AE;opacity:0.5"></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-titulo">🔧 VT vs OPLG</div>
+        <div class="chart-desc">Compara el total vs lo entregado en Visitas Técnicas y Operaciones Logísticas. Barras lado a lado para comparar fácilmente.</div>
+        <div class="chart-preview" style="align-items:flex-end;padding-bottom:8px;justify-content:center;gap:20px">
+          <div style="display:flex;gap:4px;align-items:flex-end">
+            <div class="chart-bar" style="height:70%;width:20px;background:rgba(255,255,255,.15)"></div>
+            <div class="chart-bar" style="height:55%;width:20px;background:#DFFF61;opacity:0.6"></div>
+          </div>
+          <div style="display:flex;gap:4px;align-items:flex-end">
+            <div class="chart-bar" style="height:60%;width:20px;background:rgba(255,255,255,.15)"></div>
+            <div class="chart-bar" style="height:45%;width:20px;background:#99D1FC;opacity:0.6"></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-card" style="grid-column:1 / -1">
+        <div class="chart-titulo">🗺️ Envíos por Departamento</div>
+        <div class="chart-desc">Barras agrupadas que muestran cuántos envíos tiene cada departamento de Colombia, divididos por tipología: Principal (ciudad grande), Intermedia (ciudad mediana) y Lejana (zonas remotas).</div>
+        <div class="chart-preview" style="align-items:flex-end;padding-bottom:8px;gap:8px;height:60px">
+          <div style="display:flex;gap:2px;align-items:flex-end;flex:1">
+            <div style="width:33%;height:90%;background:#99D1FC;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:50%;background:#B0F2AE;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:20%;background:#DFFF61;border-radius:3px 3px 0 0;opacity:0.5"></div>
+          </div>
+          <div style="display:flex;gap:2px;align-items:flex-end;flex:1">
+            <div style="width:33%;height:70%;background:#99D1FC;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:35%;background:#B0F2AE;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:15%;background:#DFFF61;border-radius:3px 3px 0 0;opacity:0.5"></div>
+          </div>
+          <div style="display:flex;gap:2px;align-items:flex-end;flex:1">
+            <div style="width:33%;height:60%;background:#99D1FC;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:40%;background:#B0F2AE;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:25%;background:#DFFF61;border-radius:3px 3px 0 0;opacity:0.5"></div>
+          </div>
+          <div style="display:flex;gap:2px;align-items:flex-end;flex:1">
+            <div style="width:33%;height:50%;background:#99D1FC;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:30%;background:#B0F2AE;border-radius:3px 3px 0 0;opacity:0.5"></div>
+            <div style="width:33%;height:10%;background:#DFFF61;border-radius:3px 3px 0 0;opacity:0.5"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="consejo">
+      <strong>💡 Recuerda:</strong> Cuando pasas el cursor sobre cualquier gráfica, aparece un cuadrito con los números exactos de ese punto. ¡Úsalo para ver los detalles precisos!
+    </div>
+  </div>
+
+  <!-- SECCIÓN 6 -->
+  <div class="seccion" id="sec6">
+    <div class="seccion-header">
+      <div class="seccion-num lima">6</div>
+      <h2>La tabla de registros</h2>
+    </div>
+
+    <p>Al bajar en el dashboard encontrarás una <span class="hi-lima">tabla con todos los envíos</span> uno por uno. Aquí puedes ver el detalle de cada pedido:</p>
+
+    <div class="tabla-preview">
+      <div class="tabla-header">
+        <div class="tabla-th">Comercio</div>
+        <div class="tabla-th">Guía</div>
+        <div class="tabla-th">Estado</div>
+        <div class="tabla-th">Transportadora</div>
+      </div>
+      <div class="tabla-fila">
+        <div class="tabla-td">Tienda El Sol</div>
+        <div class="tabla-td">ABC123456</div>
+        <div class="tabla-td"><span class="estado-pill entregado">Entregado</span></div>
+        <div class="tabla-td">Coordinadora</div>
+      </div>
+      <div class="tabla-fila">
+        <div class="tabla-td">Supermercado La Plaza</div>
+        <div class="tabla-td">XYZ789012</div>
+        <div class="tabla-td"><span class="estado-pill transito">En Tránsito</span></div>
+        <div class="tabla-td">Servientrega</div>
+      </div>
+      <div class="tabla-fila">
+        <div class="tabla-td">Droguería Salud</div>
+        <div class="tabla-td">DEF345678</div>
+        <div class="tabla-td"><span class="estado-pill alistamiento">Alistamiento</span></div>
+        <div class="tabla-td">TCC</div>
+      </div>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icono">🔡</span>
+        <div>
+          <div class="feature-titulo">Ordenar por columna</div>
+          <div class="feature-desc">Haz clic en el título de cualquier columna para ordenar la tabla de mayor a menor o de A a Z. Haz clic de nuevo para invertir el orden.</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-icono">🔍</span>
+        <div>
+          <div class="feature-titulo">Buscar en la tabla</div>
+          <div class="feature-desc">Hay una barra de búsqueda encima de la tabla. Escribe cualquier palabra (nombre del comercio, guía, ciudad) y la tabla se filtra al instante.</div>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="feature-icono">📄</span>
+        <div>
+          <div class="feature-titulo">Paginación (páginas)</div>
+          <div class="feature-desc">La tabla muestra 50 registros a la vez. Si hay más, usa los botones de "Anterior" y "Siguiente" para navegar entre páginas.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alerta info">
+      <span class="alerta-icono">ℹ️</span>
+      <div>
+        <div class="alerta-titulo">Los colores en el estado</div>
+        <div class="alerta-texto">Verde = Entregado ✅ · Azul = En Tránsito 🚚 · Amarillo = En Alistamiento ⚙️ · Rojo = Devuelto/Problema ↩️ · Gris = Cancelado ❌</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 7 -->
+  <div class="seccion" id="sec7">
+    <div class="seccion-header">
+      <div class="seccion-num">7</div>
+      <h2>Exportar información a Excel</h2>
+    </div>
+
+    <p>Puedes descargar cualquier lista en formato Excel (.xlsx) para compartirla, imprimirla o hacer análisis adicionales. Hay <span class="hi-verde">dos formas</span> de hacerlo:</p>
+
+    <div class="pasos">
+      <div class="paso">
+        <div class="paso-num">A</div>
+        <div class="paso-contenido">
+          <h3>Desde una tarjeta de KPI</h3>
+          <p>Haz clic en cualquier tarjeta de KPI (por ejemplo "Vencidas ANS"). Se abrirá una ventana con el listado. Arriba a la derecha verás un botón que dice <span class="hi-verde">⬇ Excel</span>. Haz clic y el archivo se descarga automáticamente.</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">B</div>
+        <div class="paso-contenido">
+          <h3>Desde la tabla de registros</h3>
+          <p>Al final de la tabla de registros hay un botón de <span class="hi-verde">Exportar a Excel</span> que descarga todos los registros que están visibles en ese momento (incluyendo los filtros que aplicaste).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="alerta exito">
+      <span class="alerta-icono">✅</span>
+      <div>
+        <div class="alerta-titulo">El archivo se descarga con nombre automático</div>
+        <div class="alerta-texto">El sistema le pone nombre automáticamente con la fecha y el tipo de reporte. Solo busca el archivo en tu carpeta de "Descargas".</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECCIÓN 8 -->
+  <div class="seccion" id="sec8">
+    <div class="seccion-header">
+      <div class="seccion-num warn">8</div>
+      <h2>Alertas importantes</h2>
+    </div>
+
+    <p>El dashboard te avisa automáticamente cuando hay situaciones que necesitan atención. Las tarjetas de alerta tienen un <span class="hi-peligro">punto rojo parpadeante</span> en la esquina:</p>
+
+    <div class="alerta peligro">
+      <span class="alerta-icono">🚨</span>
+      <div>
+        <div class="alerta-titulo">Vencidas ANS · Fuera de plazo</div>
+        <div class="alerta-texto">Son pedidos que ya pasaron su fecha límite de entrega y no llegaron. Cada uno de estos es un incumplimiento del acuerdo de servicio. Haz clic en la tarjeta para ver cuáles son y tomar acción.</div>
+      </div>
+    </div>
+
+    <div class="alerta warn">
+      <span class="alerta-icono">⏰</span>
+      <div>
+        <div class="alerta-titulo">Vencen Hoy · Requieren atención ahora</div>
+        <div class="alerta-texto">Pedidos que tienen hoy como su último día para ser entregados. Si no se gestionan hoy, mañana pasarán a "Vencidas ANS". Revísalos cada mañana al entrar.</div>
+      </div>
+    </div>
+
+    <div class="alerta peligro">
+      <span class="alerta-icono">↩️</span>
+      <div>
+        <div class="alerta-titulo">Devueltos · No pudieron entregarse</div>
+        <div class="alerta-texto">El paquete regresó porque el comercio no estaba disponible, la dirección estaba incorrecta u otros motivos. Hay que reagendar la entrega o contactar al comercio.</div>
+      </div>
+    </div>
+
+    <div class="consejo">
+      <strong>💡 Rutina recomendada:</strong> Cada mañana al entrar al dashboard, lo primero que debes revisar es la tarjeta de <span class="hi-warn">"Vencen Hoy"</span> y luego la de <span class="hi-peligro">"Vencidas ANS"</span>. Así priorizas las acciones más urgentes del día.
+    </div>
+  </div>
+
+  <!-- SECCIÓN 9 -->
+  <div class="seccion" id="sec9">
+    <div class="seccion-header">
+      <div class="seccion-num azul">9</div>
+      <h2>Cerrar sesión</h2>
+    </div>
+
+    <p>Cuando termines de usar el dashboard, es importante cerrar la sesión especialmente si estás en un computador compartido:</p>
+
+    <div class="pasos">
+      <div class="paso">
+        <div class="paso-num">1</div>
+        <div class="paso-contenido">
+          <h3>Busca tu nombre en la parte superior derecha</h3>
+          <p>En la barra de arriba del dashboard verás tu nombre y foto de perfil en un pequeño chip o pastilla.</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">2</div>
+        <div class="paso-contenido">
+          <h3>Haz clic en tu nombre</h3>
+          <p>Al hacer clic te preguntará: <em>"¿Cerrar sesión?"</em> Haz clic en "Aceptar" o "OK".</p>
+        </div>
+      </div>
+      <div class="paso">
+        <div class="paso-num">3</div>
+        <div class="paso-contenido">
+          <h3>Regresarás a la pantalla de inicio</h3>
+          <p>El dashboard volverá a mostrar la pantalla oscura de inicio de sesión. ¡Tu sesión está cerrada de forma segura!</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="alerta info">
+      <span class="alerta-icono">ℹ️</span>
+      <div>
+        <div class="alerta-titulo">Cierre automático de sesión</div>
+        <div class="alerta-texto">Si olvidas cerrar sesión, el sistema lo hará automáticamente después de 1 hora de inactividad. Verás un mensaje que dice "⏰ Sesión expirada. Inicia sesión nuevamente." Esto es completamente normal.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-logos">
+      <span class="wompi">Wompi</span>
+      <span class="sep">×</span>
+      <span class="linea">Lineacom</span>
+    </div>
+    <p>Dashboard Tracking VP · Manual de Usuario · 2026</p>
+    <p style="margin-top:8px;font-size:11px;opacity:0.5">Este documento es de uso interno. No compartir fuera del equipo autorizado.</p>
+  </div>
+
+</div>
+</body>
+</html>
