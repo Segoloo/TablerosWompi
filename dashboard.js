@@ -336,6 +336,10 @@ function applyFilters() {
     if (guia     && !rGui.includes(guia))             return false;
     if (idSitio  && !rId.includes(idSitio))           return false;
 
+    // Si hay algún filtro de fecha de solicitud activo, excluir registros sin fecha
+    const hayFiltroFecha = mes || desde || hasta;
+    if (hayFiltroFecha && !fd) return false;
+
     if (mes && fd) {
       const rMes = fd.toLocaleString('es-CO', { month:'long', year:'numeric' });
       if (rMes !== mes) return false;
