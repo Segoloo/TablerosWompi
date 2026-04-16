@@ -392,7 +392,7 @@ function computeKPIs(data) {
   // 2. Conteo por estado (upper case)
   const ec = {};
   df.forEach(r => {
-    const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase() || 'SIN ESTADO';
+    const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim() || 'SIN ESTADO';
     ec[e] = (ec[e] || 0) + 1;
   });
 
