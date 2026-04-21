@@ -185,41 +185,71 @@ function detRenderAll() {
   _detRenderTabla2();
 }
 
-// ── Strip de KPIs de alerta ────────────────────────────────────────
+// ── Strip de KPIs clickeables con UDS como valor principal ───────────
 function _detRenderKPIStrip() {
   const strip = document.getElementById('det-kpi-strip');
   if (!strip) return;
   const rows = DET_FILTERED;
-  const total = rows.length;
-  let conAlerta = 0, sinAlerta = 0, gestorLC = 0, gestorWP = 0;
-  rows.forEach(r => {
-    const ub = invUbicacionV3(r);
-    const al = invGetAlerta(r, ub);
-    if (al) conAlerta++; else sinAlerta++;
-    if (ub === 'Gestor LineaCom') gestorLC++;
-    if (ub === 'Gestor Wompi')    gestorWP++;
-  });
-  const totalQty = rows.reduce((s,r) => s + (parseInt(r['Cantidad'])||0), 0);
 
-  strip.innerHTML = [
-    { icon:'📦', label:'Total Registros',     val: total.toLocaleString('es-CO'),     color:'#DFFF61' },
-    { icon:'⚡', label:'Uds. en Inventario',  val: totalQty.toLocaleString('es-CO'),  color:'#B0F2AE' },
-    { icon:'🚨', label:'Con Alerta (>8d)',     val: conAlerta.toLocaleString('es-CO'), color:'#F87171' },
-    { icon:'✅', label:'Sin Alerta',           val: sinAlerta.toLocaleString('es-CO'), color:'#B0F2AE' },
-    { icon:'🔧', label:'Gestor LineaCom',      val: gestorLC.toLocaleString('es-CO'),  color:'#FFC04D' },
-    { icon:'👤', label:'Gestor Wompi',         val: gestorWP.toLocaleString('es-CO'),  color:'#C084FC' },
-  ].map(k => `
-    <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-      border:1px solid rgba(255,255,255,.07);border-top:2px solid ${k.color};
-      border-radius:14px;padding:16px 18px;flex:1;min-width:140px;
-      box-shadow:0 4px 20px rgba(0,0,0,.35);">
-      <div style="font-size:18px;margin-bottom:8px">${k.icon}</div>
+  let totalQty = 0, totalReg = rows.length;
+  let udsConAlerta = 0, regConAlerta = 0;
+  let udsSinAlerta = 0, regSinAlerta = 0;
+  let udsGLC = 0, regGLC = 0;
+  let udsGWP = 0, regGWP = 0;
+
+  const segs = { total: rows, conAlerta: [], sinAlerta: [], gestorLC: [], gestorWP: [] };
+
+  rows.forEach(r => {
+    const ub  = invUbicacionV3(r);
+    const al  = invGetAlerta(r, ub);
+    const qty = parseInt(r['Cantidad'])||0;
+    totalQty += qty;
+    if (al) { udsConAlerta += qty; regConAlerta++; segs.conAlerta.push(r); }
+    else    { udsSinAlerta += qty; regSinAlerta++; segs.sinAlerta.push(r); }
+    if (ub === 'Gestor LineaCom') { udsGLC += qty; regGLC++; segs.gestorLC.push(r); }
+    if (ub === 'Gestor Wompi')   { udsGWP += qty; regGWP++; segs.gestorWP.push(r); }
+  });
+
+  window._detKpiDrillData = [
+    { title:'Total Inventario Detalles',  rows: segs.total,     uds: totalQty,     reg: totalReg,     color:'#DFFF61', icon:'📦' },
+    { title:'Todas las Unidades',         rows: segs.total,     uds: totalQty,     reg: totalReg,     color:'#B0F2AE', icon:'⚡' },
+    { title:'Con Alerta >8 días',         rows: segs.conAlerta, uds: udsConAlerta, reg: regConAlerta, color:'#F87171', icon:'🚨' },
+    { title:'Sin Alerta',                 rows: segs.sinAlerta, uds: udsSinAlerta, reg: regSinAlerta, color:'#B0F2AE', icon:'✅' },
+    { title:'Gestor LineaCom',            rows: segs.gestorLC,  uds: udsGLC,       reg: regGLC,       color:'#FFC04D', icon:'🔧' },
+    { title:'Gestor Wompi',               rows: segs.gestorWP,  uds: udsGWP,       reg: regGWP,       color:'#C084FC', icon:'👤' },
+  ];
+
+  strip.innerHTML = window._detKpiDrillData.map((k, idx) => `
+    <div onclick="detOpenDrillModal(${idx})"
+      style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
+        border:1px solid rgba(255,255,255,.07);border-top:2px solid ${k.color};
+        border-radius:14px;padding:18px 18px 15px;flex:1;min-width:155px;
+        box-shadow:0 4px 20px rgba(0,0,0,.35);cursor:pointer;position:relative;overflow:hidden;
+        transition:all .22s cubic-bezier(.4,0,.2,1);"
+      onmouseover="this.style.transform='translateY(-4px)';this.style.boxShadow='0 12px 36px rgba(0,0,0,.55),0 0 24px ${k.color}22'"
+      onmouseout="this.style.transform='';this.style.boxShadow='0 4px 20px rgba(0,0,0,.35)'">
+      <div style="position:absolute;top:0;left:0;right:0;height:100%;background:radial-gradient(ellipse at top right,${k.color}08,transparent 70%);pointer-events:none;"></div>
+      <div style="position:absolute;top:10px;right:11px;font-size:9px;color:${k.color};opacity:.5;font-family:'Outfit',sans-serif;font-weight:600;letter-spacing:.5px;">VER ›</div>
+      <div style="font-size:17px;margin-bottom:10px">${k.icon}</div>
       <div style="font-size:9px;font-weight:700;color:#7A7674;text-transform:uppercase;letter-spacing:1px;
-        font-family:'Syne',sans-serif;margin-bottom:6px">${k.label}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;
-        color:${k.color};line-height:1;text-shadow:0 0 20px ${k.color}55">${k.val}</div>
+        font-family:'Syne',sans-serif;margin-bottom:8px;line-height:1.3;padding-right:20px">${k.title}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;
+        color:${k.color};line-height:1;text-shadow:0 0 24px ${k.color}55;margin-bottom:4px">${k.uds.toLocaleString('es-CO')}</div>
+      <div style="font-size:10px;color:rgba(255,255,255,.3);font-family:'Outfit',sans-serif;margin-bottom:10px;">uds</div>
+      <div style="padding-top:10px;border-top:1px solid rgba(255,255,255,.06);">
+        <span style="display:inline-block;background:${k.color}18;color:${k.color};
+          font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;font-family:'JetBrains Mono',monospace;">
+          ${k.reg.toLocaleString('es-CO')} registros
+        </span>
+      </div>
     </div>`).join('');
 }
+
+window.detOpenDrillModal = function(idx) {
+  const kpi = (window._detKpiDrillData || [])[idx];
+  if (!kpi) return;
+  invOpenDrillModal(kpi.title, kpi.rows);
+};
 
 // ══════════════════════════════════════════════════════════════════
 //  GRÁFICAS DEL TAB DETALLES
@@ -384,8 +414,11 @@ function _detRenderCharts() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  TABLA 1 — Referencia / Total Uds / Uds con alerta ≥8d
+//  TABLA 1 — con búsqueda interna
 // ══════════════════════════════════════════════════════════════════
+let _DET_T1_SEARCH = '';
+window.detT1Search = function(v) { _DET_T1_SEARCH = (v||'').toLowerCase().trim(); DET_PAGE_T1 = 1; _detRenderTabla1(); };
+
 function _detRenderTabla1() {
   const wrap = document.getElementById('det-tabla1-wrap');
   const cntEl = document.getElementById('det-tabla1-count');
@@ -405,7 +438,8 @@ function _detRenderTabla1() {
     if (al) refMap[ref].conAlerta += qty;
   });
 
-  const sorted = Object.values(refMap).sort((a,b) => b.total - a.total);
+  let sorted = Object.values(refMap).sort((a,b) => b.total - a.total);
+  if (_DET_T1_SEARCH) sorted = sorted.filter(r => r.ref.toLowerCase().includes(_DET_T1_SEARCH) || r.cat.toLowerCase().includes(_DET_T1_SEARCH));
   const pages  = Math.max(1, Math.ceil(sorted.length / DET_PAGE_SIZE));
   if (DET_PAGE_T1 > pages) DET_PAGE_T1 = pages;
   const slice  = sorted.slice((DET_PAGE_T1-1)*DET_PAGE_SIZE, DET_PAGE_T1*DET_PAGE_SIZE);
@@ -460,15 +494,29 @@ function _detRenderTabla1() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  TABLA 2 — Código Ubic / Nombre Ubic / Serial / Cantidad / Fecha Conf / Alerta
+//  TABLA 2 — con búsqueda interna
 // ══════════════════════════════════════════════════════════════════
+let _DET_T2_SEARCH = '';
+window.detT2Search = function(v) { _DET_T2_SEARCH = (v||'').toLowerCase().trim(); DET_PAGE_T2 = 1; _detRenderTabla2(); };
+
 function _detRenderTabla2() {
   const wrap  = document.getElementById('det-tabla2-wrap');
   const cntEl = document.getElementById('det-tabla2-count');
   const pagEl = document.getElementById('det-tabla2-pag');
   if (!wrap) return;
 
-  const rows   = DET_FILTERED;
+  let rows = DET_FILTERED;
+  if (_DET_T2_SEARCH) {
+    const s = _DET_T2_SEARCH;
+    rows = rows.filter(r => {
+      const serial  = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').toLowerCase();
+      const codUbic = (r['Código de ubicación']||'').toLowerCase();
+      const nomUbic = (r['Nombre de la ubicación']||'').toLowerCase();
+      const nombre  = (r['Nombre']||'').toLowerCase();
+      const codCom  = (r['Código de comercio']||r['codigo_de_comercio']||'').toLowerCase();
+      return serial.includes(s)||codUbic.includes(s)||nomUbic.includes(s)||nombre.includes(s)||codCom.includes(s);
+    });
+  }
   const pages  = Math.max(1, Math.ceil(rows.length / DET_PAGE_SIZE));
   if (DET_PAGE_T2 > pages) DET_PAGE_T2 = pages;
   const slice  = rows.slice((DET_PAGE_T2-1)*DET_PAGE_SIZE, DET_PAGE_T2*DET_PAGE_SIZE);
