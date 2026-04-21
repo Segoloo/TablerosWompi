@@ -1520,30 +1520,41 @@ window._selectBoardTab = _selectBoardTab;
 // ══════════════════════════════════════════════════════════════════
 //  DATA LOADING OVERLAY
 // ══════════════════════════════════════════════════════════════════
-let _mainLoaded   = false;
-let _rollosLoaded = false;
+let _mainLoaded       = false;
+let _rollosLoaded     = false;
+let _inventarioLoaded = false;
+
+// Exponer para que inventario.js lo llame cuando termine su carga
+window._setInventarioLoaded = function() {
+  _inventarioLoaded = true;
+  _updateLoadingUI();
+};
 
 function _updateLoadingUI() {
-  const mainDone   = _mainLoaded;
-  const rollosDone = _rollosLoaded;
+  const mainDone  = _mainLoaded;
+  const rollosDone= _rollosLoaded;
+  const invDone   = _inventarioLoaded;
 
   const dotMain   = document.getElementById('dl-dot-main');
   const dotRollos = document.getElementById('dl-dot-rollos');
+  const dotInv    = document.getElementById('dl-dot-inventario');
   const msg       = document.getElementById('dl-msg');
   const fill      = document.getElementById('dl-progress-fill');
 
   if (dotMain)   dotMain.className   = 'dl-item-dot ' + (mainDone   ? 'done' : 'loading');
   if (dotRollos) dotRollos.className = 'dl-item-dot ' + (rollosDone ? 'done' : 'loading');
+  if (dotInv)    dotInv.className    = 'dl-item-dot ' + (invDone    ? 'done' : 'loading');
 
-  const pct = ((mainDone ? 50 : 0) + (rollosDone ? 50 : 0));
-  if (fill) fill.style.width = pct + '%';
+  const loaded = [mainDone, rollosDone, invDone].filter(Boolean).length;
+  if (fill) fill.style.width = Math.round(loaded / 3 * 100) + '%';
 
-  if (!mainDone && !rollosDone) {
-    if (msg) msg.textContent = 'Cargando datos...';
-  } else if (mainDone && !rollosDone) {
+  const allDone = mainDone && rollosDone && invDone;
+  if (!mainDone) {
+    if (msg) msg.textContent = 'Cargando datos principales...';
+  } else if (!rollosDone) {
     if (msg) msg.textContent = 'data.json ✓ · Descomprimiendo rollos...';
-  } else if (!mainDone && rollosDone) {
-    if (msg) msg.textContent = 'Rollos ✓ · Cargando datafonos...';
+  } else if (!invDone) {
+    if (msg) msg.textContent = 'Rollos ✓ · Cargando inventario Wompi...';
   } else {
     if (msg) msg.textContent = '¡Listo! Iniciando dashboard...';
     setTimeout(() => {
@@ -1560,11 +1571,14 @@ function initDashboard() {
   // Mark both as loading
   const dotMain   = document.getElementById('dl-dot-main');
   const dotRollos = document.getElementById('dl-dot-rollos');
+  const dotInv    = document.getElementById('dl-dot-inventario');
   if (dotMain)   dotMain.className   = 'dl-item-dot loading';
   if (dotRollos) dotRollos.className = 'dl-item-dot loading';
+  if (dotInv)    dotInv.className    = 'dl-item-dot loading';
 
   loadData();
   loadRollosData();
+  // inventario.js se carga en paralelo y llama window._setInventarioLoaded() al terminar
 }
 
 // ══════════════════════════════════════════════════════════════════
