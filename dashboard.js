@@ -1448,7 +1448,20 @@ function _selectBoard(board) {
 }
 
 function _selectBoardTab(board, tab) {
-  _currentTab = tab;
+  _currentBoard = board;
+  _currentTab   = tab;
+
+  // Ensure the board is expanded and marked active
+  ['datafonos','rollos','inventario'].forEach(b => {
+    document.getElementById('sb-board-' + b)?.classList.remove('open');
+    document.getElementById('sb-btn-'   + b)?.classList.remove('active');
+  });
+  document.getElementById('sb-board-' + board)?.classList.add('open');
+  document.getElementById('sb-btn-'   + board)?.classList.add('active');
+
+  // Topbar label
+  const label = document.getElementById('topbar-board-label');
+  if (label) label.textContent = board === 'datafonos' ? 'Tracking VP · Datafonos' : board === 'inventario' ? 'Inventario Wompi' : 'Tracking Rollos Trim y VP';
 
   document.querySelectorAll('.sidebar-tab').forEach(el => el.classList.remove('active'));
   const activeEl = document.getElementById('sb-tab-' + tab);
