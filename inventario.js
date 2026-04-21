@@ -490,356 +490,311 @@ function _invRenderCharts() {
     }
   });
 
-  // ── 5. Stacked bar: CB vs VP por categoría ────────────────────
-  var catNames = Object.keys(catMap);
-  var cbByCat = {}, vpByCat = {};
-  catNames.forEach(function(c) { cbByCat[c] = 0; vpByCat[c] = 0; });
-  rows.forEach(function(r) {
-    var cat = invCategoria(r['Nombre']);
-    var qty = parseInt(r['Cantidad']) || 0;
-    var neg = invNegocio(r['Subtipo']);
-    if (neg === 'VP') vpByCat[cat] = (vpByCat[cat] || 0) + qty;
-    else              cbByCat[cat] = (cbByCat[cat] || 0) + qty;
-  });
-  // Sort by total desc
-  catNames = catNames.sort(function(a,b){ return (cbByCat[b]+vpByCat[b]) - (cbByCat[a]+vpByCat[a]); });
-
-  var c5 = makeCard('inv-c-cb-vp-cat', 'CB vs VP por Categoría', 'Distribución de negocio dentro de cada tipo de producto');
-  chartsGrid.appendChild(c5);
-  INV_CHARTS['cbVpCat'] = new Chart(document.getElementById('inv-c-cb-vp-cat'), {
-    type: 'bar',
-    data: {
-      labels: catNames,
-      datasets: [
-        {
-          label: 'CB (Wompi)',
-          data: catNames.map(function(c){ return cbByCat[c]; }),
-          backgroundColor: '#99D1FCCC',
-          borderColor: '#99D1FC',
-          borderWidth: 2, borderRadius: 4, borderSkipped: false,
-        },
-        {
-          label: 'VP (Valor Plus)',
-          data: catNames.map(function(c){ return vpByCat[c]; }),
-          backgroundColor: '#C084FCCC',
-          borderColor: '#C084FC',
-          borderWidth: 2, borderRadius: 4, borderSkipped: false,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: LEGEND_OPTS,
-        tooltip: Object.assign({}, TOOLTIP_OPTS, {
-          callbacks: {
-            label: function(ctx) {
-              return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('es-CO') + ' uds';
-            }
-          }
-        })
-      },
-      scales: {
-        x: { stacked: true, grid: { display: false }, ticks: YTICK, border: { display: false } },
-        y: { stacked: true, grid: XGRID, ticks: XTICK_MONO }
-      }
-    }
-  });
-
-  // ── 6. Polar area: proporción de categorías en stock ─────────
-  var polarLabels = catEntries.map(function(e){ return e[0]; });
-  var polarVals   = catEntries.map(function(e){ return e[1]; });
-  var polarColors = ['#B0F2AECC','#99D1FCCC','#DFFF61CC','#C084FCCC','#FFC04DCC','#F87171CC','#FB923CCC','#7BC8FBCC'];
-
-  var c6 = makeCard('inv-c-polar', 'Proporción por Categoría', 'Peso relativo de cada tipo en el inventario total');
-  chartsGrid.appendChild(c6);
-  INV_CHARTS['polar'] = new Chart(document.getElementById('inv-c-polar'), {
-    type: 'polarArea',
-    data: {
-      labels: polarLabels,
-      datasets: [{
-        data: polarVals,
-        backgroundColor: polarColors.slice(0, polarLabels.length),
-        borderColor: polarColors.slice(0, polarLabels.length).map(function(c){ return c.replace('CC',''); }),
-        borderWidth: 2,
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: {
-        legend: LEGEND_OPTS,
-        tooltip: Object.assign({}, TOOLTIP_OPTS, {
-          callbacks: {
-            label: function(ctx) {
-              var v = ctx.parsed.r;
-              var pct = total ? (v / total * 100).toFixed(1) : 0;
-              return ' ' + v.toLocaleString('es-CO') + ' uds (' + pct + '%)';
-            }
-          }
-        })
-      },
-      scales: {
-        r: {
-          grid: { color: 'rgba(255,255,255,.06)' },
-          ticks: { color: '#7A7674', font: { family: 'JetBrains Mono', size: 10 }, backdropColor: 'transparent', callback: function(v){ return v.toLocaleString('es-CO'); } },
-          pointLabels: { display: false },
-        }
-      }
-    }
-  });
-
-  // ── 7. Horizontal bar: % ocupación bodega (stock/total) ───────
-  var topLabels7   = topBodegas.map(function(b){ return shortName(b[0]); });
-  var topVals7     = topBodegas.map(function(b){ return b[1]; });
-  var topPcts7     = topVals7.map(function(v){ return total ? parseFloat((v / total * 100).toFixed(1)) : 0; });
-  var pctColors7   = topPcts7.map(function(p){
-    if (p > 15) return '#B0F2AECC';
-    if (p > 8)  return '#DFFF61CC';
-    return '#FFC04DCC';
-  });
-
-  var c7 = makeCard('inv-c-ocupacion', '% de Stock por Bodega', 'Participación porcentual de cada ubicación sobre el total');
-  c7.style.gridColumn = '1 / -1';
-  chartsGrid.appendChild(c7);
-  INV_CHARTS['ocupacion'] = new Chart(document.getElementById('inv-c-ocupacion'), {
-    type: 'bar',
-    data: {
-      labels: topLabels7,
-      datasets: [{
-        label: '% del total',
-        data: topPcts7,
-        backgroundColor: pctColors7,
-        borderColor: pctColors7.map(function(c){ return c.replace('CC',''); }),
-        borderWidth: 2, borderRadius: 6, borderSkipped: false,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true,
-      plugins: {
-        legend: { display: false },
-        tooltip: Object.assign({}, TOOLTIP_OPTS, {
-          callbacks: {
-            label: function(ctx) {
-              var idx = ctx.dataIndex;
-              return [
-                ' ' + ctx.parsed.x.toFixed(1) + '% del inventario',
-                ' ' + topVals7[idx].toLocaleString('es-CO') + ' unidades',
-              ];
-            }
-          }
-        })
-      },
-      scales: {
-        x: {
-          grid: XGRID,
-          ticks: { color: '#7A7674', font: { family: 'JetBrains Mono', size: 11 }, callback: function(v){ return v + '%'; }, border: { display: false } },
-          max: Math.ceil(Math.max.apply(null, topPcts7) * 1.15),
-        },
-        y: { grid: { display: false }, ticks: YTICK }
-      }
-    }
-  });
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  MODAL DRILLDOWN — Inventario (igual estilo que Tracking VP)
+//  MODAL DRILLDOWN — abre tabla con filas del KPI seleccionado
 // ══════════════════════════════════════════════════════════════════
 function invOpenDrillModal(title, rows) {
-  var existing = document.getElementById('inv-drill-modal');
-  if (existing) existing.remove();
+  // ── Limpiar modal anterior ─────────────────────────────────────
+  var prev = document.getElementById('inv-drill-modal');
+  if (prev) prev.remove();
 
-  var modal = document.createElement('div');
-  modal.id = 'inv-drill-modal';
-  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);padding:20px;';
+  // ── Estado interno ─────────────────────────────────────────────
+  var _allRows      = rows || [];
+  var _filtered     = _allRows.slice();
+  var _page         = 1;
+  var PAGE_SIZE     = 50;
+  var _title        = title || 'Detalle';
 
-  modal.innerHTML =
-    '<div style="background:var(--surface,#181715);border:1px solid rgba(176,242,174,.15);border-radius:var(--radius,18px);' +
-        'width:100%;max-width:1100px;max-height:88vh;display:flex;flex-direction:column;' +
-        'box-shadow:0 24px 80px rgba(0,0,0,.85);">' +
-      // Header
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;' +
-          'border-bottom:1px solid rgba(176,242,174,.1);flex-shrink:0;">' +
-        '<div>' +
-          '<div id="inv-drill-title" style="font-family:\'Syne\',sans-serif;font-size:18px;font-weight:700;color:#B0F2AE;"></div>' +
-          '<div id="inv-drill-count" style="font-size:12px;color:#7A7674;margin-top:3px;font-family:\'Outfit\',sans-serif;"></div>' +
-        '</div>' +
-        '<div style="display:flex;gap:8px;align-items:center">' +
-          '<button onclick="invExportDrillExcel()" style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif;transition:all .2s;">&#11015; Excel</button>' +
-          '<button onclick="document.getElementById(\'inv-drill-modal\').remove()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#7A7674;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>' +
-        '</div>' +
-      '</div>' +
-      // Filtros buscador
-      '<div style="padding:14px 24px;border-bottom:1px solid rgba(176,242,174,.08);flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;background:rgba(0,0,0,.2);">' +
-        '<input id="inv-drill-search" type="text" placeholder="🔍 Buscar en todos los campos..." ' +
-          'oninput="invDrillFilter()" ' +
-          'style="flex:1;min-width:200px;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;' +
-               'color:#FAFAFA;padding:8px 12px;font-size:13px;font-family:\'Outfit\',sans-serif;outline:none;">' +
-        '<select id="inv-drill-f-bodega" onchange="invDrillFilter()" ' +
-          'style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:160px;">' +
-          '<option value="">Todas las bodegas</option>' +
-        '</select>' +
-        '<select id="inv-drill-f-cat" onchange="invDrillFilter()" ' +
-          'style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:140px;">' +
-          '<option value="">Todas las categorías</option>' +
-        '</select>' +
-        '<select id="inv-drill-f-neg" onchange="invDrillFilter()" ' +
-          'style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:120px;">' +
-          '<option value="">CB + VP</option>' +
-          '<option value="CB">CB (Wompi)</option>' +
-          '<option value="VP">VP</option>' +
-        '</select>' +
-      '</div>' +
-      // Tabla
-      '<div id="inv-drill-body" style="overflow:auto;flex:1;padding:0 4px 4px;"></div>' +
-      // Footer paginación
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-top:1px solid rgba(176,242,174,.08);flex-shrink:0;background:rgba(0,0,0,.15);">' +
-        '<span id="inv-drill-footer-count" style="font-size:12px;color:#7A7674;font-family:\'Outfit\',sans-serif;"></span>' +
-        '<div id="inv-drill-pagination" style="display:flex;gap:6px;"></div>' +
-      '</div>' +
-    '</div>';
-
-  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
-  document.body.appendChild(modal);
-
-  // Guardar datos originales
-  window._invDrillRows   = rows;
-  window._invDrillFiltered = rows;
-  window._invDrillPage   = 1;
-  window._invDrillTitle  = title;
-
-  // Poblar filtros bodega y categoría con valores únicos del subconjunto
-  var bodegas = ['', ...new Set(rows.map(function(r){ return (r['Nombre de la ubicación']||'').trim(); }).filter(Boolean))].sort();
-  var cats    = ['', ...new Set(rows.map(function(r){ return invCategoria(r['Nombre']); }))].sort();
-  var selBod = document.getElementById('inv-drill-f-bodega');
-  var selCat = document.getElementById('inv-drill-f-cat');
-  selBod.innerHTML = '<option value="">Todas las bodegas</option>' + bodegas.slice(1).map(function(b){ return '<option value="'+b+'">'+b+'</option>'; }).join('');
-  selCat.innerHTML = '<option value="">Todas las categorías</option>' + cats.slice(1).map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
-
-  document.getElementById('inv-drill-title').textContent = title;
-  invDrillRenderTable();
-}
-
-window.invDrillFilter = function() {
-  var search = (document.getElementById('inv-drill-search')?.value || '').toLowerCase().trim();
-  var bodega = (document.getElementById('inv-drill-f-bodega')?.value || '');
-  var cat    = (document.getElementById('inv-drill-f-cat')?.value || '');
-  var neg    = (document.getElementById('inv-drill-f-neg')?.value || '');
-
-  window._invDrillFiltered = (window._invDrillRows || []).filter(function(r) {
-    if (bodega && (r['Nombre de la ubicación']||'').trim() !== bodega) return false;
-    if (cat    && invCategoria(r['Nombre']) !== cat) return false;
-    if (neg    && invNegocio(r['Subtipo']) !== neg) return false;
-    if (search) {
-      var hay = Object.values(r).some(function(v){ return String(v||'').toLowerCase().includes(search); });
-      if (!hay) return false;
-    }
-    return true;
-  });
-  window._invDrillPage = 1;
-  invDrillRenderTable();
-};
-
-function invDrillRenderTable() {
-  var PAGE_SIZE = 50;
-  var data  = window._invDrillFiltered || [];
-  var page  = window._invDrillPage || 1;
-  var pages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
-  var slice = data.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
-
-  var countEl  = document.getElementById('inv-drill-count');
-  var footerEl = document.getElementById('inv-drill-footer-count');
-  var body     = document.getElementById('inv-drill-body');
-  var pagEl    = document.getElementById('inv-drill-pagination');
-  if (!body) return;
-
-  if (countEl) countEl.textContent = data.length + ' registros' + (data.length !== (window._invDrillRows||[]).length ? ' (filtrado de ' + (window._invDrillRows||[]).length + ')' : '');
-  if (footerEl) footerEl.textContent = 'Página ' + page + ' de ' + pages + ' · ' + data.length + ' registros';
-
-  var catColorMap = {
-    'Datáfonos': '#99D1FC', 'Rollos': '#B0F2AE', 'Pin pad': '#FFC04D',
-    'Forros': '#C084FC', 'Accesorios': '#FB923C', 'SIM': '#F87171', 'KIT POP VP': '#DFFF61',
+  var CAT_COLOR = {
+    'Datáfonos':'#99D1FC','Rollos':'#B0F2AE','Pin pad':'#FFC04D',
+    'Forros':'#C084FC','Accesorios':'#FB923C','SIM':'#F87171','KIT POP VP':'#DFFF61',
   };
 
-  if (!slice.length) {
-    body.innerHTML = '<div style="text-align:center;padding:48px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin registros para los filtros seleccionados</div>';
-    if (pagEl) pagEl.innerHTML = '';
-    return;
+  // ── Helpers ────────────────────────────────────────────────────
+  function badge(text, color) {
+    var s = document.createElement('span');
+    s.style.cssText = 'display:inline-block;background:'+color+'22;color:'+color+';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap;';
+    s.textContent = text;
+    return s;
+  }
+  function el(tag, css, text) {
+    var e = document.createElement(tag);
+    if (css)  e.style.cssText = css;
+    if (text !== undefined) e.textContent = text;
+    return e;
   }
 
-  body.innerHTML =
-    '<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:\'Outfit\',sans-serif;">' +
-      '<thead style="position:sticky;top:0;background:#181715;z-index:1;">' +
-        '<tr>' +
-          ['Referencia','Categoría','Negocio','Bodega','Tipo Ubicación','Cód. Ubicación','Cantidad','Subtipo'].map(function(h){
-            return '<th style="padding:10px 12px;text-align:left;color:#B0F2AE;font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.12);white-space:nowrap;font-family:\'Syne\',sans-serif;">' + h + '</th>';
-          }).join('') +
-        '</tr>' +
-      '</thead>' +
-      '<tbody>' +
-        slice.map(function(r, i) {
-          var cat   = invCategoria(r['Nombre']);
-          var neg   = invNegocio(r['Subtipo']);
-          var color = catColorMap[cat] || '#94a3b8';
-          var negColor = neg === 'VP' ? '#C084FC' : '#99D1FC';
-          var bg    = i % 2 === 0 ? 'rgba(176,242,174,.015)' : 'transparent';
-          return '<tr style="background:' + bg + ';transition:background .12s;" onmouseover="this.style.background=\'rgba(176,242,174,.04)\'" onmouseout="this.style.background=\'' + bg + '\'">' +
-            '<td style="padding:9px 12px;color:#FAFAFA;font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (r['Nombre']||'') + '">' + (r['Nombre']||'—') + '</td>' +
-            '<td style="padding:9px 12px;"><span style="display:inline-block;background:' + color + '22;color:' + color + ';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">' + cat + '</span></td>' +
-            '<td style="padding:9px 12px;"><span style="display:inline-block;background:' + negColor + '22;color:' + negColor + ';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">' + neg + '</span></td>' +
-            '<td style="padding:9px 12px;color:#cbd5e1;font-size:11px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (r['Nombre de la ubicación']||'') + '">' + (r['Nombre de la ubicación']||'—') + '</td>' +
-            '<td style="padding:9px 12px;color:#7A7674;font-size:11px;">' + (r['Tipo de ubicación']||'—') + '</td>' +
-            '<td style="padding:9px 12px;color:#7A7674;font-family:\'JetBrains Mono\',monospace;font-size:11px;">' + (r['Código de ubicación']||'—') + '</td>' +
-            '<td style="padding:9px 12px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:' + color + ';text-shadow:0 0 12px ' + color + '55;">' + (parseInt(r['Cantidad'])||0).toLocaleString('es-CO') + '</td>' +
-            '<td style="padding:9px 12px;color:#7A7674;font-size:11px;">' + (r['Subtipo']||'—') + '</td>' +
-          '</tr>';
-        }).join('') +
-      '</tbody>' +
-    '</table>';
+  // ── Render tabla ───────────────────────────────────────────────
+  function renderTable() {
+    var pages = Math.max(1, Math.ceil(_filtered.length / PAGE_SIZE));
+    if (_page > pages) _page = pages;
+    var slice = _filtered.slice((_page-1)*PAGE_SIZE, _page*PAGE_SIZE);
 
-  // Paginación
-  if (pagEl) {
-    var btnStyle = 'padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif;border:1px solid rgba(176,242,174,.15);transition:all .15s;';
-    var btns = [];
-    var p = page;
-    if (p > 1) btns.push('<button onclick="invDrillGoPage(' + (p-1) + ')" style="' + btnStyle + 'background:rgba(255,255,255,.06);color:#94a3b8;">‹ Ant</button>');
-    var start = Math.max(1, p-2), end = Math.min(pages, p+2);
-    for (var pg = start; pg <= end; pg++) {
-      var active = pg === p;
-      btns.push('<button onclick="invDrillGoPage(' + pg + ')" style="' + btnStyle + 'background:' + (active ? '#B0F2AE' : 'rgba(255,255,255,.06)') + ';color:' + (active ? '#0a1a12' : '#94a3b8') + ';font-weight:' + (active ? '700' : '400') + ';">' + pg + '</button>');
+    // Actualizar contadores
+    countEl.textContent = _filtered.length + ' registros' +
+      (_filtered.length !== _allRows.length ? ' (de ' + _allRows.length + ' totales)' : '');
+    footerCountEl.textContent = 'Página ' + _page + ' / ' + pages + '  ·  ' + _filtered.length + ' registros';
+
+    // Limpiar cuerpo
+    tbody.innerHTML = '';
+
+    if (!slice.length) {
+      var emptyRow = document.createElement('tr');
+      var emptyTd  = el('td', 'text-align:center;padding:48px;color:#7A7674;font-family:\'Outfit\',sans-serif;', 'Sin registros para los filtros aplicados');
+      emptyTd.colSpan = 8;
+      emptyRow.appendChild(emptyTd);
+      tbody.appendChild(emptyRow);
+    } else {
+      slice.forEach(function(r, i) {
+        var cat      = invCategoria(r['Nombre']);
+        var neg      = invNegocio(r['Subtipo']);
+        var catColor = CAT_COLOR[cat] || '#94a3b8';
+        var negColor = neg === 'VP' ? '#C084FC' : '#99D1FC';
+        var bgBase   = i % 2 === 0 ? 'rgba(176,242,174,.015)' : 'transparent';
+
+        var tr = document.createElement('tr');
+        tr.style.cssText = 'background:'+bgBase+';transition:background .12s;';
+        tr.addEventListener('mouseover', function(){ tr.style.background='rgba(176,242,174,.05)'; });
+        tr.addEventListener('mouseout',  function(){ tr.style.background=bgBase; });
+
+        function td(css, content) {
+          var cell = el('td', 'padding:9px 12px;' + (css||''));
+          if (typeof content === 'string' || typeof content === 'number') {
+            cell.textContent = content;
+          } else if (content) {
+            cell.appendChild(content);
+          }
+          return cell;
+        }
+
+        var refTd = td('color:#FAFAFA;font-weight:500;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;');
+        refTd.title = r['Nombre'] || '';
+        refTd.textContent = r['Nombre'] || '—';
+
+        tr.appendChild(refTd);
+        tr.appendChild(td('', badge(cat, catColor)));
+        tr.appendChild(td('', badge(neg, negColor)));
+        var bodTd = td('color:#cbd5e1;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;');
+        bodTd.title = r['Nombre de la ubicación'] || '';
+        bodTd.textContent = r['Nombre de la ubicación'] || '—';
+        tr.appendChild(bodTd);
+        tr.appendChild(td('color:#7A7674;font-size:11px;', r['Tipo de ubicación'] || '—'));
+        tr.appendChild(td('color:#7A7674;font-family:\'JetBrains Mono\',monospace;font-size:11px;', r['Código de ubicación'] || '—'));
+        var qtyTd = td('text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:'+catColor+';');
+        qtyTd.textContent = (parseInt(r['Cantidad'])||0).toLocaleString('es-CO');
+        tr.appendChild(qtyTd);
+        tr.appendChild(td('color:#7A7674;font-size:11px;', r['Subtipo'] || '—'));
+
+        tbody.appendChild(tr);
+      });
     }
-    if (p < pages) btns.push('<button onclick="invDrillGoPage(' + (p+1) + ')" style="' + btnStyle + 'background:rgba(255,255,255,.06);color:#94a3b8;">Sig ›</button>');
-    pagEl.innerHTML = btns.join('');
+
+    // Paginación
+    pagEl.innerHTML = '';
+    var btnCSS = 'padding:5px 11px;border-radius:7px;cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif;border:1px solid rgba(176,242,174,.18);transition:all .15s;';
+    function mkPageBtn(label, targetPage, active) {
+      var b = el('button', btnCSS + (active
+        ? 'background:#B0F2AE;color:#0a1a12;font-weight:700;'
+        : 'background:rgba(255,255,255,.06);color:#94a3b8;'));
+      b.textContent = label;
+      b.addEventListener('click', function(){ _page = targetPage; renderTable(); });
+      return b;
+    }
+    if (_page > 1)  pagEl.appendChild(mkPageBtn('‹ Ant', _page-1, false));
+    var s = Math.max(1, _page-2), e = Math.min(pages, _page+2);
+    for (var pg = s; pg <= e; pg++) pagEl.appendChild(mkPageBtn(String(pg), pg, pg===_page));
+    if (_page < pages) pagEl.appendChild(mkPageBtn('Sig ›', _page+1, false));
   }
+
+  // ── Filtrar ────────────────────────────────────────────────────
+  function applyFilter() {
+    var search = (searchInput.value || '').toLowerCase().trim();
+    var bod    = selBodega.value;
+    var cat    = selCat.value;
+    var neg    = selNeg.value;
+    _filtered = _allRows.filter(function(r) {
+      if (bod && (r['Nombre de la ubicación']||'').trim() !== bod) return false;
+      if (cat && invCategoria(r['Nombre']) !== cat) return false;
+      if (neg && invNegocio(r['Subtipo'])  !== neg) return false;
+      if (search) {
+        var hit = Object.values(r).some(function(v){ return String(v||'').toLowerCase().includes(search); });
+        if (!hit) return false;
+      }
+      return true;
+    });
+    _page = 1;
+    renderTable();
+  }
+
+  // ── Exportar Excel ─────────────────────────────────────────────
+  function exportExcel() {
+    if (!_filtered.length) { alert('Sin datos para exportar.'); return; }
+    if (typeof XLSX === 'undefined') { alert('XLSX no disponible.'); return; }
+    var exportRows = _filtered.map(function(r) {
+      return {
+        'Referencia':       r['Nombre'] || '',
+        'Categoría':        invCategoria(r['Nombre']),
+        'Negocio':          invNegocio(r['Subtipo']),
+        'Bodega':           r['Nombre de la ubicación'] || '',
+        'Tipo Ubicación':   r['Tipo de ubicación'] || '',
+        'Cód. Ubicación':   r['Código de ubicación'] || '',
+        'Cantidad':         parseInt(r['Cantidad']) || 0,
+        'Subtipo':          r['Subtipo'] || '',
+      };
+    });
+    var wb = XLSX.utils.book_new();
+    var ws = XLSX.utils.json_to_sheet(exportRows);
+    ws['!cols'] = Object.keys(exportRows[0]).map(function(k){
+      return { wch: Math.max(k.length+2, ...exportRows.slice(0,50).map(function(rx){ return String(rx[k]||'').length; })) };
+    });
+    XLSX.utils.book_append_sheet(wb, ws, _title.slice(0,31));
+    XLSX.writeFile(wb, 'Inventario_' + _title.replace(/[^a-zA-Z0-9]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  //  CONSTRUCCIÓN DEL DOM
+  // ══════════════════════════════════════════════════════════════
+
+  // Overlay
+  var overlay = el('div', 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.80);backdrop-filter:blur(8px);padding:20px;animation:fadeIn .18s ease;');
+  overlay.id = 'inv-drill-modal';
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) overlay.remove(); });
+
+  // Panel
+  var panel = el('div',
+    'background:#181715;border:1px solid rgba(176,242,174,.18);border-radius:18px;' +
+    'width:100%;max-width:1140px;max-height:90vh;display:flex;flex-direction:column;' +
+    'box-shadow:0 32px 96px rgba(0,0,0,.9);animation:slideUp .2s cubic-bezier(.34,1.2,.64,1);overflow:hidden;'
+  );
+
+  // ── Barra de color superior ────────────────────────────────────
+  var topBar = el('div','height:3px;background:linear-gradient(90deg,#B0F2AE,#99D1FC,#C084FC);flex-shrink:0;');
+  panel.appendChild(topBar);
+
+  // ── Header ────────────────────────────────────────────────────
+  var header = el('div','display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(176,242,174,.1);flex-shrink:0;gap:16px;');
+
+  var headerLeft = el('div','');
+  var titleEl    = el('div','font-family:\'Syne\',sans-serif;font-size:17px;font-weight:800;color:#B0F2AE;letter-spacing:-.2px;', _title);
+  var countEl    = el('div','font-size:12px;color:#7A7674;margin-top:4px;font-family:\'Outfit\',sans-serif;');
+  headerLeft.appendChild(titleEl);
+  headerLeft.appendChild(countEl);
+
+  var headerRight = el('div','display:flex;gap:8px;align-items:center;flex-shrink:0;');
+  var btnExport   = el('button',
+    'background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.22);color:#B0F2AE;' +
+    'padding:7px 16px;border-radius:8px;cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif;' +
+    'display:flex;align-items:center;gap:6px;transition:all .2s;',
+    '⬇ Excel'
+  );
+  btnExport.addEventListener('click', exportExcel);
+  btnExport.addEventListener('mouseover', function(){ btnExport.style.background='rgba(176,242,174,.16)'; });
+  btnExport.addEventListener('mouseout',  function(){ btnExport.style.background='rgba(176,242,174,.08)'; });
+
+  var btnClose = el('button',
+    'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#7A7674;' +
+    'width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:20px;' +
+    'display:flex;align-items:center;justify-content:center;line-height:1;transition:all .2s;'
+  );
+  btnClose.innerHTML = '&times;';
+  btnClose.addEventListener('click', function(){ overlay.remove(); });
+  btnClose.addEventListener('mouseover', function(){ btnClose.style.background='rgba(255,80,80,.15)';btnClose.style.color='#f87171'; });
+  btnClose.addEventListener('mouseout',  function(){ btnClose.style.background='rgba(255,255,255,.06)';btnClose.style.color='#7A7674'; });
+
+  headerRight.appendChild(btnExport);
+  headerRight.appendChild(btnClose);
+  header.appendChild(headerLeft);
+  header.appendChild(headerRight);
+  panel.appendChild(header);
+
+  // ── Barra de filtros ───────────────────────────────────────────
+  var filterBar = el('div','padding:12px 24px;border-bottom:1px solid rgba(176,242,174,.07);flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;background:rgba(0,0,0,.18);align-items:center;');
+
+  var searchInput = el('input','flex:1;min-width:180px;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.18);border-radius:8px;color:#FAFAFA;padding:8px 12px;font-size:13px;font-family:\'Outfit\',sans-serif;outline:none;');
+  searchInput.placeholder = '🔍 Buscar en todos los campos...';
+  searchInput.addEventListener('input', applyFilter);
+
+  var selCSS = 'background:#1a1916;border:1px solid rgba(176,242,174,.18);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;';
+
+  var selBodega = el('select', selCSS + 'min-width:160px;');
+  var selCat    = el('select', selCSS + 'min-width:140px;');
+  var selNeg    = el('select', selCSS + 'min-width:120px;');
+
+  // Poblar bodegas únicas del subconjunto
+  var uniqBodegas = [...new Set(_allRows.map(function(r){ return (r['Nombre de la ubicación']||'').trim(); }).filter(Boolean))].sort();
+  selBodega.appendChild(new Option('Todas las bodegas',''));
+  uniqBodegas.forEach(function(b){ selBodega.appendChild(new Option(b,b)); });
+
+  // Poblar categorías únicas
+  var uniqCats = [...new Set(_allRows.map(function(r){ return invCategoria(r['Nombre']); }))].sort();
+  selCat.appendChild(new Option('Todas las categorías',''));
+  uniqCats.forEach(function(c){ selCat.appendChild(new Option(c,c)); });
+
+  selNeg.appendChild(new Option('CB + VP',''));
+  selNeg.appendChild(new Option('CB (Wompi)','CB'));
+  selNeg.appendChild(new Option('VP','VP'));
+
+  [selBodega, selCat, selNeg].forEach(function(s){ s.addEventListener('change', applyFilter); });
+
+  filterBar.appendChild(searchInput);
+  filterBar.appendChild(selBodega);
+  filterBar.appendChild(selCat);
+  filterBar.appendChild(selNeg);
+  panel.appendChild(filterBar);
+
+  // ── Tabla scrollable ───────────────────────────────────────────
+  var tableWrap = el('div','overflow:auto;flex:1;');
+
+  var table = el('table','width:100%;border-collapse:collapse;font-size:12px;font-family:\'Outfit\',sans-serif;');
+
+  var thead = document.createElement('thead');
+  var theadRow = document.createElement('tr');
+  theadRow.style.cssText = 'position:sticky;top:0;background:#181715;z-index:2;';
+  ['Referencia','Categoría','Negocio','Bodega','Tipo Ubic.','Cód. Ubic.','Cantidad','Subtipo'].forEach(function(h){
+    var th = el('th','padding:10px 12px;text-align:left;color:#B0F2AE;font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;font-family:\'Syne\',sans-serif;');
+    th.textContent = h;
+    theadRow.appendChild(th);
+  });
+  // Ajustar alineación de Cantidad
+  theadRow.children[6].style.textAlign = 'right';
+  thead.appendChild(theadRow);
+  table.appendChild(thead);
+
+  var tbody = document.createElement('tbody');
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+  panel.appendChild(tableWrap);
+
+  // ── Footer paginación ──────────────────────────────────────────
+  var footer = el('div','display:flex;align-items:center;justify-content:space-between;padding:11px 24px;border-top:1px solid rgba(176,242,174,.08);flex-shrink:0;background:rgba(0,0,0,.15);gap:12px;');
+  var footerCountEl = el('span','font-size:12px;color:#7A7674;font-family:\'Outfit\',sans-serif;');
+  var pagEl         = el('div','display:flex;gap:6px;flex-wrap:wrap;');
+  footer.appendChild(footerCountEl);
+  footer.appendChild(pagEl);
+  panel.appendChild(footer);
+
+  overlay.appendChild(panel);
+
+  // Añadir animaciones si no existen
+  if (!document.getElementById('inv-drill-keyframes')) {
+    var style = document.createElement('style');
+    style.id = 'inv-drill-keyframes';
+    style.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}';
+    document.head.appendChild(style);
+  }
+
+  document.body.appendChild(overlay);
+
+  // Render inicial
+  renderTable();
 }
 
-window.invDrillGoPage = function(p) {
-  var pages = Math.max(1, Math.ceil((window._invDrillFiltered||[]).length / 50));
-  if (p >= 1 && p <= pages) { window._invDrillPage = p; invDrillRenderTable(); }
-};
-
-window.invExportDrillExcel = function() {
-  var data = (window._invDrillFiltered || []);
-  if (!data.length) { alert('Sin datos para exportar.'); return; }
-  var rows = data.map(function(r) {
-    return {
-      'Referencia':        r['Nombre'] || '',
-      'Categoría':         invCategoria(r['Nombre']),
-      'Negocio':           invNegocio(r['Subtipo']),
-      'Bodega':            r['Nombre de la ubicación'] || '',
-      'Tipo Ubicación':    r['Tipo de ubicación'] || '',
-      'Código Ubicación':  r['Código de ubicación'] || '',
-      'Cantidad':          parseInt(r['Cantidad']) || 0,
-      'Subtipo':           r['Subtipo'] || '',
-    };
-  });
-  if (typeof XLSX === 'undefined') { alert('XLSX no disponible.'); return; }
-  var wb = XLSX.utils.book_new();
-  var ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = Object.keys(rows[0]).map(function(k){ return { wch: Math.max(k.length+2, ...rows.slice(0,50).map(function(r){ return String(r[k]||'').length; })) }; });
-  XLSX.utils.book_append_sheet(wb, ws, (window._invDrillTitle||'Inventario').slice(0,31));
-  XLSX.writeFile(wb, 'Inventario_' + (window._invDrillTitle||'detalle').replace(/[^a-zA-Z0-9]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
-};
+// Alias global para backwards-compat (ya no se usa desde fuera pero por si acaso)
+window.invDrillFilter   = function(){};
+window.invDrillGoPage   = function(){};
+window.invExportDrillExcel = function(){};
 
 // ══════════════════════════════════════════════════════════════════
 //  EXPORT TOP REFERENCIAS
