@@ -423,7 +423,7 @@ function _invRenderCharts() {
   INV_CHARTS['negocio'] = new Chart(document.getElementById('inv-c-negocio'), {
     type: 'bar',
     data: {
-      labels: ['CB (Wompi)', 'VP (Valor Plus)'],
+      labels: ['CB (Wompi)', 'VP (Venta Presente)'],
       datasets: [{
         data: [negMap.CB, negMap.VP],
         backgroundColor: ['#99D1FCBB', '#C084FCBB'],
