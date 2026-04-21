@@ -193,19 +193,22 @@ function _invRenderKPIs() {
   const unOPL      = sumCantidad(rows.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
 
   const kpis = [
-    { label:'TOTAL INVENTARIO', value:fmtN(total),      sub1:'100% del stock',               sub2:'42 bodegas Wompi',       color:INV_PALETTE.total,    icon:'📦', wide:true },
-    { label:'EN BODEGA',        value:fmtN(unBodega),   sub1:fmtPct(unBodega,total),         sub2:fmtN(unBodega)+' uds',   color:INV_PALETTE.bodega,   icon:'🏪' },
-    { label:'EN COMERCIO',      value:fmtN(unComercio), sub1:fmtPct(unComercio,total),       sub2:fmtN(unComercio)+' uds', color:INV_PALETTE.comercio, icon:'🏬' },
-    { label:'TÉC. LINEACOM',    value:fmtN(unTecnico),  sub1:fmtPct(unTecnico,total),        sub2:fmtN(unTecnico)+' uds',  color:INV_PALETTE.tecnico,  icon:'🔧' },
-    { label:'GEST. & EMPL.',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤' },
-    { label:'INGENICO',         value:fmtN(unIngenico), sub1:fmtPct(unIngenico,total),       sub2:fmtN(unIngenico)+' uds', color:INV_PALETTE.ingenico, icon:'🔌' },
-    { label:'OPL',              value:fmtN(unOPL),      sub1:fmtPct(unOPL,total),            sub2:fmtN(unOPL)+' uds',      color:INV_PALETTE.opl,      icon:'🚚' },
+    { label:'TOTAL INVENTARIO', value:fmtN(total),      sub1:'100% del stock',               sub2:'42 bodegas Wompi',       color:INV_PALETTE.total,    icon:'📦', wide:true,  drillRows: rows,                                                                                                                                     drillTitle:'Total Inventario' },
+    { label:'EN BODEGA',        value:fmtN(unBodega),   sub1:fmtPct(unBodega,total),         sub2:fmtN(unBodega)+' uds',   color:INV_PALETTE.bodega,   icon:'🏪', drillRows: rows.filter(function(r){ return INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim()); }),                                                     drillTitle:'Stock en Bodega' },
+    { label:'EN COMERCIO',      value:fmtN(unComercio), sub1:fmtPct(unComercio,total),       sub2:fmtN(unComercio)+' uds', color:INV_PALETTE.comercio, icon:'🏬', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Site'; }),                                                                  drillTitle:'Stock en Comercio (Site)' },
+    { label:'TÉC. LINEACOM',    value:fmtN(unTecnico),  sub1:fmtPct(unTecnico,total),        sub2:fmtN(unTecnico)+' uds',  color:INV_PALETTE.tecnico,  icon:'🔧', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Staff'; }),                                                                 drillTitle:'Stock Técnicos Lineacom (Staff)' },
+    { label:'GEST. & EMPL.',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤', drillRows: rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }),                                                              drillTitle:'Stock Gestores & Empleados (GW)' },
+    { label:'INGENICO',         value:fmtN(unIngenico), sub1:fmtPct(unIngenico,total),       sub2:fmtN(unIngenico)+' uds', color:INV_PALETTE.ingenico, icon:'🔌', drillRows: rows.filter(function(r){ return (r['Nombre de la ubicación']||'').trim() === 'ALMACEN INGENICO - PROVEEDOR WOMPI'; }),                             drillTitle:'Stock Ingenico (Proveedor)' },
+    { label:'OPL',              value:fmtN(unOPL),      sub1:fmtPct(unOPL,total),            sub2:fmtN(unOPL)+' uds',      color:INV_PALETTE.opl,      icon:'🚚', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Supplier'; }),                                                             drillTitle:'Stock OPL (Supplier)' },
   ];
 
   const grid = document.getElementById('inv-kpi-grid');
   if (!grid) return;
 
-  grid.innerHTML = kpis.map(function(k) {
+  grid.innerHTML = kpis.map(function(k, idx) {
+    // Guardamos las rows de cada KPI en un objeto global indexado para poder llamarlas desde onclick inline
+    window._invKpiDrillData = window._invKpiDrillData || [];
+    window._invKpiDrillData[idx] = { rows: k.drillRows, title: k.drillTitle };
     return (
       '<div class="kpi-card inv-kpi-v2 fade-up" style="' +
         'background:linear-gradient(145deg,rgba(10,26,18,.95) 0%,rgba(8,20,14,.9) 100%);' +
@@ -214,12 +217,17 @@ function _invRenderKPIs() {
         'position:relative;overflow:hidden;' +
         'box-shadow:0 4px 20px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03);' +
         'transition:all .25s cubic-bezier(.4,0,.2,1);' +
+        'cursor:pointer;' +
         (k.wide ? 'grid-column:span 2;' : '') +
       '" ' +
+      'onclick="invOpenDrillModal(window._invKpiDrillData[' + idx + '].title, window._invKpiDrillData[' + idx + '].rows)" ' +
+      'title="🔍 Ver detalle de ' + k.label + '" ' +
       'onmouseover="this.style.transform=\'translateY(-5px)\';this.style.borderColor=\'' + k.color + '55\';this.style.boxShadow=\'0 12px 40px rgba(0,0,0,.5),0 0 30px ' + k.color + '22\'" ' +
       'onmouseout="this.style.transform=\'\';this.style.borderColor=\'rgba(176,242,174,.1)\';this.style.boxShadow=\'0 4px 20px rgba(0,0,0,.4)\'">' +
         // Glow orb
         '<div style="position:absolute;top:-24px;right:-24px;width:88px;height:88px;border-radius:50%;background:' + k.color + ';opacity:0.06;pointer-events:none;filter:blur(12px);"></div>' +
+        // Click hint badge
+        '<div style="position:absolute;top:10px;right:12px;font-size:9px;font-family:\'Outfit\',sans-serif;color:' + k.color + ';opacity:0.55;letter-spacing:.5px;text-transform:uppercase;font-weight:600;">Ver detalle ›</div>' +
         // Icon
         '<span style="font-size:18px;margin-bottom:14px;display:block;">' + k.icon + '</span>' +
         // Label — VP system style

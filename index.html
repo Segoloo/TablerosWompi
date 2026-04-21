@@ -565,6 +565,27 @@
             <div class="loading"><div class="spinner"></div><span>Cargando inventario...</span></div>
           </div>
 
+          <!-- Gráficas -->
+          <div class="section-label fade-up" style="margin-top:32px">Gráficas de Inventario</div>
+          <div id="inv-charts-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
+            <div class="loading"><div class="spinner"></div><span>Cargando gráficas...</span></div>
+          </div>
+
+          <!-- Top Referencias -->
+          <div class="section-label fade-up">Top 20 Referencias por Stock</div>
+          <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));border:1px solid rgba(176,242,174,.1);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
+              <div>
+                <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Top 20 Referencias</div>
+                <div style="font-size:11px;color:#7A7674;margin-top:2px;">Referencias con mayor stock en el inventario filtrado</div>
+              </div>
+              <button onclick="invExportTopExcel()" style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
+            </div>
+            <div id="inv-table-container" style="overflow-x:auto;max-height:480px;">
+              <div class="loading"><div class="spinner"></div><span>Cargando tabla...</span></div>
+            </div>
+          </div>
+
         </div>
       </div><!-- /main -->
     </div><!-- /content-area -->
