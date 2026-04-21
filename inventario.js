@@ -266,7 +266,7 @@ function _invRenderCharts() {
     return;
   }
 
-  // ── Datos ──────────────────────────────────────────────────────
+  // ── Datos — calculados TODOS antes de tocar el DOM ─────────────
   const unBodega   = sumCantidad(rows.filter(function(r){ return INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim()); }));
   const unComercio = sumCantidad(rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Site'; }));
   const unTecnico  = sumCantidad(rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Staff'; }));
@@ -280,6 +280,9 @@ function _invRenderCharts() {
     const qty = parseInt(r['Cantidad']) || 0;
     catMap[cat] = (catMap[cat] || 0) + qty;
   });
+
+  // catEntries declarado en el scope de la función (usado por chart 2 y chart 6 polar)
+  const catEntries = Object.entries(catMap).sort(function(a,b){ return b[1]-a[1]; });
 
   const negMap = { CB: 0, VP: 0 };
   rows.forEach(function(r) {
@@ -381,7 +384,6 @@ function _invRenderCharts() {
   });
 
   // ── 2. Bar horizontal: por categoría ─────────────────────────
-  const catEntries = Object.entries(catMap).sort(function(a,b){ return b[1]-a[1]; });
   const catColors  = ['#B0F2AE','#99D1FC','#DFFF61','#C084FC','#FFC04D','#F87171','#FB923C','#7BC8FB'];
   const c2 = makeCard('inv-c-categoria', 'Unidades por Categoría', 'Desglose por tipo de producto');
   chartsGrid.appendChild(c2);
@@ -633,8 +635,229 @@ function _invRenderCharts() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  RENDER TABLE — Top 20 referencias
+//  MODAL DRILLDOWN — Inventario (igual estilo que Tracking VP)
 // ══════════════════════════════════════════════════════════════════
+function invOpenDrillModal(title, rows) {
+  var existing = document.getElementById('inv-drill-modal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'inv-drill-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);padding:20px;';
+
+  modal.innerHTML =
+    '<div style="background:var(--surface,#181715);border:1px solid rgba(176,242,174,.15);border-radius:var(--radius,18px);' +
+        'width:100%;max-width:1100px;max-height:88vh;display:flex;flex-direction:column;' +
+        'box-shadow:0 24px 80px rgba(0,0,0,.85);">' +
+      // Header
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;' +
+          'border-bottom:1px solid rgba(176,242,174,.1);flex-shrink:0;">' +
+        '<div>' +
+          '<div id="inv-drill-title" style="font-family:\'Syne\',sans-serif;font-size:18px;font-weight:700;color:#B0F2AE;"></div>' +
+          '<div id="inv-drill-count" style="font-size:12px;color:#7A7674;margin-top:3px;font-family:\'Outfit\',sans-serif;"></div>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+          '<button onclick="invExportDrillExcel()" style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif;transition:all .2s;">&#11015; Excel</button>' +
+          '<button onclick="document.getElementById(\'inv-drill-modal\').remove()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#7A7674;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center;line-height:1;">×</button>' +
+        '</div>' +
+      '</div>' +
+      // Filtros buscador
+      '<div style="padding:14px 24px;border-bottom:1px solid rgba(176,242,174,.08);flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;background:rgba(0,0,0,.2);">' +
+        '<input id="inv-drill-search" type="text" placeholder="🔍 Buscar en todos los campos..." ' +
+          'oninput="invDrillFilter()" ' +
+          'style="flex:1;min-width:200px;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;' +
+               'color:#FAFAFA;padding:8px 12px;font-size:13px;font-family:\'Outfit\',sans-serif;outline:none;">' +
+        '<select id="inv-drill-f-bodega" onchange="invDrillFilter()" ' +
+          'style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:160px;">' +
+          '<option value="">Todas las bodegas</option>' +
+        '</select>' +
+        '<select id="inv-drill-f-cat" onchange="invDrillFilter()" ' +
+          'style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:140px;">' +
+          '<option value="">Todas las categorías</option>' +
+        '</select>' +
+        '<select id="inv-drill-f-neg" onchange="invDrillFilter()" ' +
+          'style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.15);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:120px;">' +
+          '<option value="">CB + VP</option>' +
+          '<option value="CB">CB (Wompi)</option>' +
+          '<option value="VP">VP</option>' +
+        '</select>' +
+      '</div>' +
+      // Tabla
+      '<div id="inv-drill-body" style="overflow:auto;flex:1;padding:0 4px 4px;"></div>' +
+      // Footer paginación
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-top:1px solid rgba(176,242,174,.08);flex-shrink:0;background:rgba(0,0,0,.15);">' +
+        '<span id="inv-drill-footer-count" style="font-size:12px;color:#7A7674;font-family:\'Outfit\',sans-serif;"></span>' +
+        '<div id="inv-drill-pagination" style="display:flex;gap:6px;"></div>' +
+      '</div>' +
+    '</div>';
+
+  modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
+  document.body.appendChild(modal);
+
+  // Guardar datos originales
+  window._invDrillRows   = rows;
+  window._invDrillFiltered = rows;
+  window._invDrillPage   = 1;
+  window._invDrillTitle  = title;
+
+  // Poblar filtros bodega y categoría con valores únicos del subconjunto
+  var bodegas = ['', ...new Set(rows.map(function(r){ return (r['Nombre de la ubicación']||'').trim(); }).filter(Boolean))].sort();
+  var cats    = ['', ...new Set(rows.map(function(r){ return invCategoria(r['Nombre']); }))].sort();
+  var selBod = document.getElementById('inv-drill-f-bodega');
+  var selCat = document.getElementById('inv-drill-f-cat');
+  selBod.innerHTML = '<option value="">Todas las bodegas</option>' + bodegas.slice(1).map(function(b){ return '<option value="'+b+'">'+b+'</option>'; }).join('');
+  selCat.innerHTML = '<option value="">Todas las categorías</option>' + cats.slice(1).map(function(c){ return '<option value="'+c+'">'+c+'</option>'; }).join('');
+
+  document.getElementById('inv-drill-title').textContent = title;
+  invDrillRenderTable();
+}
+
+window.invDrillFilter = function() {
+  var search = (document.getElementById('inv-drill-search')?.value || '').toLowerCase().trim();
+  var bodega = (document.getElementById('inv-drill-f-bodega')?.value || '');
+  var cat    = (document.getElementById('inv-drill-f-cat')?.value || '');
+  var neg    = (document.getElementById('inv-drill-f-neg')?.value || '');
+
+  window._invDrillFiltered = (window._invDrillRows || []).filter(function(r) {
+    if (bodega && (r['Nombre de la ubicación']||'').trim() !== bodega) return false;
+    if (cat    && invCategoria(r['Nombre']) !== cat) return false;
+    if (neg    && invNegocio(r['Subtipo']) !== neg) return false;
+    if (search) {
+      var hay = Object.values(r).some(function(v){ return String(v||'').toLowerCase().includes(search); });
+      if (!hay) return false;
+    }
+    return true;
+  });
+  window._invDrillPage = 1;
+  invDrillRenderTable();
+};
+
+function invDrillRenderTable() {
+  var PAGE_SIZE = 50;
+  var data  = window._invDrillFiltered || [];
+  var page  = window._invDrillPage || 1;
+  var pages = Math.max(1, Math.ceil(data.length / PAGE_SIZE));
+  var slice = data.slice((page-1)*PAGE_SIZE, page*PAGE_SIZE);
+
+  var countEl  = document.getElementById('inv-drill-count');
+  var footerEl = document.getElementById('inv-drill-footer-count');
+  var body     = document.getElementById('inv-drill-body');
+  var pagEl    = document.getElementById('inv-drill-pagination');
+  if (!body) return;
+
+  if (countEl) countEl.textContent = data.length + ' registros' + (data.length !== (window._invDrillRows||[]).length ? ' (filtrado de ' + (window._invDrillRows||[]).length + ')' : '');
+  if (footerEl) footerEl.textContent = 'Página ' + page + ' de ' + pages + ' · ' + data.length + ' registros';
+
+  var catColorMap = {
+    'Datáfonos': '#99D1FC', 'Rollos': '#B0F2AE', 'Pin pad': '#FFC04D',
+    'Forros': '#C084FC', 'Accesorios': '#FB923C', 'SIM': '#F87171', 'KIT POP VP': '#DFFF61',
+  };
+
+  if (!slice.length) {
+    body.innerHTML = '<div style="text-align:center;padding:48px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin registros para los filtros seleccionados</div>';
+    if (pagEl) pagEl.innerHTML = '';
+    return;
+  }
+
+  body.innerHTML =
+    '<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:\'Outfit\',sans-serif;">' +
+      '<thead style="position:sticky;top:0;background:#181715;z-index:1;">' +
+        '<tr>' +
+          ['Referencia','Categoría','Negocio','Bodega','Tipo Ubicación','Cód. Ubicación','Cantidad','Subtipo'].map(function(h){
+            return '<th style="padding:10px 12px;text-align:left;color:#B0F2AE;font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.12);white-space:nowrap;font-family:\'Syne\',sans-serif;">' + h + '</th>';
+          }).join('') +
+        '</tr>' +
+      '</thead>' +
+      '<tbody>' +
+        slice.map(function(r, i) {
+          var cat   = invCategoria(r['Nombre']);
+          var neg   = invNegocio(r['Subtipo']);
+          var color = catColorMap[cat] || '#94a3b8';
+          var negColor = neg === 'VP' ? '#C084FC' : '#99D1FC';
+          var bg    = i % 2 === 0 ? 'rgba(176,242,174,.015)' : 'transparent';
+          return '<tr style="background:' + bg + ';transition:background .12s;" onmouseover="this.style.background=\'rgba(176,242,174,.04)\'" onmouseout="this.style.background=\'' + bg + '\'">' +
+            '<td style="padding:9px 12px;color:#FAFAFA;font-weight:500;max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (r['Nombre']||'') + '">' + (r['Nombre']||'—') + '</td>' +
+            '<td style="padding:9px 12px;"><span style="display:inline-block;background:' + color + '22;color:' + color + ';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">' + cat + '</span></td>' +
+            '<td style="padding:9px 12px;"><span style="display:inline-block;background:' + negColor + '22;color:' + negColor + ';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;">' + neg + '</span></td>' +
+            '<td style="padding:9px 12px;color:#cbd5e1;font-size:11px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + (r['Nombre de la ubicación']||'') + '">' + (r['Nombre de la ubicación']||'—') + '</td>' +
+            '<td style="padding:9px 12px;color:#7A7674;font-size:11px;">' + (r['Tipo de ubicación']||'—') + '</td>' +
+            '<td style="padding:9px 12px;color:#7A7674;font-family:\'JetBrains Mono\',monospace;font-size:11px;">' + (r['Código de ubicación']||'—') + '</td>' +
+            '<td style="padding:9px 12px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:' + color + ';text-shadow:0 0 12px ' + color + '55;">' + (parseInt(r['Cantidad'])||0).toLocaleString('es-CO') + '</td>' +
+            '<td style="padding:9px 12px;color:#7A7674;font-size:11px;">' + (r['Subtipo']||'—') + '</td>' +
+          '</tr>';
+        }).join('') +
+      '</tbody>' +
+    '</table>';
+
+  // Paginación
+  if (pagEl) {
+    var btnStyle = 'padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px;font-family:\'Outfit\',sans-serif;border:1px solid rgba(176,242,174,.15);transition:all .15s;';
+    var btns = [];
+    var p = page;
+    if (p > 1) btns.push('<button onclick="invDrillGoPage(' + (p-1) + ')" style="' + btnStyle + 'background:rgba(255,255,255,.06);color:#94a3b8;">‹ Ant</button>');
+    var start = Math.max(1, p-2), end = Math.min(pages, p+2);
+    for (var pg = start; pg <= end; pg++) {
+      var active = pg === p;
+      btns.push('<button onclick="invDrillGoPage(' + pg + ')" style="' + btnStyle + 'background:' + (active ? '#B0F2AE' : 'rgba(255,255,255,.06)') + ';color:' + (active ? '#0a1a12' : '#94a3b8') + ';font-weight:' + (active ? '700' : '400') + ';">' + pg + '</button>');
+    }
+    if (p < pages) btns.push('<button onclick="invDrillGoPage(' + (p+1) + ')" style="' + btnStyle + 'background:rgba(255,255,255,.06);color:#94a3b8;">Sig ›</button>');
+    pagEl.innerHTML = btns.join('');
+  }
+}
+
+window.invDrillGoPage = function(p) {
+  var pages = Math.max(1, Math.ceil((window._invDrillFiltered||[]).length / 50));
+  if (p >= 1 && p <= pages) { window._invDrillPage = p; invDrillRenderTable(); }
+};
+
+window.invExportDrillExcel = function() {
+  var data = (window._invDrillFiltered || []);
+  if (!data.length) { alert('Sin datos para exportar.'); return; }
+  var rows = data.map(function(r) {
+    return {
+      'Referencia':        r['Nombre'] || '',
+      'Categoría':         invCategoria(r['Nombre']),
+      'Negocio':           invNegocio(r['Subtipo']),
+      'Bodega':            r['Nombre de la ubicación'] || '',
+      'Tipo Ubicación':    r['Tipo de ubicación'] || '',
+      'Código Ubicación':  r['Código de ubicación'] || '',
+      'Cantidad':          parseInt(r['Cantidad']) || 0,
+      'Subtipo':           r['Subtipo'] || '',
+    };
+  });
+  if (typeof XLSX === 'undefined') { alert('XLSX no disponible.'); return; }
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = Object.keys(rows[0]).map(function(k){ return { wch: Math.max(k.length+2, ...rows.slice(0,50).map(function(r){ return String(r[k]||'').length; })) }; });
+  XLSX.utils.book_append_sheet(wb, ws, (window._invDrillTitle||'Inventario').slice(0,31));
+  XLSX.writeFile(wb, 'Inventario_' + (window._invDrillTitle||'detalle').replace(/[^a-zA-Z0-9]/g,'_') + '_' + new Date().toISOString().slice(0,10) + '.xlsx');
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  EXPORT TOP REFERENCIAS
+// ══════════════════════════════════════════════════════════════════
+window.invExportTopExcel = function() {
+  var rows = INV_FILTERED;
+  var total = sumCantidad(rows);
+  var refMap = {};
+  rows.forEach(function(r) {
+    var nombre = (r['Nombre'] || 'Sin nombre').trim();
+    var cat    = invCategoria(nombre);
+    var qty    = parseInt(r['Cantidad']) || 0;
+    if (!refMap[nombre]) refMap[nombre] = { Referencia: nombre, Categoría: cat, Unidades: 0 };
+    refMap[nombre].Unidades += qty;
+  });
+  var sorted = Object.values(refMap).sort(function(a,b){ return b.Unidades - a.Unidades; }).slice(0, 20);
+  sorted = sorted.map(function(r){ return Object.assign({}, r, { '% Total': total ? (r.Unidades/total*100).toFixed(1)+'%' : '0%' }); });
+  if (!sorted.length) { alert('Sin datos.'); return; }
+  if (typeof XLSX === 'undefined') { alert('XLSX no disponible.'); return; }
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.json_to_sheet(sorted);
+  XLSX.utils.book_append_sheet(wb, ws, 'Top Referencias');
+  XLSX.writeFile(wb, 'Top_Referencias_Inventario_' + new Date().toISOString().slice(0,10) + '.xlsx');
+};
+
+
 function _invRenderTable() {
   const rows  = INV_FILTERED;
   const total = sumCantidad(rows);
