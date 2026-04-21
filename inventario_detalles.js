@@ -602,17 +602,20 @@ async function renderInventarioDetalles() {
   const panel = document.getElementById('panel-inv-detalles');
   if (!panel) return;
 
-  // Espera datos si aún no están disponibles
+  const loadingEl = document.getElementById('det-loading');
+  const contentEl = document.getElementById('det-content');
+
+  // Si los datos aún no están, esperarlos
   if (!window.INV_RAW) {
-    const loadingEl = document.getElementById('det-loading');
     if (loadingEl) loadingEl.style.display = 'flex';
-    await window.loadInventarioData();
-    detPopulateFilters();
+    if (contentEl) contentEl.style.display = 'none';
+    if (typeof window.loadInventarioData === 'function') {
+      await window.loadInventarioData();
+    }
   }
 
-  const loadingEl = document.getElementById('det-loading');
+  // Siempre ocultar loading y mostrar contenido
   if (loadingEl) loadingEl.style.display = 'none';
-  const contentEl = document.getElementById('det-content');
   if (contentEl) contentEl.style.display = '';
 
   DET_FILTERED = (window.INV_RAW || []).slice();

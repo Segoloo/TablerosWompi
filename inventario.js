@@ -110,6 +110,7 @@ async function loadInventarioData() {
     let off = 0;
     for (const c of chunks) { merged.set(c, off); off += c.length; }
     INV_RAW = JSON.parse(new TextDecoder().decode(merged));
+    window.INV_RAW = INV_RAW;
     console.log('[Inventario] ' + INV_RAW.length + ' filas cargadas');
   } catch (e) {
     console.error('[Inventario] Error cargando datos:', e);
@@ -1128,6 +1129,7 @@ async function renderInventarioPrincipal() {
 }
 
 window.renderInventarioPrincipal = renderInventarioPrincipal;
+window.loadInventarioData = loadInventarioData;
 
 // ══════════════════════════════════════════════════════════════════
 //  CARGA ANTICIPADA — en paralelo con dashboard.js
