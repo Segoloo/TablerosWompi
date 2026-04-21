@@ -145,6 +145,7 @@
         </div>
         <div class="sidebar-tabs">
           <div class="sidebar-tab" id="sb-tab-inv-principal" onclick="selectBoardTab('inventario','inv-principal')"><span class="sidebar-tab-icon">📊</span> Principal</div>
+          <div class="sidebar-tab" id="sb-tab-inv-detalles" onclick="selectBoardTab('inventario','inv-detalles')"><span class="sidebar-tab-icon">🔍</span> Detalles</div>
         </div>
       </div>
     </div>
@@ -587,6 +588,134 @@
           </div>
 
         </div>
+
+        <!-- ════ PANEL: INVENTARIO DETALLES ════ -->
+        <div id="panel-inv-detalles" style="display:none">
+
+          <!-- Loading state -->
+          <div id="det-loading" style="display:flex;align-items:center;justify-content:center;padding:80px;gap:16px;">
+            <div class="spinner"></div>
+            <span style="color:var(--muted);font-family:'Outfit',sans-serif;">Cargando datos de inventario...</span>
+          </div>
+
+          <!-- Contenido principal -->
+          <div id="det-content" style="display:none">
+
+            <!-- ── Filtros ────────────────────────────────────── -->
+            <div class="filters-bar" style="border-left:3px solid #DFFF61;margin-bottom:28px">
+              <div class="filters-title" style="display:flex;align-items:center;gap:10px">
+                <span style="font-size:18px">🔍</span>
+                <span>Filtros Detalles — Alertas & Trazabilidad</span>
+              </div>
+              <div class="filters-row" style="flex-wrap:wrap;gap:12px;">
+                <div class="filter-group">
+                  <label>Tipo de Negocio</label>
+                  <select id="det-f-negocio">
+                    <option value="Todos">Todos</option>
+                    <option value="CB">CB (Wompi)</option>
+                    <option value="VP">VP</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Categoría</label>
+                  <select id="det-f-categoria"><option value="Todas">Todas</option>
+                    <option>Rollos</option><option>Pin pad</option><option>Forros</option>
+                    <option>Accesorios</option><option>SIM</option><option>KIT POP VP</option><option>Datáfonos</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Ubicación (V3)</label>
+                  <select id="det-f-ubicacion"><option value="Todas">Todas</option></select>
+                </div>
+                <div class="filter-group">
+                  <label>Nombre de Ubicación</label>
+                  <select id="det-f-nombre-ubic"><option value="Todas">Todas</option></select>
+                </div>
+                <div class="filter-group">
+                  <label>Código de Comercio</label>
+                  <select id="det-f-cod-comercio"><option value="Todos">Todos</option></select>
+                </div>
+                <div class="filter-group">
+                  <label>Estado de Alerta</label>
+                  <select id="det-f-alerta">
+                    <option value="">Todos</option>
+                    <option value="con_alerta">🚨 Con alerta (&gt;8d)</option>
+                    <option value="sin_alerta">✅ Sin alerta</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Número de Serie</label>
+                  <select id="det-f-serial"><option value="Todos">Todos</option></select>
+                </div>
+                <div class="filter-group">
+                  <label>Referencia</label>
+                  <select id="det-f-referencia"><option value="Todas">Todas</option></select>
+                </div>
+              </div>
+              <div class="filters-actions" style="margin-top:12px;">
+                <button class="btn-apply" onclick="detApplyFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="detResetFilters()">↺ Reset</button>
+              </div>
+            </div>
+
+            <!-- ── KPI Strip ──────────────────────────────────── -->
+            <div id="det-kpi-strip" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
+
+            <!-- ── Gráficas ───────────────────────────────────── -->
+            <div class="section-label fade-up" style="color:#DFFF61;">Gráficas de Detalles</div>
+            <div id="det-charts-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
+              <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
+            </div>
+
+            <!-- ── Tabla 1: Resumen por Referencia ───────────── -->
+            <div class="section-label fade-up" style="color:#DFFF61;">Resumen por Referencia</div>
+            <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
+              border:1px solid rgba(223,255,97,.12);border-radius:18px;overflow:hidden;
+              margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(223,255,97,.08);">
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">
+                    Tabla 1 — Referencia / Unidades / Alertas</div>
+                  <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="det-tabla1-count">0 referencias</div>
+                </div>
+                <button onclick="detExportTabla1Excel()"
+                  style="background:rgba(223,255,97,.08);border:1px solid rgba(223,255,97,.2);color:#DFFF61;
+                  padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
+              </div>
+              <div id="det-tabla1-wrap" style="overflow-x:auto;max-height:480px;">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(223,255,97,.07);">
+                <div id="det-tabla1-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+              </div>
+            </div>
+
+            <!-- ── Tabla 2: Detalle por Serial ────────────────── -->
+            <div class="section-label fade-up" style="color:#B0F2AE;">Detalle por Serial</div>
+            <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
+              border:1px solid rgba(176,242,174,.12);border-radius:18px;overflow:hidden;
+              margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">
+                    Tabla 2 — Cód. Ubic · Nombre · Serial · Cantidad · Fecha · Alerta</div>
+                  <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="det-tabla2-count">0 registros</div>
+                </div>
+                <button onclick="detExportTabla2Excel()"
+                  style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;
+                  padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
+              </div>
+              <div id="det-tabla2-wrap" style="overflow-x:auto;max-height:520px;">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(176,242,174,.07);">
+                <div id="det-tabla2-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+              </div>
+            </div>
+
+          </div><!-- /det-content -->
+        </div><!-- /panel-inv-detalles -->
+
       </div><!-- /main -->
     </div><!-- /content-area -->
   </div><!-- /app-body -->
@@ -614,5 +743,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 </script>
 <script src="dashboard.js"></script>
 <script src="inventario.js"></script>
+<script src="inventario_detalles.js"></script>
 </body>
 </html>
