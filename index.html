@@ -7,1352 +7,11 @@
 <title>Tracking VP · Wompi × Linea</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<style>
-/* ═══════════════════════════════════════════════════════════════
-   WOMPI BRAND SYSTEM 2025 — Enhanced Visual Identity
-   ═══════════════════════════════════════════════════════════════ */
-:root {
-  /* Core Palette — Wompi Brand 2025 */
-  --negro-cib:    #2C2A29;
-  --blanco:       #FAFAFA;
-  --verde-menta:  #B0F2AE;
-  --azul-cielo:   #99D1FC;
-  --verde-selva:  #00825A;
-  --verde-lima:   #DFFF61;
-  --negro-abs:    #111110;
-  --card-dark:    #161514;
-  --surface:      #1E1C1B;
-  --surface2:     #252321;
-  --border:       #2E2C2A;
-  --border-glow:  rgba(176,242,174,.3);
-  --muted:        #7A7674;
-  --danger:       #FF5C5C;
-  --warning:      #FFC04D;
-  --info:         #99D1FC;
-  --radius:       18px;
-  --radius-sm:    12px;
-  --radius-xs:    8px;
-  --glow-green:   0 0 40px rgba(176,242,174,.22), 0 0 80px rgba(176,242,174,.08);
-  --glow-blue:    0 0 40px rgba(153,209,252,.22);
-  --glow-lime:    0 0 30px rgba(223,255,97,.18);
-  --shadow-card:  0 8px 32px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.4);
-  --transition:   all .25s cubic-bezier(.4,0,.2,1);
-}
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
-
-body {
-  font-family: 'Outfit', sans-serif;
-  background: #0a1a12;
-  color: var(--blanco);
-  min-height: 100vh;
-  overflow-x: hidden;
-  background-image:
-    radial-gradient(ellipse 80% 60% at -5% -5%, rgba(176,242,174,.18) 0%, transparent 50%),
-    radial-gradient(ellipse 60% 50% at 105% 105%, rgba(153,209,252,.16) 0%, transparent 50%),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(0,130,90,.10) 0%, transparent 55%),
-    radial-gradient(ellipse 30% 30% at 80% 10%, rgba(223,255,97,.08) 0%, transparent 45%),
-    radial-gradient(ellipse 25% 25% at 20% 90%, rgba(153,209,252,.07) 0%, transparent 40%);
-}
-
-/* Animated background orbs */
-body::after {
-  content: '';
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background:
-    radial-gradient(circle 600px at 10% 20%, rgba(176,242,174,.06) 0%, transparent 70%),
-    radial-gradient(circle 500px at 90% 80%, rgba(153,209,252,.06) 0%, transparent 70%);
-  animation: bgShift 15s ease-in-out infinite alternate;
-}
-@keyframes bgShift {
-  0%   { opacity: .7; transform: scale(1); }
-  100% { opacity: 1; transform: scale(1.05); }
-}
-
-/* ═══ SCROLLBAR ═══════════════════════════════════════════════════════ */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--card-dark); }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--verde-menta); }
-
-/* ═══ ANIMATIONS ══════════════════════════════════════════════════════ */
-@keyframes fadeSlideUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes fadeIn {
-  from { opacity: 0; } to { opacity: 1; }
-}
-@keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 20px rgba(176,242,174,.2); }
-  50%       { box-shadow: 0 0 40px rgba(176,242,174,.4), 0 0 80px rgba(176,242,174,.1); }
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes countUp { from { opacity:0; transform:scale(.8); } to { opacity:1; transform:scale(1); } }
-@keyframes shimmer {
-  0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-@keyframes float {
-  0%,100% { transform: translateY(0px); }
-  50%      { transform: translateY(-4px); }
-}
-@keyframes borderFlow {
-  0%   { border-color: var(--verde-menta); }
-  33%  { border-color: var(--azul-cielo); }
-  66%  { border-color: var(--verde-lima); }
-  100% { border-color: var(--verde-menta); }
-}
-@keyframes scanLine {
-  0%   { transform: translateY(-100%); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translateY(100vh); opacity: 0; }
-}
-
-.fade-up { animation: fadeSlideUp .5s ease both; }
-.fade-up-1 { animation-delay: .05s; }
-.fade-up-2 { animation-delay: .1s; }
-.fade-up-3 { animation-delay: .15s; }
-.fade-up-4 { animation-delay: .2s; }
-
-@keyframes gradientShift {
-  0%,100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
-}
-@keyframes particleFloat {
-  0%   { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translateY(-100vh) translateX(40px) rotate(360deg); opacity: 0; }
-}
-@keyframes glowPulse {
-  0%,100% { opacity: .4; transform: scale(1); }
-  50%      { opacity: .8; transform: scale(1.05); }
-}
-@keyframes slideIn {
-  from { opacity: 0; transform: translateX(-20px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-/* ═══ LOGIN SCREEN ════════════════════════════════════════════════════ */
-#login-screen {
-  position: fixed; inset: 0;
-  background: var(--negro-abs);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 9999;
-  transition: opacity .6s cubic-bezier(.4,0,.2,1), visibility .6s;
-  overflow: hidden;
-}
-#login-screen::before {
-  content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 70% 60% at 15% 20%, rgba(176,242,174,.12) 0%, transparent 65%),
-    radial-gradient(ellipse 60% 50% at 85% 80%, rgba(153,209,252,.10) 0%, transparent 65%),
-    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(0,130,90,.06) 0%, transparent 60%);
-  animation: fadeIn 2s ease;
-}
-/* Decorative grid */
-#login-screen::after {
-  content: '';
-  position: absolute; inset: 0;
-  background-image:
-    linear-gradient(rgba(176,242,174,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(176,242,174,.04) 1px, transparent 1px);
-  background-size: 60px 60px;
-  animation: fadeIn 3s ease;
-}
-#login-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-
-/* Floating orbs behind login */
-.login-orb {
-  position: absolute; border-radius: 50%; pointer-events: none;
-  filter: blur(60px); animation: glowPulse 4s ease-in-out infinite;
-}
-.login-orb-1 {
-  width: 400px; height: 400px; left: -100px; top: -100px;
-  background: radial-gradient(circle, rgba(176,242,174,.15) 0%, transparent 70%);
-  animation-delay: 0s;
-}
-.login-orb-2 {
-  width: 350px; height: 350px; right: -80px; bottom: -80px;
-  background: radial-gradient(circle, rgba(153,209,252,.12) 0%, transparent 70%);
-  animation-delay: 2s;
-}
-.login-orb-3 {
-  width: 250px; height: 250px; right: 20%; top: 10%;
-  background: radial-gradient(circle, rgba(223,255,97,.08) 0%, transparent 70%);
-  animation-delay: 1s;
-}
-
-/* Scan line effect */
-.login-scanline {
-  position: absolute; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent 0%, rgba(176,242,174,.4) 50%, transparent 100%);
-  animation: scanLine 4s ease-in-out infinite;
-  pointer-events: none; z-index: 1;
-}
-
-.login-card {
-  background: rgba(22,21,20,.96);
-  border: 1px solid rgba(176,242,174,.15);
-  border-radius: 28px;
-  padding: 52px 48px 44px;
-  width: 460px;
-  max-width: 95vw;
-  position: relative;
-  overflow: hidden;
-  animation: fadeSlideUp .7s cubic-bezier(.34,1.56,.64,1);
-  backdrop-filter: blur(32px);
-  box-shadow: var(--shadow-card), 0 0 0 1px rgba(176,242,174,.08),
-              0 0 60px rgba(176,242,174,.06), 0 0 120px rgba(176,242,174,.03);
-  z-index: 2;
-}
-.login-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--verde-selva) 0%, var(--verde-menta) 35%, var(--azul-cielo) 65%, var(--verde-lima) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
-}
-.login-card::after {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background: radial-gradient(ellipse at 50% -20%, rgba(176,242,174,.08) 0%, transparent 65%);
-  pointer-events: none;
-}
-
-.login-logos {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 40px; gap: 16px;
-}
-.login-logo-wompi { height: 40px; object-fit: contain; border-radius: 10px; }
-.login-sep-v { width: 1px; height: 36px; background: var(--border); flex-shrink: 0; }
-.login-logo-linea { height: 28px; object-fit: contain; filter: brightness(1.2); }
-
-.login-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 22px; font-weight: 700; color: var(--blanco);
-  margin-bottom: 6px; letter-spacing: -.3px;
-}
-.login-desc {
-  font-size: 13px; color: var(--muted); margin-bottom: 36px;
-  line-height: 1.5;
-}
-
-.form-group { margin-bottom: 18px; }
-.form-group label {
-  display: block; font-size: 11px; font-weight: 600;
-  color: var(--muted); letter-spacing: 1.2px; text-transform: uppercase;
-  margin-bottom: 8px;
-}
-.form-group input {
-  width: 100%;
-  background: rgba(255,255,255,.03); border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm); padding: 14px 16px;
-  color: var(--blanco); font-family: 'Outfit', sans-serif; font-size: 14px;
-  outline: none; transition: var(--transition);
-}
-.form-group input:focus {
-  border-color: var(--verde-menta);
-  background: rgba(176,242,174,.04);
-  box-shadow: 0 0 0 3px rgba(176,242,174,.08);
-}
-.form-group input::placeholder { color: rgba(122,118,116,.6); }
-
-.login-error {
-  background: rgba(255,92,92,.08); border: 1px solid rgba(255,92,92,.3);
-  border-radius: var(--radius-sm); padding: 11px 16px;
-  color: var(--danger); font-size: 13px; margin-bottom: 18px; display: none;
-  animation: fadeIn .2s ease;
-}
-
-.btn-login {
-  width: 100%; padding: 16px;
-  background: var(--verde-menta); color: var(--negro-cib);
-  border: none; border-radius: var(--radius-sm);
-  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
-  cursor: pointer; transition: var(--transition);
-  letter-spacing: .5px; position: relative; overflow: hidden;
-}
-.btn-login::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.15) 50%, transparent 100%);
-  transform: translateX(-100%);
-  transition: transform .4s ease;
-}
-.btn-login:hover { background: #c8ffba; box-shadow: var(--glow-green); }
-.btn-login:hover::after { transform: translateX(100%); }
-.btn-login:active { transform: scale(.98); }
-
-/* Microsoft SSO button */
-.btn-ms-login {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: #ffffff;
-  color: #1a1a1a;
-  border: none;
-  font-weight: 600;
-  font-size: 15px;
-  letter-spacing: 0.01em;
-}
-.btn-ms-login:hover {
-  background: #f0f0f0;
-  color: #1a1a1a;
-  box-shadow: 0 4px 20px rgba(255,255,255,0.2);
-}
-.btn-ms-login:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* ═══ APP ═════════════════════════════════════════════════════════════ */
-#app { display: none; }
-#app.visible { display: block; animation: fadeIn .4s ease; }
-
-/* TOPBAR */
-.topbar {
-  position: sticky; top: 0; z-index: 100;
-  background: rgba(5,18,10,.97);
-  border-bottom: 1px solid rgba(176,242,174,.18);
-  backdrop-filter: blur(24px);
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0 32px; height: 68px;
-  box-shadow: 0 4px 32px rgba(0,0,0,.5), 0 1px 0 rgba(176,242,174,.12);
-}
-.topbar::after {
-  content: '';
-  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
-  background: linear-gradient(90deg, transparent 0%, var(--verde-menta) 30%, var(--azul-cielo) 60%, var(--verde-lima) 85%, transparent 100%);
-  opacity: .5;
-}
-.topbar-left { display: flex; align-items: center; gap: 20px; }
-.topbar-logo-wompi { height: 34px; object-fit: contain; border-radius: 8px; }
-.topbar-sep { width: 1px; height: 28px; background: var(--border); }
-.topbar-logo-linea { height: 22px; object-fit: contain; opacity: .9; }
-.topbar-label {
-  font-size: 12px; font-weight: 500; color: var(--muted);
-  padding-left: 4px; border-left: 1px solid var(--border); margin-left: 4px;
-  padding-left: 16px;
-}
-.topbar-right { display: flex; align-items: center; gap: 14px; }
-.topbar-badge {
-  background: rgba(176,242,174,.12); color: var(--verde-menta);
-  border: 1px solid rgba(176,242,174,.3);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; font-weight: 600; padding: 6px 14px;
-  border-radius: 20px; letter-spacing: .5px;
-  box-shadow: 0 0 12px rgba(176,242,174,.1), inset 0 1px 0 rgba(176,242,174,.1);
-}
-.topbar-badge::before {
-  content: '● '; color: var(--verde-menta);
-  animation: fadeIn 1s ease infinite alternate;
-}
-.last-update {
-  font-size: 11px; color: var(--muted);
-  font-family: 'JetBrains Mono', monospace;
-}
-.btn-logout {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  padding: 7px 16px; border-radius: var(--radius-xs); cursor: pointer;
-  font-size: 12px; font-family: 'Outfit', sans-serif;
-  transition: var(--transition); letter-spacing: .5px;
-}
-.btn-logout:hover { border-color: var(--danger); color: var(--danger); background: rgba(255,92,92,.06); }
-
-/* TABS */
-.tabs {
-  background: rgba(5,16,9,.98);
-  border-bottom: 1px solid rgba(176,242,174,.12);
-  display: flex; gap: 0; padding: 0 32px;
-  overflow-x: auto;
-  box-shadow: 0 4px 16px rgba(0,0,0,.3);
-}
-.tab {
-  padding: 16px 24px; font-size: 13px; font-weight: 600;
-  color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent;
-  transition: var(--transition); white-space: nowrap; position: relative;
-  letter-spacing: .3px;
-}
-.tab:hover { color: var(--blanco); }
-.tab.active { color: var(--verde-menta); border-bottom-color: var(--verde-menta); }
-.tab.active::after {
-  content: '';
-  position: absolute; bottom: -1px; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--verde-menta), var(--azul-cielo));
-}
-
-/* MAIN */
-.main { padding: 28px 32px; }
-
-/* FILTERS BAR */
-.filters-bar {
-  background: linear-gradient(135deg, rgba(10,26,18,.98) 0%, rgba(5,16,9,.95) 100%);
-  border: 1px solid rgba(176,242,174,.15);
-  border-radius: var(--radius); padding: 20px 24px;
-  margin-bottom: 28px;
-  position: relative; overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0,0,0,.3), inset 0 1px 0 rgba(176,242,174,.08);
-}
-.filters-bar::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--verde-selva), var(--verde-menta), var(--azul-cielo), var(--verde-lima));
-  opacity: .7;
-}
-.filters-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 10px; font-weight: 700; color: rgba(176,242,174,.5);
-  text-transform: uppercase; letter-spacing: 2px;
-  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
-}
-.filters-title::before { content: '◈'; color: var(--verde-menta); font-size: 12px; }
-.filters-row {
-  display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;
-  margin-bottom: 12px;
-}
-.filters-row:last-child { margin-bottom: 0; }
-.filters-actions { display: flex; gap: 10px; align-items: flex-end; margin-left: auto; }
-.filter-group { display: flex; flex-direction: column; gap: 5px; min-width: 130px; }
-.filter-group label {
-  font-size: 10px; font-weight: 600; color: rgba(153,209,252,.7);
-  text-transform: uppercase; letter-spacing: .8px;
-}
-.filter-group select,
-.filter-group input[type="date"],
-.filter-group input[type="text"] {
-  background: var(--card-dark); border: 1px solid var(--border);
-  border-radius: var(--radius-xs); padding: 9px 12px;
-  color: var(--blanco); font-family: 'Outfit', sans-serif; font-size: 13px;
-  outline: none; cursor: pointer; transition: var(--transition);
-  min-width: 130px; -webkit-appearance: none;
-}
-.filter-group select:focus,
-.filter-group input:focus {
-  border-color: var(--verde-menta);
-  box-shadow: 0 0 0 2px rgba(176,242,174,.1);
-}
-.filter-group select option { background: var(--card-dark); }
-
-.btn-apply {
-  background: var(--verde-menta); color: var(--negro-cib);
-  border: none; border-radius: var(--radius-xs); padding: 10px 22px;
-  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: var(--transition); align-self: flex-end;
-  letter-spacing: .5px;
-}
-.btn-apply:hover { background: var(--verde-lima); box-shadow: var(--glow-lime); }
-.btn-reset {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  border-radius: var(--radius-xs); padding: 10px 18px;
-  font-family: 'Outfit', sans-serif; font-size: 13px; cursor: pointer;
-  transition: var(--transition); align-self: flex-end;
-}
-.btn-reset:hover { border-color: var(--verde-menta); color: var(--verde-menta); }
-
-/* SECTION LABELS */
-.section-label {
-  font-family: 'Syne', sans-serif;
-  font-size: 11px; font-weight: 700; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 2px;
-  margin-bottom: 16px; margin-top: 8px;
-  display: flex; align-items: center; gap: 10px;
-}
-.section-label::after {
-  content: ''; flex: 1; height: 1px;
-  background: linear-gradient(90deg, var(--border) 0%, transparent 100%);
-}
-
-/* KPI GRID */
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 16px; margin-bottom: 28px;
-}
-.kpi-card {
-  background: linear-gradient(145deg, rgba(10,26,18,.95) 0%, rgba(8,20,14,.9) 100%);
-  border: 1px solid rgba(176,242,174,.1);
-  border-radius: var(--radius); padding: 22px 20px;
-  position: relative; overflow: hidden;
-  transition: var(--transition);
-  cursor: default;
-  box-shadow: 0 4px 20px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.03);
-}
-.kpi-card:hover {
-  transform: translateY(-5px);
-  border-color: transparent;
-  box-shadow: var(--shadow-card);
-}
-.kpi-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  transition: var(--transition);
-}
-.kpi-card::after {
-  content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  opacity: 0; transition: opacity .3s ease;
-  border-radius: var(--radius);
-}
-.kpi-card:hover::after { opacity: 1; }
-
-.kpi-card.green::before  { background: linear-gradient(90deg, var(--verde-menta), transparent); }
-.kpi-card.blue::before   { background: linear-gradient(90deg, var(--azul-cielo), transparent); }
-.kpi-card.lime::before   { background: linear-gradient(90deg, var(--verde-lima), transparent); }
-.kpi-card.selva::before  { background: linear-gradient(90deg, var(--verde-selva), transparent); }
-.kpi-card.danger::before { background: linear-gradient(90deg, var(--danger), transparent); }
-.kpi-card.warn::before   { background: linear-gradient(90deg, var(--warning), transparent); }
-
-.kpi-card.green:hover  { border-color: rgba(176,242,174,.3); box-shadow: var(--glow-green), var(--shadow-card); }
-.kpi-card.blue:hover   { border-color: rgba(153,209,252,.3); box-shadow: var(--glow-blue), var(--shadow-card); }
-.kpi-card.lime:hover   { border-color: rgba(223,255,97,.3); box-shadow: var(--glow-lime), var(--shadow-card); }
-.kpi-card.danger:hover { border-color: rgba(255,92,92,.25); box-shadow: 0 0 20px rgba(255,92,92,.12), var(--shadow-card); }
-.kpi-card.warn:hover   { border-color: rgba(255,192,77,.25); box-shadow: 0 0 20px rgba(255,192,77,.12), var(--shadow-card); }
-
-/* KPI VT special card */
-.kpi-card.vt-special {
-  grid-column: span 2;
-  background: linear-gradient(145deg, rgba(10,28,18,.98) 0%, rgba(0,100,70,.12) 100%);
-  border-color: rgba(176,242,174,.2);
-}
-.vt-inner { display: flex; gap: 16px; align-items: center; }
-.vt-stats { flex: 1; }
-.vt-chart-wrap { width: 120px; height: 80px; flex-shrink: 0; }
-
-/* KPI icon badge */
-.kpi-icon {
-  font-size: 18px; margin-bottom: 14px; display: block;
-}
-.kpi-label {
-  font-size: 10px; font-weight: 600; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
-  line-height: 1.3;
-}
-.kpi-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 36px; font-weight: 700;
-  line-height: 1; letter-spacing: -1.5px;
-  animation: countUp .4s cubic-bezier(.34,1.56,.64,1);
-  text-shadow: 0 0 30px currentColor;
-}
-.kpi-value.green  { color: var(--verde-menta); }
-.kpi-value.blue   { color: var(--azul-cielo); }
-.kpi-value.lime   { color: var(--verde-lima); }
-.kpi-value.selva  { color: #00c87a; }
-.kpi-value.danger { color: var(--danger); }
-.kpi-value.warn   { color: var(--warning); }
-.kpi-sub { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
-
-/* PROGRESS */
-.progress-wrap { margin-top: 14px; }
-.progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 10px; color: var(--muted); }
-.progress-track {
-  height: 3px; background: rgba(255,255,255,.06); border-radius: 2px; overflow: hidden;
-}
-.progress-fill {
-  height: 100%; border-radius: 2px;
-  transition: width 1s cubic-bezier(.4,0,.2,1);
-}
-.progress-fill.green  { background: linear-gradient(90deg, var(--verde-selva), var(--verde-menta)); }
-.progress-fill.blue   { background: linear-gradient(90deg, #4da8da, var(--azul-cielo)); }
-.progress-fill.lime   { background: linear-gradient(90deg, #b8d435, var(--verde-lima)); }
-.progress-fill.danger { background: linear-gradient(90deg, #cc2222, var(--danger)); }
-.progress-fill.selva  { background: linear-gradient(90deg, #005a3c, var(--verde-selva)); }
-
-/* CHARTS GRID */
-.charts-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px; margin-bottom: 28px;
-}
-.chart-card {
-  background: linear-gradient(145deg, rgba(8,22,14,.98) 0%, rgba(5,16,10,.9) 100%);
-  border: 1px solid rgba(176,242,174,.1);
-  border-radius: var(--radius); padding: 26px;
-  position: relative; overflow: hidden; transition: var(--transition);
-  box-shadow: 0 4px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(176,242,174,.04);
-}
-.chart-card:hover {
-  border-color: rgba(176,242,174,.25);
-  box-shadow: 0 0 40px rgba(176,242,174,.08), var(--shadow-card);
-  transform: translateY(-2px);
-}
-.chart-card.wide { grid-column: 1 / -1; }
-.chart-card::before {
-  content: ''; position: absolute; top: 0; right: 0;
-  width: 150px; height: 150px;
-  background: radial-gradient(circle, rgba(176,242,174,.05) 0%, transparent 70%);
-  pointer-events: none;
-}
-.chart-header { margin-bottom: 20px; }
-.chart-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 14px; font-weight: 700; color: var(--blanco);
-  letter-spacing: -.2px; margin-bottom: 4px;
-}
-.chart-sub { font-size: 11px; color: var(--muted); }
-.chart-wrap { position: relative; height: 230px; }
-.chart-wrap canvas { width: 100% !important; }
-
-/* ANS ALERTS GRID */
-.alerts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 14px; margin-bottom: 28px;
-}
-.alert-card {
-  background: linear-gradient(145deg, rgba(10,26,18,.95) 0%, rgba(8,20,14,.9) 100%);
-  border: 1px solid rgba(176,242,174,.1);
-  border-radius: var(--radius); padding: 20px 22px;
-  position: relative; overflow: hidden;
-  transition: var(--transition);
-  box-shadow: 0 4px 20px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.03);
-}
-/* Línea de color superior (igual que kpi-card::before) */
-.alert-card::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, var(--danger), transparent);
-  transition: var(--transition);
-}
-.alert-card::after {
-  content: ''; position: absolute; top: 0; right: 0; bottom: 0; left: 0;
-  border-radius: var(--radius);
-  background: radial-gradient(ellipse 80% 60% at 10% 0%, rgba(255,92,92,.05) 0%, transparent 70%);
-  opacity: 0; transition: opacity .3s ease; pointer-events: none;
-}
-.alert-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(255,92,92,.25);
-  box-shadow: 0 0 20px rgba(255,92,92,.1), var(--shadow-card);
-}
-.alert-card:hover::after { opacity: 1; }
-
-.alert-card.warn::before  { background: linear-gradient(90deg, var(--warning), transparent); }
-.alert-card.warn::after   { background: radial-gradient(ellipse 80% 60% at 10% 0%, rgba(255,192,77,.06) 0%, transparent 70%); }
-.alert-card.warn:hover    { border-color: rgba(255,192,77,.3); box-shadow: 0 0 20px rgba(255,192,77,.1), var(--shadow-card); }
-
-.alert-card.info::before  { background: linear-gradient(90deg, var(--azul-cielo), transparent); }
-.alert-card.info::after   { background: radial-gradient(ellipse 80% 60% at 10% 0%, rgba(153,209,252,.06) 0%, transparent 70%); }
-.alert-card.info:hover    { border-color: rgba(153,209,252,.3); box-shadow: var(--glow-blue), var(--shadow-card); }
-
-.alert-card.ok::before    { background: linear-gradient(90deg, var(--verde-menta), transparent); }
-.alert-card.ok::after     { background: radial-gradient(ellipse 80% 60% at 10% 0%, rgba(176,242,174,.06) 0%, transparent 70%); }
-.alert-card.ok:hover      { border-color: rgba(176,242,174,.3); box-shadow: var(--glow-green), var(--shadow-card); }
-
-.alert-label {
-  font-size: 10px; font-weight: 600; color: var(--muted);
-  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
-}
-.alert-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 32px; font-weight: 700; color: var(--danger);
-  line-height: 1; letter-spacing: -1px;
-  animation: countUp .5s cubic-bezier(.34,1.56,.64,1);
-  text-shadow: 0 0 20px currentColor;
-}
-.alert-card.warn .alert-value { color: var(--warning); }
-.alert-card.info .alert-value { color: var(--azul-cielo); }
-.alert-card.ok   .alert-value { color: var(--verde-menta); }
-.alert-sub { font-size: 11px; color: var(--muted); margin-top: 8px; line-height: 1.4; }
-
-/* DATA TABLE */
-.table-section {
-  background: linear-gradient(145deg, rgba(8,22,14,.98) 0%, rgba(5,16,10,.9) 100%);
-  border: 1px solid rgba(176,242,174,.1);
-  border-radius: var(--radius); overflow: hidden; margin-bottom: 28px;
-  transition: var(--transition);
-  box-shadow: 0 4px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(176,242,174,.04);
-  position: relative;
-}
-/* Orbe de fondo difuminado igual que chart-card */
-.table-section::after {
-  content: ''; position: absolute; top: 0; right: 0;
-  width: 200px; height: 200px;
-  background: radial-gradient(circle, rgba(176,242,174,.04) 0%, transparent 70%);
-  pointer-events: none; z-index: 0;
-}
-.table-section > * { position: relative; z-index: 1; }
-.table-section:hover {
-  border-color: rgba(176,242,174,.22);
-  box-shadow: 0 0 40px rgba(176,242,174,.07), var(--shadow-card);
-  transform: translateY(-1px);
-}
-.table-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 20px 24px; border-bottom: 1px solid var(--border);
-  background: rgba(0,0,0,.15);
-}
-.table-header h3 {
-  font-family: 'Syne', sans-serif;
-  font-size: 14px; font-weight: 700; color: var(--blanco); letter-spacing: -.2px;
-}
-.table-actions { display: flex; gap: 10px; }
-.btn-export {
-  background: rgba(0,130,90,.15); color: var(--verde-menta);
-  border: 1px solid rgba(0,130,90,.3);
-  border-radius: var(--radius-xs); padding: 8px 18px;
-  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: var(--transition);
-  display: flex; align-items: center; gap: 6px; letter-spacing: .5px;
-}
-.btn-export:hover {
-  background: rgba(0,130,90,.3); border-color: var(--verde-selva);
-  box-shadow: 0 0 12px rgba(0,130,90,.2);
-}
-.btn-export-pdf {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  border-radius: var(--radius-xs); padding: 8px 16px;
-  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 500;
-  cursor: pointer; transition: var(--transition);
-}
-.btn-export-pdf:hover { border-color: var(--azul-cielo); color: var(--azul-cielo); }
-
-.table-search-wrap { padding: 14px 24px 0; }
-.table-search {
-  width: 300px; background: var(--card-dark); border: 1px solid var(--border);
-  border-radius: var(--radius-xs); padding: 9px 16px; color: var(--blanco);
-  font-family: 'Outfit', sans-serif; font-size: 13px; outline: none;
-  transition: var(--transition);
-}
-.table-search:focus {
-  border-color: var(--verde-menta);
-  box-shadow: 0 0 0 2px rgba(176,242,174,.1);
-}
-
-.table-wrap { overflow-x: auto; max-height: 440px; overflow-y: auto; }
-
-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-thead th {
-  background: var(--card-dark); color: var(--muted);
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px;
-  padding: 11px 16px; text-align: left; white-space: nowrap;
-  position: sticky; top: 0; cursor: pointer; user-select: none;
-  transition: var(--transition); border-bottom: 1px solid var(--border);
-  z-index: 10;
-}
-thead th:hover { color: var(--verde-menta); }
-thead th.sorted { color: var(--verde-menta); }
-.sort-icon { opacity: .4; margin-left: 4px; font-size: 9px; }
-thead th.sorted .sort-icon { opacity: 1; }
-
-tbody tr { border-bottom: 1px solid rgba(54,52,50,.6); transition: background .15s; }
-tbody tr:hover { background: rgba(176,242,174,.04); }
-tbody td { padding: 10px 16px; color: var(--blanco); white-space: nowrap; }
-
-.status-pill {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 11px; border-radius: 20px;
-  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px;
-}
-.status-entregado   { background: rgba(0,130,90,.15);   color: var(--verde-menta); border: 1px solid rgba(0,130,90,.35); }
-.status-entregado::before { content: '●'; font-size: 7px; color: var(--verde-selva); }
-.status-transito    { background: rgba(153,209,252,.12); color: var(--azul-cielo); border: 1px solid rgba(153,209,252,.3); }
-.status-transito::before { content: '●'; font-size: 7px; }
-.status-alistamiento{ background: rgba(223,255,97,.1);   color: var(--verde-lima); border: 1px solid rgba(223,255,97,.3); }
-.status-alistamiento::before { content: '●'; font-size: 7px; }
-.status-devolucion  { background: rgba(255,92,92,.1);    color: var(--danger); border: 1px solid rgba(255,92,92,.3); }
-.status-devolucion::before { content: '●'; font-size: 7px; }
-.status-cancelado   { background: rgba(122,118,116,.1);  color: var(--muted); border: 1px solid var(--border); }
-.status-default     { background: rgba(176,242,174,.05); color: var(--muted); border: 1px solid var(--border); }
-
-.table-footer {
-  padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
-  border-top: 1px solid var(--border); font-size: 12px; color: var(--muted);
-  background: rgba(0,0,0,.1);
-}
-.table-count { font-family: 'JetBrains Mono', monospace; }
-.table-pagination { display: flex; gap: 4px; }
-.page-btn {
-  background: none; border: 1px solid var(--border); color: var(--muted);
-  width: 32px; height: 32px; border-radius: var(--radius-xs);
-  cursor: pointer; font-size: 12px; font-family: 'JetBrains Mono', monospace;
-  transition: var(--transition); display: inline-flex; align-items: center; justify-content: center;
-}
-.page-btn:hover { border-color: var(--verde-menta); color: var(--verde-menta); }
-.page-btn.active { background: var(--verde-menta); color: var(--negro-cib); border-color: var(--verde-menta); font-weight: 700; }
-.page-btn:disabled { opacity: .3; cursor: not-allowed; }
-
-/* DEPT TABLE TOTAL ROW */
-.dept-total td { font-weight: 700; color: var(--verde-menta); border-top: 2px solid var(--border); }
-
-/* Dept table colored value cells */
-.dept-val-principal { color: var(--azul-cielo); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-.dept-val-intermedia { color: var(--verde-menta); font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-.dept-val-lejana     { color: var(--verde-lima);  font-family: 'JetBrains Mono', monospace; font-weight: 600; }
-.dept-val-total      { color: var(--warning);     font-family: 'JetBrains Mono', monospace; font-weight: 700; }
-
-/* Dept table mini bar */
-.dept-bar-cell { display: flex; align-items: center; gap: 8px; }
-.dept-mini-bar { height: 4px; border-radius: 2px; min-width: 4px; transition: width .6s ease; }
-.dept-mini-bar.principal { background: var(--azul-cielo); }
-.dept-mini-bar.intermedia { background: var(--verde-menta); }
-.dept-mini-bar.lejana     { background: var(--verde-lima); }
-
-/* Section accents on Detalle ANS tables */
-.table-section.accent-warn  {
-  border-color: rgba(255,192,77,.25);
-  box-shadow: 0 0 28px rgba(255,192,77,.07), 0 4px 24px rgba(0,0,0,.4);
-}
-.table-section.accent-warn::after {
-  background: radial-gradient(circle, rgba(255,192,77,.05) 0%, transparent 70%);
-}
-.table-section.accent-warn:hover {
-  border-color: rgba(255,192,77,.4);
-  box-shadow: 0 0 40px rgba(255,192,77,.1), var(--shadow-card);
-}
-.table-section.accent-danger {
-  border-color: rgba(255,92,92,.22);
-  box-shadow: 0 0 28px rgba(255,92,92,.07), 0 4px 24px rgba(0,0,0,.4);
-}
-.table-section.accent-danger::after {
-  background: radial-gradient(circle, rgba(255,92,92,.05) 0%, transparent 70%);
-}
-.table-section.accent-danger:hover {
-  border-color: rgba(255,92,92,.38);
-  box-shadow: 0 0 40px rgba(255,92,92,.1), var(--shadow-card);
-}
-.table-section.accent-blue {
-  border-color: rgba(153,209,252,.2);
-  box-shadow: 0 0 28px rgba(153,209,252,.06), 0 4px 24px rgba(0,0,0,.4);
-}
-.table-section.accent-blue::after {
-  background: radial-gradient(circle, rgba(153,209,252,.05) 0%, transparent 70%);
-}
-.table-section.accent-blue:hover {
-  border-color: rgba(153,209,252,.35);
-  box-shadow: var(--glow-blue), var(--shadow-card);
-}
-/* Top accent line */
-.table-section.accent-warn > .table-header,
-.table-section.accent-danger > .table-header,
-.table-section.accent-blue > .table-header {
-  position: relative;
-}
-.table-section.accent-warn > .table-header::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  background: linear-gradient(90deg, var(--warning), transparent);
-}
-.table-section.accent-danger > .table-header::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  background: linear-gradient(90deg, var(--danger), transparent);
-}
-.table-section.accent-blue > .table-header::before {
-  content:''; position:absolute; top:0; left:0; right:0; height:2px;
-  background: linear-gradient(90deg, var(--azul-cielo), transparent);
-}
-
-/* Date range filter group */
-.filter-group--date-range { min-width: 240px; }
-.date-range-inputs {
-  display: flex; align-items: center; gap: 6px;
-}
-.date-range-inputs input[type="date"] {
-  flex: 1; min-width: 0;
-  background: var(--card-dark); border: 1px solid var(--border);
-  border-radius: var(--radius-xs); padding: 8px 10px;
-  color: var(--blanco); font-family: 'Outfit', sans-serif; font-size: 12px;
-  outline: none; transition: var(--transition);
-  color-scheme: dark;
-}
-.date-range-inputs input[type="date"]:focus {
-  border-color: var(--verde-menta);
-  box-shadow: 0 0 0 2px rgba(176,242,174,.1);
-}
-.date-range-sep {
-  color: var(--muted); font-size: 12px; flex-shrink: 0; opacity: .7;
-}
-
-/* RISK TABLE */
-.risk-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: var(--radius-xs);
-}
-.risk-24 { background: rgba(255,92,92,.15); color: var(--danger); border: 1px solid rgba(255,92,92,.3); }
-.risk-48 { background: rgba(255,192,77,.12); color: var(--warning); border: 1px solid rgba(255,192,77,.3); }
-
-/* LOADING */
-.loading {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  padding: 60px; color: var(--muted); font-size: 13px;
-}
-.spinner {
-  width: 20px; height: 20px; border-radius: 50%;
-  border: 2px solid var(--border); border-top-color: var(--verde-menta);
-  animation: spin 1s linear infinite;
-}
-.empty-state {
-  padding: 60px; text-align: center; color: var(--muted);
-}
-.empty-state .icon { font-size: 36px; margin-bottom: 12px; }
-.empty-state p { font-size: 14px; }
-
-/* FOOTER */
-.footer {
-  border-top: 1px solid rgba(176,242,174,.1);
-  padding: 20px 32px;
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: 11px; color: var(--muted);
-  background: rgba(14,13,12,.95);
-  box-shadow: 0 -4px 20px rgba(0,0,0,.3);
-}
-.footer-logos { display: flex; align-items: center; gap: 12px; }
-.footer-logo-wompi { height: 20px; object-fit: contain; opacity: .6; border-radius: 5px; }
-.footer-logo-linea { height: 14px; object-fit: contain; opacity: .5; }
-
-/* HIGHLIGHT BADGE for critical KPIs */
-.kpi-alert-badge {
-  position: absolute; top: 12px; right: 12px;
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--danger);
-  animation: pulseGlow 2s ease-in-out infinite;
-}
-
-/* Drill-down hint shown on hover */
-.kpi-drill-hint {
-  position: absolute; top: 10px; right: 14px;
-  font-size: 9px; font-weight: 700; letter-spacing: .5px;
-  color: var(--muted); text-transform: uppercase;
-  opacity: 0; transition: opacity .25s ease;
-  pointer-events: none; z-index: 2;
-}
-.kpi-card:hover .kpi-drill-hint,
-.alert-card:hover .kpi-drill-hint { opacity: 1; color: var(--verde-menta); }
-
-/* Stalled days badge */
-.days-stalled {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px; font-weight: 600;
-  padding: 3px 10px; border-radius: var(--radius-xs);
-}
-.days-stalled.crit { background: rgba(255,92,92,.15); color: var(--danger); border: 1px solid rgba(255,92,92,.25); }
-.days-stalled.warn { background: rgba(255,192,77,.12); color: var(--warning); border: 1px solid rgba(255,192,77,.25); }
-.days-stalled.ok   { background: rgba(176,242,174,.08); color: var(--verde-menta); border: 1px solid rgba(176,242,174,.2); }
-
-/* @print */
-@media print {
-  #login-screen, .topbar, .tabs, .filters-bar, .table-pagination, .btn-export, .btn-logout { display: none !important; }
-  body { background: #fff; color: #000; }
-}
-
-/* ═══ ENHANCED VISUAL POLISH ═══════════════════════════════════════════ */
-
-/* Noise texture overlay on body */
-body::before {
-  content: '';
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  opacity: .025;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-}
-
-/* Glowing separator in topbar */
-.topbar-sep {
-  width: 1px; height: 28px;
-  background: linear-gradient(180deg, transparent 0%, rgba(176,242,174,.4) 50%, transparent 100%);
-}
-
-/* Enhanced section labels */
-.section-label {
-  font-family: 'Syne', sans-serif;
-  font-size: 11px; font-weight: 700; color: rgba(176,242,174,.7);
-  text-transform: uppercase; letter-spacing: 2.5px;
-  margin-bottom: 18px; margin-top: 8px;
-  display: flex; align-items: center; gap: 12px;
-}
-.section-label::before {
-  content: '';
-  width: 3px; height: 14px;
-  background: linear-gradient(180deg, var(--verde-menta), var(--azul-cielo));
-  border-radius: 2px; flex-shrink: 0;
-  box-shadow: 0 0 8px rgba(176,242,174,.5);
-}
-.section-label::after {
-  content: ''; flex: 1; height: 1px;
-  background: linear-gradient(90deg, rgba(176,242,174,.2) 0%, transparent 100%);
-}
-
-/* Hover glow on table rows */
-tbody tr:hover {
-  background: rgba(176,242,174,.05) !important;
-  box-shadow: inset 3px 0 0 rgba(176,242,174,.4);
-}
-
-/* Enhanced btn-apply with gradient */
-.btn-apply {
-  background: linear-gradient(135deg, var(--verde-menta) 0%, #90E4A0 100%) !important;
-  color: var(--negro-cib) !important;
-  border: none; border-radius: var(--radius-xs); padding: 10px 22px;
-  font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
-  cursor: pointer; transition: var(--transition); align-self: flex-end;
-  letter-spacing: .5px;
-  box-shadow: 0 4px 14px rgba(176,242,174,.25);
-}
-.btn-apply:hover {
-  background: linear-gradient(135deg, var(--verde-lima) 0%, #c8ff80 100%) !important;
-  box-shadow: 0 6px 20px rgba(223,255,97,.35) !important;
-  transform: translateY(-1px);
-}
-
-/* Enhanced btn-login */
-.btn-login {
-  width: 100%; padding: 16px;
-  background: linear-gradient(135deg, var(--verde-menta) 0%, #90E4A0 100%);
-  color: var(--negro-cib);
-  border: none; border-radius: var(--radius-sm);
-  font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
-  cursor: pointer; transition: var(--transition);
-  letter-spacing: .5px; position: relative; overflow: hidden;
-  box-shadow: 0 4px 20px rgba(176,242,174,.3);
-}
-.btn-login:hover {
-  background: linear-gradient(135deg, #c8ffba 0%, var(--verde-menta) 100%);
-  box-shadow: 0 8px 30px rgba(176,242,174,.45);
-  transform: translateY(-1px);
-}
-
-/* Custom scrollbar - enhanced */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: rgba(0,0,0,.2); }
-::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(176,242,174,.4), rgba(153,209,252,.4));
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, var(--verde-menta), var(--azul-cielo));
-}
-
-/* KPI card accent glow on ::after pseudo */
-.kpi-card.green:hover::after { background: radial-gradient(ellipse at 50% 100%, rgba(176,242,174,.06) 0%, transparent 70%); }
-.kpi-card.blue:hover::after  { background: radial-gradient(ellipse at 50% 100%, rgba(153,209,252,.06) 0%, transparent 70%); }
-.kpi-card.lime:hover::after  { background: radial-gradient(ellipse at 50% 100%, rgba(223,255,97,.05) 0%, transparent 70%); }
-
-/* Tab active glow */
-.tab.active { color: var(--verde-menta); border-bottom-color: var(--verde-menta); text-shadow: 0 0 20px rgba(176,242,174,.4); }
-
-/* Alert card enhanced */
-.alert-card {
-  background: linear-gradient(135deg, var(--surface) 0%, rgba(22,20,19,.9) 100%);
-  border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 20px 22px;
-  border-left: 3px solid var(--danger);
-  transition: var(--transition); position: relative; overflow: hidden;
-  box-shadow: 0 2px 12px rgba(0,0,0,.3);
-}
-
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .charts-grid { grid-template-columns: 1fr; }
-  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
-  .topbar { padding: 0 16px; }
-  .main { padding: 16px; }
-}
-
-/* ═══ DATA LOADING OVERLAY ═══════════════════════════════════════════ */
-#data-loading-overlay {
-  position: fixed; inset: 0; z-index: 9000;
-  background: var(--negro-abs);
-  display: flex; align-items: center; justify-content: center;
-  flex-direction: column; gap: 24px;
-  transition: opacity .6s ease, visibility .6s;
-}
-#data-loading-overlay.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
-#data-loading-overlay::before {
-  content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(176,242,174,.10) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 40% at 80% 70%, rgba(153,209,252,.08) 0%, transparent 60%);
-  pointer-events: none;
-}
-.dl-logo-row { display: flex; align-items: center; gap: 16px; position: relative; }
-.dl-logo-row img { height: 36px; object-fit: contain; border-radius: 8px; }
-.dl-sep { width: 1px; height: 30px; background: var(--border); }
-.dl-title {
-  font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700;
-  color: var(--blanco); position: relative; letter-spacing: -.3px;
-}
-.dl-spinner-row { display: flex; align-items: center; gap: 16px; position: relative; }
-.dl-spinner {
-  width: 40px; height: 40px;
-  border: 3px solid rgba(176,242,174,.15);
-  border-top-color: var(--verde-menta);
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-.dl-msg {
-  font-size: 14px; color: var(--muted); position: relative;
-  font-family: 'JetBrains Mono', monospace;
-}
-.dl-progress {
-  width: 280px; height: 3px; background: rgba(255,255,255,.06);
-  border-radius: 2px; overflow: hidden; position: relative;
-}
-.dl-progress-fill {
-  height: 100%; border-radius: 2px; width: 0%;
-  background: linear-gradient(90deg, var(--verde-selva), var(--verde-menta));
-  transition: width .4s ease;
-}
-.dl-items {
-  display: flex; gap: 24px; position: relative;
-}
-.dl-item {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 12px; font-family: 'JetBrains Mono', monospace;
-}
-/* Clip wrapper prevents any box-shadow from leaking outside */
-.dl-item-dot-wrap {
-  width: 8px; height: 8px; border-radius: 50%;
-  overflow: hidden; flex-shrink: 0; position: relative;
-}
-.dl-item-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: rgba(255,255,255,.15);
-  box-shadow: none !important;
-  animation: none !important;
-  transition: background .3s;
-}
-.dl-item-dot.loading {
-  background: var(--warning) !important;
-  box-shadow: none !important;
-  animation: dotPulse 1s ease-in-out infinite !important;
-}
-.dl-item-dot.done {
-  background: var(--verde-menta) !important;
-  box-shadow: none !important;
-  animation: none !important;
-}
-.dl-item-dot.error {
-  background: var(--danger) !important;
-  box-shadow: none !important;
-  animation: none !important;
-}
-@keyframes dotPulse {
-  0%,100% { opacity: 1; transform: scale(1); }
-  50%      { opacity: .45; transform: scale(.7); }
-}
-.dl-item-text { color: var(--muted); }
-
-/* ═══ SIDEBAR + APP LAYOUT ══════════════════════════════════════════ */
-.app-body {
-  display: flex; min-height: calc(100vh - 68px);
-}
-
-/* SIDEBAR */
-.sidebar {
-  width: 240px; flex-shrink: 0;
-  background: rgba(5,12,8,.98);
-  border-right: 1px solid rgba(176,242,174,.1);
-  padding: 12px 0 24px;
-  display: flex; flex-direction: column; gap: 0;
-  position: sticky; top: 68px;
-  height: calc(100vh - 68px);
-  overflow-y: auto; overflow-x: hidden;
-  backdrop-filter: blur(12px);
-  box-shadow: 4px 0 24px rgba(0,0,0,.3);
-  z-index: 50;
-  transition: width .28s cubic-bezier(.4,0,.2,1);
-}
-.sidebar.collapsed {
-  width: 52px;
-}
-.sidebar::after {
-  content: '';
-  position: absolute; top: 0; right: 0; width: 1px; height: 100%;
-  background: linear-gradient(180deg, transparent 0%, rgba(176,242,174,.2) 30%, rgba(153,209,252,.15) 70%, transparent 100%);
-  pointer-events: none;
-}
-
-/* Toggle button */
-.sidebar-toggle {
-  display: flex; align-items: center; justify-content: flex-end;
-  padding: 6px 12px 10px;
-  border-bottom: 1px solid rgba(176,242,174,.06);
-  margin-bottom: 8px;
-}
-.sidebar-toggle-btn {
-  width: 28px; height: 28px; border-radius: 7px;
-  background: rgba(176,242,174,.06); border: 1px solid rgba(176,242,174,.12);
-  color: var(--verde-menta); cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; transition: var(--transition); flex-shrink: 0;
-}
-.sidebar-toggle-btn:hover { background: rgba(176,242,174,.14); }
-.sidebar-toggle-btn .toggle-icon { transition: transform .28s ease; display: block; }
-.sidebar.collapsed .sidebar-toggle-btn .toggle-icon { transform: rotate(180deg); }
-.sidebar.collapsed .sidebar-toggle { justify-content: center; }
-
-/* Hide text labels when collapsed */
-.sidebar.collapsed .sidebar-section-label,
-.sidebar.collapsed .sidebar-board-name,
-.sidebar.collapsed .sidebar-tabs,
-.sidebar.collapsed .sidebar-divider {
-  opacity: 0; visibility: hidden; width: 0; height: 0; overflow: hidden; padding: 0; margin: 0;
-}
-.sidebar.collapsed .sidebar-board-btn {
-  justify-content: center; padding: 12px 0;
-}
-.sidebar.collapsed .sidebar-board-icon { margin: 0; }
-
-.sidebar-section-label {
-  font-size: 9px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 2px; color: rgba(176,242,174,.5);
-  padding: 0 20px 10px;
-  border-bottom: 1px solid rgba(176,242,174,.06);
-  margin-bottom: 8px;
-  white-space: nowrap; overflow: hidden;
-  transition: opacity .2s, visibility .2s;
-}
-.sidebar-board-btn {
-  display: flex; align-items: center; gap: 10px;
-  padding: 12px 20px; cursor: pointer;
-  color: var(--muted); font-size: 12px; font-weight: 600;
-  transition: var(--transition);
-  border-left: 3px solid transparent;
-  position: relative; white-space: nowrap;
-}
-.sidebar-board-btn:hover {
-  color: var(--blanco); background: rgba(176,242,174,.04);
-}
-.sidebar-board-btn.active {
-  color: var(--verde-menta);
-  background: rgba(176,242,174,.06);
-  border-left-color: var(--verde-menta);
-}
-.sidebar-board-icon { font-size: 16px; flex-shrink: 0; }
-.sidebar-board-name { line-height: 1.3; font-size: 11px; flex: 1; transition: opacity .2s; }
-
-/* Chevron on board buttons */
-.sidebar-board-chevron {
-  font-size: 10px; opacity: .5; transition: transform .2s ease, opacity .2s;
-  flex-shrink: 0;
-}
-.sidebar-board-section.open .sidebar-board-chevron { transform: rotate(90deg); opacity: .8; }
-
-.sidebar-divider {
-  height: 1px; background: rgba(176,242,174,.06);
-  margin: 12px 20px;
-  transition: opacity .2s, visibility .2s;
-}
-
-/* Sub-tabs inside sidebar — collapsed by default, open when board is .open */
-.sidebar-tabs {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 0; max-height: 0; overflow: hidden;
-  transition: max-height .25s cubic-bezier(.4,0,.2,1), padding .2s;
-}
-.sidebar-board-section.open .sidebar-tabs {
-  max-height: 200px;
-  padding: 4px 0 12px 0;
-}
-.sidebar-tab {
-  display: flex; align-items: center; gap: 9px;
-  padding: 9px 20px 9px 32px; cursor: pointer;
-  color: var(--muted); font-size: 11.5px; font-weight: 500;
-  transition: var(--transition);
-  border-left: 2px solid transparent;
-  position: relative; white-space: nowrap;
-}
-.sidebar-tab:hover {
-  color: var(--blanco); background: rgba(176,242,174,.03);
-}
-.sidebar-tab.active {
-  color: var(--verde-menta);
-  background: rgba(176,242,174,.05);
-  border-left-color: var(--verde-menta);
-}
-.sidebar-tab-icon { font-size: 13px; }
-.sidebar-board-section { overflow: hidden; }
-
-/* CONTENT AREA */
-.content-area {
-  flex: 1; min-width: 0;
-  overflow-x: hidden;
-  transition: none;
-}
-.content-area .main {
-  padding: 28px 32px;
-}
-
-/* Remove old tabs bar since we're using sidebar */
-.tabs { display: none !important; }
-
-/* ═══ ROLLOS KPI CARDS ENHANCED ═══════════════════════════════════════ */
-.rkpi-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 22px;
-  position: relative;
-  overflow: hidden;
-  transition: var(--transition);
-  box-shadow: var(--shadow-card);
-  cursor: default;
-}
-.rkpi-card::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  border-radius: var(--radius) var(--radius) 0 0;
-}
-.rkpi-card::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 80% 60% at 50% 110%, rgba(176,242,174,.03) 0%, transparent 70%);
-  pointer-events: none;
-}
-.rkpi-card:hover { border-color: rgba(176,242,174,.3); transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,0,0,.6), var(--glow-green); }
-.rkpi-card.green::before { background: linear-gradient(90deg, var(--verde-menta), var(--verde-selva)); }
-.rkpi-card.blue::before  { background: linear-gradient(90deg, var(--azul-cielo), #5b9fd4); }
-.rkpi-card.lime::before  { background: linear-gradient(90deg, var(--verde-lima), #a8d43b); }
-.rkpi-card.danger::before{ background: linear-gradient(90deg, var(--danger), #c04040); }
-.rkpi-card.warn::before  { background: linear-gradient(90deg, var(--warning), #d4941d); }
-.rkpi-card.purple::before{ background: linear-gradient(90deg, #b78af7, #8b5cf6); }
-.rkpi-card.selva::before { background: linear-gradient(90deg, var(--verde-selva), #005c40); }
-
-.rkpi-icon { font-size: 22px; margin-bottom: 8px; display: block; }
-.rkpi-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 6px; }
-.rkpi-value { font-family: 'JetBrains Mono', monospace; font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
-.rkpi-sub   { font-size: 11px; color: var(--muted); }
-.rkpi-pct-row { display: flex; align-items: center; gap: 6px; margin-top: 10px; }
-.rkpi-pct-bar { flex: 1; height: 4px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
-.rkpi-pct-fill { height: 100%; border-radius: 2px; transition: width .8s cubic-bezier(.4,0,.2,1); }
-.rkpi-pct-fill.green  { background: linear-gradient(90deg, var(--verde-menta), var(--verde-selva)); }
-.rkpi-pct-fill.blue   { background: linear-gradient(90deg, var(--azul-cielo), #5b9fd4); }
-.rkpi-pct-fill.lime   { background: linear-gradient(90deg, var(--verde-lima), #a8d43b); }
-.rkpi-pct-fill.danger { background: linear-gradient(90deg, var(--danger), #c04040); }
-.rkpi-pct-fill.warn   { background: linear-gradient(90deg, var(--warning), #d4941d); }
-.rkpi-pct-fill.purple { background: linear-gradient(90deg, #b78af7, #8b5cf6); }
-.rkpi-pct-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; min-width: 36px; text-align: right; }
-
-/* ANS Big Cards */
-.ans-big-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 28px;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center; position: relative; overflow: hidden;
-  transition: var(--transition);
-  box-shadow: var(--shadow-card);
-}
-.ans-big-card:hover { transform: translateY(-2px); }
-.ans-big-donut { width: 120px; height: 120px; margin: 0 auto 16px; }
-.ans-big-pct { font-family: 'JetBrains Mono', monospace; font-size: 42px; font-weight: 700; line-height: 1; }
-.ans-big-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-top: 6px; margin-bottom: 12px; }
-.ans-detail-row { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
-.ans-detail-item { text-align: center; }
-.ans-detail-val { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; }
-.ans-detail-lbl { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
-</style>
+<link rel="stylesheet" href="dashboard.css">
 </head>
 <body>
 
-<!-- ════════════════════ DATA LOADING OVERLAY ════════════════════ -->
+<!-- ════ DATA LOADING OVERLAY ════ -->
 <div id="data-loading-overlay">
   <div class="dl-logo-row">
     <img src="logo_wompi.png" alt="Wompi" style="border-radius:10px;">
@@ -1377,7 +36,7 @@ tbody tr:hover {
   </div>
 </div>
 
-<!-- ════════════════════ LOGIN ════════════════════ -->
+<!-- ════ LOGIN ════ -->
 <div id="login-screen">
   <div class="login-orb login-orb-1"></div>
   <div class="login-orb login-orb-2"></div>
@@ -1407,12 +66,12 @@ tbody tr:hover {
   </div>
 </div>
 
-<!-- ════════════════════ APP ════════════════════ -->
+<!-- ════ APP ════ -->
 <div id="app">
   <!-- TOPBAR -->
   <div class="topbar">
     <div class="topbar-left">
-      <img src="logo_wompi.png" alt="Wompi" class="topbar-logo-wompi" style="filter: drop-shadow(0 0 8px rgba(176,242,174,.2));">
+      <img src="logo_wompi.png" alt="Wompi" class="topbar-logo-wompi" style="filter:drop-shadow(0 0 8px rgba(176,242,174,.2));">
       <div class="topbar-sep"></div>
       <img src="logo_linea.png" alt="Linea" class="topbar-logo-linea">
       <div class="topbar-label" id="topbar-board-label">Tracking VP · Venta Presente</div>
@@ -1424,29 +83,27 @@ tbody tr:hover {
     </div>
   </div>
 
-  <!-- TABS (kept for JS compatibility, hidden by CSS) -->
+  <!-- TABS (hidden, JS compat) -->
   <div class="tabs">
     <div class="tab active" onclick="showTab('tracking')" id="tab-tracking">📊 Tracking General</div>
-    <div class="tab" onclick="showTab('detalle')" id="tab-detalle">🎯 Tracking Detalle</div>
-    <div class="tab" onclick="showTab('tabla')" id="tab-tabla">📋 Tabla Completa</div>
-    <div class="tab" onclick="showTab('rollos')" id="tab-rollos">🎞️ Rollos Wompi</div>
+    <div class="tab" onclick="showTab('detalle')"  id="tab-detalle">🎯 Tracking Detalle</div>
+    <div class="tab" onclick="showTab('tabla')"    id="tab-tabla">📋 Tabla Completa</div>
+    <div class="tab" onclick="showTab('rollos')"   id="tab-rollos">🎞️ Rollos Wompi</div>
   </div>
 
-  <!-- APP BODY: SIDEBAR + CONTENT -->
+  <!-- APP BODY -->
   <div class="app-body">
 
     <!-- ══ SIDEBAR ══ -->
     <div class="sidebar" id="sidebar">
-      <!-- Toggle button -->
       <div class="sidebar-toggle">
         <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Colapsar sidebar">
           <span class="toggle-icon">◀</span>
         </button>
       </div>
-
       <div class="sidebar-section-label">Seleccione tablero</div>
 
-      <!-- Board 1: Tracking Datafonos -->
+      <!-- Board: Datafonos -->
       <div class="sidebar-board-section" id="sb-board-datafonos">
         <div class="sidebar-board-btn" id="sb-btn-datafonos" onclick="selectBoard('datafonos')">
           <span class="sidebar-board-icon">📊</span>
@@ -1454,24 +111,16 @@ tbody tr:hover {
           <span class="sidebar-board-chevron">▶</span>
         </div>
         <div class="sidebar-tabs">
-          <div class="sidebar-tab" id="sb-tab-tracking" onclick="selectBoardTab('datafonos','tracking')">
-            <span class="sidebar-tab-icon">📈</span> Tracking General
-          </div>
-          <div class="sidebar-tab" id="sb-tab-detalle" onclick="selectBoardTab('datafonos','detalle')">
-            <span class="sidebar-tab-icon">🎯</span> Tracking Detalle
-          </div>
-          <div class="sidebar-tab" id="sb-tab-tabla" onclick="selectBoardTab('datafonos','tabla')">
-            <span class="sidebar-tab-icon">📋</span> Tabla Completa
-          </div>
-          <div class="sidebar-tab" id="sb-tab-incumplimientos" onclick="selectBoardTab('datafonos','incumplimientos')">
-            <span class="sidebar-tab-icon">📛</span> Incumplimientos ANS
-          </div>
+          <div class="sidebar-tab" id="sb-tab-tracking"       onclick="selectBoardTab('datafonos','tracking')"><span class="sidebar-tab-icon">📈</span> Tracking General</div>
+          <div class="sidebar-tab" id="sb-tab-detalle"        onclick="selectBoardTab('datafonos','detalle')"><span class="sidebar-tab-icon">🎯</span> Tracking Detalle</div>
+          <div class="sidebar-tab" id="sb-tab-tabla"          onclick="selectBoardTab('datafonos','tabla')"><span class="sidebar-tab-icon">📋</span> Tabla Completa</div>
+          <div class="sidebar-tab" id="sb-tab-incumplimientos" onclick="selectBoardTab('datafonos','incumplimientos')"><span class="sidebar-tab-icon">📛</span> Incumplimientos ANS</div>
         </div>
       </div>
 
       <div class="sidebar-divider"></div>
 
-      <!-- Board 2: Tracking Rollos -->
+      <!-- Board: Rollos -->
       <div class="sidebar-board-section" id="sb-board-rollos">
         <div class="sidebar-board-btn" id="sb-btn-rollos" onclick="selectBoard('rollos')">
           <span class="sidebar-board-icon">🎞️</span>
@@ -1479,15 +128,9 @@ tbody tr:hover {
           <span class="sidebar-board-chevron">▶</span>
         </div>
         <div class="sidebar-tabs">
-          <div class="sidebar-tab" id="sb-tab-rollos-main" onclick="selectBoardTab('rollos','rollos-main')">
-            <span class="sidebar-tab-icon">📊</span> Rollos Wompi
-          </div>
-          <div class="sidebar-tab" id="sb-tab-rollos-detalle" onclick="selectBoardTab('rollos','rollos-detalle')">
-            <span class="sidebar-tab-icon">📋</span> Tabla Detalles de Tareas
-          </div>
-          <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')">
-            <span class="sidebar-tab-icon">🏪</span> Tabla Detalle por Comercio
-          </div>
+          <div class="sidebar-tab" id="sb-tab-rollos-main"     onclick="selectBoardTab('rollos','rollos-main')"><span class="sidebar-tab-icon">📊</span> Rollos Wompi</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-detalle"  onclick="selectBoardTab('rollos','rollos-detalle')"><span class="sidebar-tab-icon">📋</span> Tabla Detalles de Tareas</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')"><span class="sidebar-tab-icon">🏪</span> Tabla Detalle por Comercio</div>
         </div>
       </div>
     </div>
@@ -1496,574 +139,369 @@ tbody tr:hover {
     <div class="content-area">
       <div class="main">
 
-    <!-- ══ PANEL: BIENVENIDA (menú principal) ══ -->
-    <div id="panel-home" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:32px;padding:48px 32px;">
-      <div style="text-align:center;">
-        <div style="font-size:48px;margin-bottom:16px;">📊</div>
-        <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--blanco);letter-spacing:-.5px;margin-bottom:8px;">Dashboard Tracking VP</div>
-        <div style="font-size:14px;color:var(--muted);max-width:380px;line-height:1.7;">Selecciona un tablero en el panel lateral izquierdo para comenzar a explorar los datos.</div>
-      </div>
-      <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
-        <div onclick="selectBoard('datafonos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(10,28,18,.98),rgba(0,100,70,.10));border:1px solid rgba(176,242,174,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(176,242,174,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(176,242,174,.2)';this.style.transform='translateY(0)'">
-          <div style="font-size:32px;margin-bottom:12px;">📱</div>
-          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--verde-menta);letter-spacing:.5px;margin-bottom:6px;">TRACKING DATAFONOS VP</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, ANS, estado de envíos y tabla completa de datafonos</div>
-        </div>
-        <div onclick="selectBoard('rollos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(8,18,28,.98),rgba(0,70,110,.10));border:1px solid rgba(153,209,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(153,209,252,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(153,209,252,.2)';this.style.transform='translateY(0)'">
-          <div style="font-size:32px;margin-bottom:12px;">🎞️</div>
-          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--azul-cielo);letter-spacing:.5px;margin-bottom:6px;">TRACKING ROLLOS TRIM Y VP</div>
-          <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, distribución, tendencias y detalle de rollos Wompi</div>
-        </div>
-      </div>
-    </div>
-
-
-    <div id="panel-tracking" style="display:none">
-      <div class="filters-bar">
-        <div class="filters-title">Filtros de búsqueda</div>
-        <div class="filters-row">
-          <div class="filter-group">
-            <label>Estado Datafono</label>
-            <select id="f-estado"><option value="">Todos</option></select>
+        <!-- PANEL: HOME -->
+        <div id="panel-home" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:32px;padding:48px 32px;">
+          <div style="text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">📊</div>
+            <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--blanco);letter-spacing:-.5px;margin-bottom:8px;">Dashboard Tracking VP</div>
+            <div style="font-size:14px;color:var(--muted);max-width:380px;line-height:1.7;">Selecciona un tablero en el panel lateral izquierdo para comenzar a explorar los datos.</div>
           </div>
-          <div class="filter-group">
-            <label>Tipo Envío</label>
-            <select id="f-tipo-envio"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Material / Datafono</label>
-            <select id="f-material"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Departamento</label>
-            <select id="f-departamento"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Ciudad</label>
-            <select id="f-ciudad"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Transportadora</label>
-            <select id="f-transportadora"><option value="">Todas</option></select>
-          </div>
-        </div>
-        <div class="filters-row">
-          <div class="filter-group">
-            <label>Nro. Guía</label>
-            <input type="text" id="f-guia" placeholder="Número de guía...">
-          </div>
-          <div class="filter-group">
-            <label>ID Sitio / Merchant</label>
-            <input type="text" id="f-idsitio" placeholder="ID Sitio...">
-          </div>
-          <div class="filter-group">
-            <label>Mes Solicitud</label>
-            <select id="f-mes"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group filter-group--date-range">
-            <label>📅 Fecha Solicitud</label>
-            <div class="date-range-inputs">
-              <input type="date" id="f-fecha-desde" title="Desde">
-              <span class="date-range-sep">→</span>
-              <input type="date" id="f-fecha-hasta" title="Hasta">
+          <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+            <div onclick="selectBoard('datafonos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(10,28,18,.98),rgba(0,100,70,.10));border:1px solid rgba(176,242,174,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(176,242,174,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(176,242,174,.2)';this.style.transform='translateY(0)'">
+              <div style="font-size:32px;margin-bottom:12px;">📱</div>
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--verde-menta);letter-spacing:.5px;margin-bottom:6px;">TRACKING DATAFONOS VP</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, ANS, estado de envíos y tabla completa de datafonos</div>
+            </div>
+            <div onclick="selectBoard('rollos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(8,18,28,.98),rgba(0,70,110,.10));border:1px solid rgba(153,209,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(153,209,252,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(153,209,252,.2)';this.style.transform='translateY(0)'">
+              <div style="font-size:32px;margin-bottom:12px;">🎞️</div>
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--azul-cielo);letter-spacing:.5px;margin-bottom:6px;">TRACKING ROLLOS TRIM Y VP</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, distribución, tendencias y detalle de rollos Wompi</div>
             </div>
           </div>
-          <div class="filter-group filter-group--date-range">
-            <label>⏰ Fecha Límite Entrega</label>
-            <div class="date-range-inputs">
-              <input type="date" id="f-limite-desde" title="Desde">
-              <span class="date-range-sep">→</span>
-              <input type="date" id="f-limite-hasta" title="Hasta">
+        </div>
+
+        <!-- PANEL: TRACKING GENERAL -->
+        <div id="panel-tracking" style="display:none">
+          <div class="filters-bar">
+            <div class="filters-title">Filtros de búsqueda</div>
+            <div class="filters-row">
+              <div class="filter-group"><label>Estado Datafono</label><select id="f-estado"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Tipo Envío</label><select id="f-tipo-envio"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Material / Datafono</label><select id="f-material"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Departamento</label><select id="f-departamento"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Ciudad</label><select id="f-ciudad"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Transportadora</label><select id="f-transportadora"><option value="">Todas</option></select></div>
+            </div>
+            <div class="filters-row">
+              <div class="filter-group"><label>Nro. Guía</label><input type="text" id="f-guia" placeholder="Número de guía..."></div>
+              <div class="filter-group"><label>ID Sitio / Merchant</label><input type="text" id="f-idsitio" placeholder="ID Sitio..."></div>
+              <div class="filter-group"><label>Mes Solicitud</label><select id="f-mes"><option value="">Todos</option></select></div>
+              <div class="filter-group filter-group--date-range">
+                <label>📅 Fecha Solicitud</label>
+                <div class="date-range-inputs">
+                  <input type="date" id="f-fecha-desde"><span class="date-range-sep">→</span><input type="date" id="f-fecha-hasta">
+                </div>
+              </div>
+              <div class="filter-group filter-group--date-range">
+                <label>⏰ Fecha Límite Entrega</label>
+                <div class="date-range-inputs">
+                  <input type="date" id="f-limite-desde"><span class="date-range-sep">→</span><input type="date" id="f-limite-hasta">
+                </div>
+              </div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="applyFilters()">✦ Aplicar filtros</button>
+                <button class="btn-reset" onclick="resetFilters()">↺ Reset</button>
+              </div>
             </div>
           </div>
-          <div class="filters-actions">
-            <button class="btn-apply" onclick="applyFilters()">✦ Aplicar filtros</button>
-            <button class="btn-reset" onclick="resetFilters()">↺ Reset</button>
-          </div>
-        </div>
-      </div>
 
-      <div class="section-label fade-up fade-up-1">KPIs Principales</div>
-      <div class="kpi-grid fade-up fade-up-2" id="kpi-grid">
-        <div class="loading"><div class="spinner"></div><span>Cargando datos...</span></div>
-      </div>
+          <div class="section-label fade-up fade-up-1">KPIs Principales</div>
+          <div class="kpi-grid fade-up fade-up-2" id="kpi-grid">
+            <div class="loading"><div class="spinner"></div><span>Cargando datos...</span></div>
+          </div>
 
-      <div class="charts-grid" id="charts-general">
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Estado de Envíos</div>
-            <div class="chart-sub">Distribución por estado actual</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chart-estados"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Cumplimiento ANS</div>
-            <div class="chart-sub">% Oportunidad vs % Calidad</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chart-ans"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Solicitudes por Día</div>
-            <div class="chart-sub">Tendencia diaria de solicitudes</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Visita Técnica vs Operador Logístico</div>
-            <div class="chart-sub">Total vs Entregado por tipo</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chart-tipos"></canvas></div>
-        </div>
-        <div class="chart-card wide">
-          <div class="chart-header">
-            <div class="chart-title">Distribución por Departamento</div>
-            <div class="chart-sub">Top departamentos · Tipología Principal / Intermedia / Lejana</div>
-          </div>
-          <div class="chart-wrap" style="height:280px"><canvas id="chart-dept"></canvas></div>
-        </div>
-      </div>
-
-      <div class="section-label">Detalle por Departamento / Tipología</div>
-      <div class="table-section">
-        <div class="table-header">
-          <h3>Tabla Departamentos</h3>
-          <div class="table-actions">
-            <button class="btn-export" onclick="exportDeptExcel()">⬇ Excel</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Departamento</th>
-                <th style="color:var(--azul-cielo)">Principal</th>
-                <th style="color:var(--verde-menta)">Intermedia</th>
-                <th style="color:var(--verde-lima)">Lejana</th>
-                <th style="color:var(--warning)">Total</th>
-              </tr>
-            </thead>
-            <tbody id="dept-tbody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ TAB: DETALLE ANS ══ -->
-    <div id="panel-detalle" style="display:none">
-      <div class="section-label">KPIs de Alerta ANS</div>
-      <div class="alerts-grid" id="ans-alerts-grid"></div>
-
-      <div class="section-label">Backlog por Vencer</div>
-      <div class="filters-bar" style="margin-bottom:16px;padding:14px 20px">
-        <div class="filter-group">
-          <label>Ventana de riesgo</label>
-          <select id="f-backlog-window">
-            <option value="24">Próximas 24h</option>
-            <option value="48">Próximas 48h</option>
-          </select>
-        </div>
-        <button class="btn-apply" onclick="renderBacklog()">Aplicar</button>
-      </div>
-      <div class="table-section accent-warn">
-        <div class="table-header">
-          <h3>Solicitudes en Riesgo ANS</h3>
-          <div class="table-actions">
-            <button class="btn-export" onclick="exportBacklogExcel()">⬇ Excel</button>
-          </div>
-        </div>
-        <div class="table-wrap" id="backlog-wrap">
-          <div class="empty-state"><div class="icon">✅</div><p>Sin registros en riesgo</p></div>
-        </div>
-      </div>
-
-      <div class="section-label">Guías sin Cambios &gt; 24h</div>
-      <div class="table-section accent-blue">
-        <div class="table-header"><h3>Guías sin Cambios</h3></div>
-        <div class="table-wrap" id="guias-estancadas-wrap">
-          <div class="empty-state"><div class="icon">✅</div><p>Sin guías sin cambios</p></div>
-        </div>
-      </div>
-
-      <div class="section-label">Guías con Intento Fallido</div>
-      <div class="table-section accent-danger">
-        <div class="table-header"><h3>Intentos Fallidos</h3></div>
-        <div class="table-wrap" id="fallidos-wrap">
-          <div class="empty-state"><div class="icon">✅</div><p>Sin intentos fallidos</p></div>
-        </div>
-      </div>
-
-      <div class="section-label">Devoluciones</div>
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Devoluciones por Transportadora</div>
-            <div class="chart-sub">Cantidad por operador logístico</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chart-dev-transp"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Motivos de Devolución</div>
-            <div class="chart-sub">Causal / motivo estándar</div>
-          </div>
-          <div class="chart-wrap"><canvas id="chart-dev-motivo"></canvas></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ TAB: TABLA COMPLETA ══ -->
-    <div id="panel-tabla" style="display:none">
-      <div class="table-section">
-        <div class="table-header">
-          <h3>Detalle Completo de Registros</h3>
-          <div class="table-actions">
-            <button class="btn-export-pdf" onclick="exportPDF()">📄 PDF</button>
-            <button class="btn-export" onclick="exportMainExcel()">⬇ Exportar Excel</button>
-          </div>
-        </div>
-        <div class="table-search-wrap">
-          <input type="text" class="table-search" id="table-search" placeholder="🔍 Buscar en tabla..." oninput="tableSearch(this.value)">
-        </div>
-        <div class="table-wrap" id="main-table-wrap">
-          <div class="loading"><div class="spinner"></div></div>
-        </div>
-        <div class="table-footer">
-          <span class="table-count" id="table-count">0 registros</span>
-          <div class="table-pagination" id="table-pagination"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ TAB: INCUMPLIMIENTOS ANS ══ -->
-    <div id="panel-incump" style="display:none">
-      <div class="table-section">
-        <div class="table-header" style="margin-bottom:8px">
-          <div>
-            <h3 style="margin:0">📛 Incumplimientos ANS — Histórico Completo</h3>
-            <p style="margin:4px 0 0;color:var(--muted);font-size:13px">Cualquier datafono entregado después de su fecha límite, más los aún sin entregar con ANS vencido</p>
-          </div>
-          <div class="table-actions">
-            <button class="btn-export" onclick="exportIncumpExcel()">⬇ Exportar Excel</button>
-          </div>
-        </div>
-        <!-- Resumen KPIs + barras de responsable/causal -->
-        <div id="incump-resumen"></div>
-        <!-- Filtro por responsable -->
-        <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)">
-          <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">&#128100; Responsable</span>
-          <div id="incump-resp-filters" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-        </div>
-        <!-- Tabla detalle -->
-        <div style="overflow-x:auto">
-          <div class="table-wrap" id="incump-table-wrap" style="min-height:200px">
-            <div class="loading"><div class="spinner"></div></div>
-          </div>
-        </div>
-        <div class="table-footer">
-          <span class="table-count" id="incump-count">0 registros</span>
-          <div class="table-pagination" id="incump-pagination"></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ══ TAB: ROLLOS WOMPI — MAIN (KPIs + Gráficas) ══ -->
-    <div id="panel-rollos" style="display:none">
-
-      <!-- ════ FILTROS GLOBALES ROLLOS ════ -->
-      <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
-        <div class="filters-title" style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:18px">⚙️</span>
-          <span>Filtros Globales — aplican a KPIs, gráficas y tablas</span>
-        </div>
-        <div class="filters-row">
-          <div class="filter-group filter-group--date-range">
-            <label>📅 Fecha Plan Fin</label>
-            <div class="date-range-inputs">
-              <input type="date" id="rg-fecha-desde" title="Desde">
-              <span class="date-range-sep">→</span>
-              <input type="date" id="rg-fecha-hasta" title="Hasta">
+          <div class="charts-grid" id="charts-general">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Estado de Envíos</div><div class="chart-sub">Distribución por estado actual</div></div>
+              <div class="chart-wrap"><canvas id="chart-estados"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Cumplimiento ANS</div><div class="chart-sub">% Oportunidad vs % Calidad</div></div>
+              <div class="chart-wrap"><canvas id="chart-ans"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Solicitudes por Día</div><div class="chart-sub">Tendencia diaria de solicitudes</div></div>
+              <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Visita Técnica vs Operador Logístico</div><div class="chart-sub">Total vs Entregado por tipo</div></div>
+              <div class="chart-wrap"><canvas id="chart-tipos"></canvas></div>
+            </div>
+            <div class="chart-card wide">
+              <div class="chart-header"><div class="chart-title">Distribución por Departamento</div><div class="chart-sub">Top departamentos · Tipología Principal / Intermedia / Lejana</div></div>
+              <div class="chart-wrap" style="height:280px"><canvas id="chart-dept"></canvas></div>
             </div>
           </div>
-          <div class="filter-group">
-            <label>Estado</label>
-            <select id="rg-estado"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Departamento</label>
-            <select id="rg-departamento"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Tipo Flujo</label>
-            <select id="rg-tipo-flujo"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Material</label>
-            <select id="rg-material"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Proyecto</label>
-            <select id="rg-proyecto"><option value="">Todos</option></select>
-          </div>
-          <div class="filters-actions">
-            <button class="btn-apply" onclick="applyRollosGlobalFilters()">✦ Aplicar</button>
-            <button class="btn-reset" onclick="resetRollosGlobalFilters()">↺ Reset</button>
+
+          <div class="section-label">Detalle por Departamento / Tipología</div>
+          <div class="table-section">
+            <div class="table-header">
+              <h3>Tabla Departamentos</h3>
+              <div class="table-actions"><button class="btn-export" onclick="exportDeptExcel()">⬇ Excel</button></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Departamento</th>
+                  <th style="color:var(--azul-cielo)">Principal</th>
+                  <th style="color:var(--verde-menta)">Intermedia</th>
+                  <th style="color:var(--verde-lima)">Lejana</th>
+                  <th style="color:var(--warning)">Total</th>
+                </tr></thead>
+                <tbody id="dept-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(176,242,174,.1);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)" id="rg-filter-summary">
-          Sin filtros activos — mostrando todos los datos
-        </div>
-      </div>
 
-      <!-- ════ KPIs ROLLOS ════ -->
-      <div class="section-label fade-up fade-up-1">KPIs Rollos Wompi</div>
-      <div id="rollos-kpi-grid" class="fade-up fade-up-2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px">
-        <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
-      </div>
+        <!-- PANEL: DETALLE ANS -->
+        <div id="panel-detalle" style="display:none">
+          <div class="section-label">KPIs de Alerta ANS</div>
+          <div class="alerts-grid" id="ans-alerts-grid"></div>
 
-      <!-- ════ KPIs POR TAREAS (oculto — fusionado con KPIs Rollos) ════ -->
-      <div id="rollos-kpi-tareas-grid" style="display:none"></div>
-
-      <!-- ════ FILA ANS / CUMPLIMIENTO ════ -->
-      <div class="section-label">Cumplimiento Tiempos de Entrega (ANS)</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="rollos-ans-row">
-        <!-- generado por JS -->
-      </div>
-
-      <!-- ════ GRÁFICAS ROW 1 ════ -->
-      <div class="section-label">Distribución y Tendencias</div>
-      <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
-
-        <!-- Dona Estados -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Estado de Rollos</div>
-            <div class="chart-sub">Distribución por estado lógico</div>
+          <div class="section-label">Backlog por Vencer</div>
+          <div class="filters-bar" style="margin-bottom:16px;padding:14px 20px">
+            <div class="filter-group">
+              <label>Ventana de riesgo</label>
+              <select id="f-backlog-window">
+                <option value="24">Próximas 24h</option>
+                <option value="48">Próximas 48h</option>
+              </select>
+            </div>
+            <button class="btn-apply" onclick="renderBacklog()">Aplicar</button>
           </div>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-estados"></canvas></div>
-        </div>
-
-        <!-- Dona tipo flujo -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Por Tipo de Envío</div>
-            <div class="chart-sub">Distribución tipo_flujo · solo rollos_TRIM</div>
+          <div class="table-section accent-warn">
+            <div class="table-header">
+              <h3>Solicitudes en Riesgo ANS</h3>
+              <div class="table-actions"><button class="btn-export" onclick="exportBacklogExcel()">⬇ Excel</button></div>
+            </div>
+            <div class="table-wrap" id="backlog-wrap">
+              <div class="empty-state"><div class="icon">✅</div><p>Sin registros en riesgo</p></div>
+            </div>
           </div>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-tipo-flujo"></canvas></div>
-        </div>
 
-        <!-- Gauge SLA -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">ANS Oportunidad</div>
-            <div class="chart-sub">% Cumple / No Cumple</div>
+          <div class="section-label">Guías sin Cambios &gt; 24h</div>
+          <div class="table-section accent-blue">
+            <div class="table-header"><h3>Guías sin Cambios</h3></div>
+            <div class="table-wrap" id="guias-estancadas-wrap">
+              <div class="empty-state"><div class="icon">✅</div><p>Sin guías sin cambios</p></div>
+            </div>
           </div>
-          <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-sla"></canvas></div>
-        </div>
-      </div>
 
-      <!-- ════ GRÁFICAS ROW 2 ════ -->
-      <div class="charts-grid" style="grid-template-columns:2fr 1fr;margin-bottom:24px">
-
-        <!-- Barras por Departamento -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Rollos y Tareas por Departamento</div>
-            <div class="chart-sub">Top 15 — Rollos (eje izq.) · Tareas (eje der.)</div>
+          <div class="section-label">Guías con Intento Fallido</div>
+          <div class="table-section accent-danger">
+            <div class="table-header"><h3>Intentos Fallidos</h3></div>
+            <div class="table-wrap" id="fallidos-wrap">
+              <div class="empty-state"><div class="icon">✅</div><p>Sin intentos fallidos</p></div>
+            </div>
           </div>
-          <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-depto"></canvas></div>
+
+          <div class="section-label">Devoluciones</div>
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Devoluciones por Transportadora</div><div class="chart-sub">Cantidad por operador logístico</div></div>
+              <div class="chart-wrap"><canvas id="chart-dev-transp"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Motivos de Devolución</div><div class="chart-sub">Causal / motivo estándar</div></div>
+              <div class="chart-wrap"><canvas id="chart-dev-motivo"></canvas></div>
+            </div>
+          </div>
         </div>
 
-        <!-- Top Proyectos -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Top Proyectos</div>
-            <div class="chart-sub">Rollos por proyecto</div>
+        <!-- PANEL: TABLA COMPLETA -->
+        <div id="panel-tabla" style="display:none">
+          <div class="table-section">
+            <div class="table-header">
+              <h3>Detalle Completo de Registros</h3>
+              <div class="table-actions">
+                <button class="btn-export-pdf" onclick="exportPDF()">📄 PDF</button>
+                <button class="btn-export" onclick="exportMainExcel()">⬇ Exportar Excel</button>
+              </div>
+            </div>
+            <div class="table-search-wrap">
+              <input type="text" class="table-search" id="table-search" placeholder="🔍 Buscar en tabla..." oninput="tableSearch(this.value)">
+            </div>
+            <div class="table-wrap" id="main-table-wrap"><div class="loading"><div class="spinner"></div></div></div>
+            <div class="table-footer">
+              <span class="table-count" id="table-count">0 registros</span>
+              <div class="table-pagination" id="table-pagination"></div>
+            </div>
           </div>
-          <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-calidad"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ════ GRÁFICAS ROW 3 ════ -->
-      <div class="charts-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
-
-        <!-- Tendencia mensual rollos -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Tendencia Mensual</div>
-            <div class="chart-sub">Rollos y tareas por mes</div>
-          </div>
-          <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-mensual"></canvas></div>
-        </div>
-
-        <!-- Cumplimiento entregas por mes -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Cumplimiento de Entregas por Mes</div>
-            <div class="chart-sub">Entregados vs Devueltos vs En proceso</div>
-          </div>
-          <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-cumplimiento-mes"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ════ GRÁFICAS ROW 4 ════ -->
-      <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:28px">
-
-        <!-- Devoluciones por mes -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Devoluciones vs Entregados por Mes</div>
-            <div class="chart-sub">Evolución mensual de devoluciones</div>
-          </div>
-          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-oportunidad"></canvas></div>
         </div>
 
-        <!-- Tendencia mensual tareas -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Tendencia Mensual (Tareas)</div>
-            <div class="chart-sub">Tareas únicas por mes plan</div>
+        <!-- PANEL: INCUMPLIMIENTOS ANS -->
+        <div id="panel-incump" style="display:none">
+          <div class="table-section">
+            <div class="table-header" style="margin-bottom:8px">
+              <div>
+                <h3 style="margin:0">📛 Incumplimientos ANS — Histórico Completo</h3>
+                <p style="margin:4px 0 0;color:var(--muted);font-size:13px">Cualquier datafono entregado después de su fecha límite, más los aún sin entregar con ANS vencido</p>
+              </div>
+              <div class="table-actions">
+                <button class="btn-export" onclick="exportIncumpExcel()">⬇ Exportar Excel</button>
+              </div>
+            </div>
+            <div id="incump-resumen"></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)">
+              <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">&#128100; Responsable</span>
+              <div id="incump-resp-filters" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+            </div>
+            <div style="overflow-x:auto">
+              <div class="table-wrap" id="incump-table-wrap" style="min-height:200px"><div class="loading"><div class="spinner"></div></div></div>
+            </div>
+            <div class="table-footer">
+              <span class="table-count" id="incump-count">0 registros</span>
+              <div class="table-pagination" id="incump-pagination"></div>
+            </div>
           </div>
-          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-t-mensual"></canvas></div>
         </div>
 
-        <!-- Embudo de proceso -->
-        <div class="chart-card">
-          <div class="chart-header">
-            <div class="chart-title">Embudo de Proceso</div>
-            <div class="chart-sub">Solicitados → Entregados</div>
+        <!-- PANEL: ROLLOS WOMPI -->
+        <div id="panel-rollos" style="display:none">
+          <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
+            <div class="filters-title" style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:18px">⚙️</span>
+              <span>Filtros Globales — aplican a KPIs, gráficas y tablas</span>
+            </div>
+            <div class="filters-row">
+              <div class="filter-group filter-group--date-range">
+                <label>📅 Fecha Plan Fin</label>
+                <div class="date-range-inputs">
+                  <input type="date" id="rg-fecha-desde"><span class="date-range-sep">→</span><input type="date" id="rg-fecha-hasta">
+                </div>
+              </div>
+              <div class="filter-group"><label>Estado</label><select id="rg-estado"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Departamento</label><select id="rg-departamento"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Tipo Flujo</label><select id="rg-tipo-flujo"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Material</label><select id="rg-material"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Proyecto</label><select id="rg-proyecto"><option value="">Todos</option></select></div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="applyRollosGlobalFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="resetRollosGlobalFilters()">↺ Reset</button>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(176,242,174,.1);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)" id="rg-filter-summary">Sin filtros activos — mostrando todos los datos</div>
           </div>
-          <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-funnel"></canvas></div>
-        </div>
-      </div>
 
-    </div><!-- /panel-rollos -->
+          <div class="section-label fade-up fade-up-1">KPIs Rollos Wompi</div>
+          <div id="rollos-kpi-grid" class="fade-up fade-up-2" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:32px">
+            <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
+          </div>
+          <div id="rollos-kpi-tareas-grid" style="display:none"></div>
 
-    <!-- ══ SUB-PANEL: TABLA DETALLES DE TAREAS ══ -->
-    <div id="panel-rollos-detalle" style="display:none">
-      <div class="section-label" style="margin-top:8px">Detalles de Tareas</div>
-      <div class="filters-bar" style="margin-bottom:16px">
-        <div class="filters-title">Búsqueda en tabla detalle</div>
-        <div class="filters-row">
-          <div class="filter-group">
-            <label>Código Tarea</label>
-            <input type="text" id="rf-codigo-tarea" placeholder="Código de tarea...">
-          </div>
-          <div class="filter-group">
-            <label>Cód. Sitio</label>
-            <input type="text" id="rf-cod-sitio" placeholder="Cód. Sitio...">
-          </div>
-          <div class="filter-group">
-            <label>Guía</label>
-            <input type="text" id="rf-guia" placeholder="Número de guía...">
-          </div>
-          <div class="filter-group">
-            <label>Estado Lógico Final</label>
-            <select id="rf-estado"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Tipo Flujo</label>
-            <select id="rf-tipo-flujo-det"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Departamento</label>
-            <select id="rf-departamento-det"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Ciudad</label>
-            <select id="rf-ciudad-det"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Proyecto</label>
-            <select id="rf-proyecto-det"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Año</label>
-            <select id="rf-anio"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Mes</label>
-            <select id="rf-mes"><option value="">Todos</option></select>
-          </div>
-          <div class="filters-actions">
-            <button class="btn-apply" onclick="applyRollosDetalleSearch()">✦ Filtrar</button>
-            <button class="btn-reset" onclick="resetRollosDetalleSearch()">↺ Reset</button>
-          </div>
-        </div>
-      </div>
-      <div class="table-section" style="margin-bottom:32px">
-        <div class="table-header">
-          <h3>Detalles de Tareas Rollos</h3>
-          <div class="table-actions">
-            <button class="btn-export" onclick="exportRollosDetalleExcel()">⬇ Excel</button>
-          </div>
-        </div>
-        <div class="table-wrap" id="rollos-detalle-wrap" style="max-height:480px">
-          <div class="loading"><div class="spinner"></div></div>
-        </div>
-        <div class="table-footer">
-          <span class="table-count" id="rollos-detalle-count">0 registros</span>
-          <div class="table-pagination" id="rollos-detalle-pagination"></div>
-        </div>
-      </div>
-    </div><!-- /panel-rollos-detalle -->
+          <div class="section-label">Cumplimiento Tiempos de Entrega (ANS)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="rollos-ans-row"></div>
 
-    <!-- ══ SUB-PANEL: TABLA DETALLE POR COMERCIO ══ -->
-    <div id="panel-rollos-comercio" style="display:none">
-      <div class="section-label">Detalle por Comercio</div>
-      <div class="filters-bar" style="margin-bottom:16px">
-        <div class="filters-title">Búsqueda Comercios</div>
-        <div class="filters-row">
-          <div class="filter-group">
-            <label>Cod. Comercio</label>
-            <input type="text" id="rf-cod-comercio" placeholder="Código...">
+          <div class="section-label">Distribución y Tendencias</div>
+          <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Estado de Rollos</div><div class="chart-sub">Distribución por estado lógico</div></div>
+              <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-estados"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Por Tipo de Envío</div><div class="chart-sub">Distribución tipo_flujo · solo rollos_TRIM</div></div>
+              <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-tipo-flujo"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">ANS Oportunidad</div><div class="chart-sub">% Cumple / No Cumple</div></div>
+              <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-sla"></canvas></div>
+            </div>
           </div>
-          <div class="filter-group">
-            <label>Nombre Sitio</label>
-            <input type="text" id="rf-nombre-sitio" placeholder="Nombre...">
-          </div>
-          <div class="filter-group">
-            <label>Ciudad</label>
-            <input type="text" id="rf-com-ciudad" placeholder="Ciudad...">
-          </div>
-          <div class="filter-group">
-            <label>Departamento</label>
-            <select id="rf-com-departamento"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Estado</label>
-            <select id="rf-com-estado"><option value="">Todos</option></select>
-          </div>
-          <div class="filter-group">
-            <label>Tipo Envío</label>
-            <select id="rf-com-tipo"><option value="">Todos</option></select>
-          </div>
-          <div class="filters-actions">
-            <button class="btn-apply" onclick="applyComercioFilters()">✦ Aplicar</button>
-            <button class="btn-reset" onclick="resetComercioFilters()">↺ Reset</button>
-          </div>
-        </div>
-      </div>
-      <div class="table-section" style="margin-bottom:32px">
-        <div class="table-header">
-          <h3>Comercios — Rollos</h3>
-          <div class="table-actions">
-            <button class="btn-export" onclick="exportComercioExcel()">⬇ Excel</button>
-          </div>
-        </div>
-        <div class="table-wrap" id="rollos-comercio-wrap" style="max-height:400px">
-          <div class="loading"><div class="spinner"></div></div>
-        </div>
-        <div class="table-footer">
-          <span class="table-count" id="rollos-comercio-count">0 registros</span>
-          <div class="table-pagination" id="rollos-comercio-pagination"></div>
-        </div>
-      </div>
-    </div><!-- /panel-rollos-comercio -->
 
+          <div class="charts-grid" style="grid-template-columns:2fr 1fr;margin-bottom:24px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Rollos y Tareas por Departamento</div><div class="chart-sub">Top 15 — Rollos (eje izq.) · Tareas (eje der.)</div></div>
+              <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-depto"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Top Proyectos</div><div class="chart-sub">Rollos por proyecto</div></div>
+              <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-calidad"></canvas></div>
+            </div>
+          </div>
 
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Tendencia Mensual</div><div class="chart-sub">Rollos y tareas por mes</div></div>
+              <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-mensual"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Cumplimiento de Entregas por Mes</div><div class="chart-sub">Entregados vs Devueltos vs En proceso</div></div>
+              <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-cumplimiento-mes"></canvas></div>
+            </div>
+          </div>
+
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:28px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Devoluciones vs Entregados por Mes</div><div class="chart-sub">Evolución mensual de devoluciones</div></div>
+              <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-oportunidad"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Tendencia Mensual (Tareas)</div><div class="chart-sub">Tareas únicas por mes plan</div></div>
+              <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-t-mensual"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Embudo de Proceso</div><div class="chart-sub">Solicitados → Entregados</div></div>
+              <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-funnel"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: ROLLOS DETALLE -->
+        <div id="panel-rollos-detalle" style="display:none">
+          <div class="section-label" style="margin-top:8px">Detalles de Tareas</div>
+          <div class="filters-bar" style="margin-bottom:16px">
+            <div class="filters-title">Búsqueda en tabla detalle</div>
+            <div class="filters-row">
+              <div class="filter-group"><label>Código Tarea</label><input type="text" id="rf-codigo-tarea" placeholder="Código de tarea..."></div>
+              <div class="filter-group"><label>Cód. Sitio</label><input type="text" id="rf-cod-sitio" placeholder="Cód. Sitio..."></div>
+              <div class="filter-group"><label>Guía</label><input type="text" id="rf-guia" placeholder="Número de guía..."></div>
+              <div class="filter-group"><label>Estado Lógico Final</label><select id="rf-estado"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Tipo Flujo</label><select id="rf-tipo-flujo-det"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Departamento</label><select id="rf-departamento-det"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Ciudad</label><select id="rf-ciudad-det"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Proyecto</label><select id="rf-proyecto-det"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Año</label><select id="rf-anio"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Mes</label><select id="rf-mes"><option value="">Todos</option></select></div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="applyRollosDetalleSearch()">✦ Filtrar</button>
+                <button class="btn-reset" onclick="resetRollosDetalleSearch()">↺ Reset</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-section" style="margin-bottom:32px">
+            <div class="table-header">
+              <h3>Detalles de Tareas Rollos</h3>
+              <div class="table-actions"><button class="btn-export" onclick="exportRollosDetalleExcel()">⬇ Excel</button></div>
+            </div>
+            <div class="table-wrap" id="rollos-detalle-wrap" style="max-height:480px"><div class="loading"><div class="spinner"></div></div></div>
+            <div class="table-footer">
+              <span class="table-count" id="rollos-detalle-count">0 registros</span>
+              <div class="table-pagination" id="rollos-detalle-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: ROLLOS COMERCIO -->
+        <div id="panel-rollos-comercio" style="display:none">
+          <div class="section-label">Detalle por Comercio</div>
+          <div class="filters-bar" style="margin-bottom:16px">
+            <div class="filters-title">Búsqueda Comercios</div>
+            <div class="filters-row">
+              <div class="filter-group"><label>Cod. Comercio</label><input type="text" id="rf-cod-comercio" placeholder="Código..."></div>
+              <div class="filter-group"><label>Nombre Sitio</label><input type="text" id="rf-nombre-sitio" placeholder="Nombre..."></div>
+              <div class="filter-group"><label>Ciudad</label><input type="text" id="rf-com-ciudad" placeholder="Ciudad..."></div>
+              <div class="filter-group"><label>Departamento</label><select id="rf-com-departamento"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Estado</label><select id="rf-com-estado"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Tipo Envío</label><select id="rf-com-tipo"><option value="">Todos</option></select></div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="applyComercioFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="resetComercioFilters()">↺ Reset</button>
+              </div>
+            </div>
+          </div>
+          <div class="table-section" style="margin-bottom:32px">
+            <div class="table-header">
+              <h3>Comercios — Rollos</h3>
+              <div class="table-actions"><button class="btn-export" onclick="exportComercioExcel()">⬇ Excel</button></div>
+            </div>
+            <div class="table-wrap" id="rollos-comercio-wrap" style="max-height:400px"><div class="loading"><div class="spinner"></div></div></div>
+            <div class="table-footer">
+              <span class="table-count" id="rollos-comercio-count">0 registros</span>
+              <div class="table-pagination" id="rollos-comercio-pagination"></div>
+            </div>
+          </div>
+        </div>
 
       </div><!-- /main -->
     </div><!-- /content-area -->
@@ -2079,198 +517,16 @@ tbody tr:hover {
     <span style="font-family:'JetBrains Mono',monospace;font-size:10px">v2.0</span>
   </div>
 </div>
-<!-- ════════════════════ SCRIPTS EXTERNOS ════════════════════ -->
+
+<!-- ════ SCRIPTS ════ -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="auth.js"></script>
 <script>
-// ══════════════════════════════════════════════════════════════
-// AUTH — Microsoft Azure AD (MSAL)
-// Solo permite acceso a cuentas @lineacom.co
-// ══════════════════════════════════════════════════════════════
-
-const MSAL_CONFIG = {
-    auth: {
-        clientId: 'febe226c-0265-4fb2-b34e-3beebbb9fee8',
-        authority: 'https://login.microsoftonline.com/af1a17b2-5d34-4f58-8b6c-6b94c6cd87ea',
-        redirectUri: window.location.origin + window.location.pathname,
-        navigateToLoginRequestUrl: true
-    },
-    cache: {
-        cacheLocation: 'sessionStorage',
-        storeAuthStateInCookie: false
-    }
-};
-
-const MS_SCOPES = ['openid', 'profile', 'email', 'User.Read'];
-const ALLOWED_DOMAIN = 'lineacom.co';
-const SESSION_DURATION = 1 * 60 * 60 * 1000; // 1 hora
-
-let _msalInstance = null;
-let _sessionTimer = null;
-
-// ── Cargar MSAL dinámicamente ─────────────────────────────────
-async function _loadMSAL() {
-    if (window.msal) return window.msal;
-    const URLS = [
-        'https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js',
-        'https://alcdn.msftauth.net/browser/2.38.3/js/msal-browser.min.js',
-        'https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js',
-        'https://unpkg.com/@azure/msal-browser@2.38.3/lib/msal-browser.min.js'
-    ];
-    for (const url of URLS) {
-        try {
-            await new Promise((resolve, reject) => {
-                const s = document.createElement('script');
-                s.src = url; s.onload = resolve; s.onerror = reject;
-                document.head.appendChild(s);
-            });
-            if (window.msal) return window.msal;
-        } catch (_) {}
-    }
-    throw new Error('No se pudo cargar MSAL. Verifica tu conexión a Internet.');
-}
-
-// ── Mostrar error en pantalla de login ───────────────────────
-function _showLoginError(msg) {
-    const e = document.getElementById('login-error');
-    e.innerHTML = '⚠ ' + msg;
-    e.style.display = 'block';
-    const btn = document.getElementById('msLoginBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style="width:20px;height:20px;flex-shrink:0;"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg> Iniciar sesión con Microsoft`;
-    }
-}
-
-// ── Login con Microsoft ───────────────────────────────────────
-async function doMicrosoftLogin() {
-    const btn = document.getElementById('msLoginBtn');
-    if (btn) { btn.disabled = true; btn.textContent = 'Conectando con Microsoft...'; }
-    document.getElementById('login-error').style.display = 'none';
-
-    try {
-        const msal = await _loadMSAL();
-        _msalInstance = new msal.PublicClientApplication(MSAL_CONFIG);
-        await _msalInstance.initialize();
-
-        const result = await _msalInstance.loginPopup({ scopes: MS_SCOPES, prompt: 'select_account' });
-
-        const email = result.account?.username || '';
-        const domain = email.split('@')[1]?.toLowerCase();
-
-        if (domain !== ALLOWED_DOMAIN) {
-            await _msalInstance.logoutPopup({ account: result.account }).catch(() => {});
-            _showLoginError(`Acceso denegado. Solo cuentas @${ALLOWED_DOMAIN}.<br><small style="opacity:0.7">Tu cuenta: ${email}</small>`);
-            return;
-        }
-
-        // Obtener perfil desde Microsoft Graph
-        let displayName = result.account.name || email;
-        let jobTitle = '';
-        let photo = null;
-        try {
-            const graphToken = await _msalInstance.acquireTokenSilent({ scopes: ['User.Read'], account: result.account });
-            const profileRes = await fetch('https://graph.microsoft.com/v1.0/me?$select=displayName,jobTitle,mail', {
-                headers: { Authorization: `Bearer ${graphToken.accessToken}` }
-            });
-            if (profileRes.ok) {
-                const p = await profileRes.json();
-                displayName = p.displayName || displayName;
-                jobTitle = p.jobTitle || '';
-            }
-            const photoRes = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', {
-                headers: { Authorization: `Bearer ${graphToken.accessToken}` }
-            });
-            if (photoRes.ok) {
-                const blob = await photoRes.blob();
-                photo = await new Promise(res => {
-                    const r = new FileReader();
-                    r.onload = () => res(r.result);
-                    r.readAsDataURL(blob);
-                });
-            }
-        } catch (graphErr) {
-            console.warn('[Auth] Graph parcial:', graphErr.message);
-        }
-
-        window._msUserProfile = { nombre: displayName, cargo: jobTitle, email, foto: photo };
-
-        _enterApp();
-
-    } catch (err) {
-        if (err.errorCode === 'user_cancelled') {
-            _showLoginError('Inicio de sesión cancelado.');
-        } else {
-            console.error('[Auth]', err);
-            _showLoginError('Error al conectar con Microsoft. Intenta de nuevo.');
-        }
-    }
-}
-
-// ── Mostrar la app tras login exitoso ─────────────────────────
-function _enterApp() {
-    const p = window._msUserProfile || {};
-
-    // Inyectar chip de usuario en topbar
-    const topbarRight = document.querySelector('.topbar-right');
-    if (topbarRight && !document.getElementById('ms-user-chip')) {
-        const initials = (p.nombre || 'U').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
-        const avatar = p.foto
-            ? `<img src="${p.foto}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.outerHTML='<div style=\\'width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:#fff;\\'>${initials}</div>'">`
-            : `<div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#3B82F6,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:#fff;flex-shrink:0;">${initials}</div>`;
-        const chip = document.createElement('div');
-        chip.id = 'ms-user-chip';
-        chip.title = 'Cerrar sesión';
-        chip.onclick = () => { if (confirm('¿Cerrar sesión?')) doLogout(); };
-        chip.style.cssText = 'display:flex;align-items:center;gap:8px;cursor:pointer;padding:4px 10px 4px 6px;border-radius:20px;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);transition:background 0.2s;';
-        chip.innerHTML = `${avatar}<div style="line-height:1.2;"><div style="font-size:12px;font-weight:600;color:#f8fafc;">${p.nombre || ''}</div>${p.cargo ? `<div style="font-size:10px;color:#94a3b8;">${p.cargo}</div>` : ''}</div>`;
-        // Insert before the logout button
-        const logoutBtn = topbarRight.querySelector('.btn-logout');
-        if (logoutBtn) topbarRight.insertBefore(chip, logoutBtn);
-        else topbarRight.appendChild(chip);
-    }
-
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('app').classList.add('visible');
-
-    // Iniciar timer de sesión (1 hora)
-    clearTimeout(_sessionTimer);
-    _sessionTimer = setTimeout(() => {
-        alert('⏰ Sesión expirada. Inicia sesión nuevamente.');
-        doLogout();
-    }, SESSION_DURATION);
-
-    initDashboard();
-}
-
-// ── Sobreescribir doLogout para incluir cierre MSAL ───────────
-const _originalDoLogout = window.doLogout;
-window.doLogout = async function() {
-    clearTimeout(_sessionTimer);
-    window._msUserProfile = null;
-    const chip = document.getElementById('ms-user-chip');
-    if (chip) chip.remove();
-    if (_msalInstance) {
-        try {
-            const accounts = _msalInstance.getAllAccounts();
-            if (accounts.length) await _msalInstance.logoutPopup({ account: accounts[0] }).catch(() => {});
-        } catch(e) {}
-    }
-    document.getElementById('app').classList.remove('visible');
-    document.getElementById('login-screen').classList.remove('hidden');
-    document.getElementById('login-error').style.display = 'none';
-    const btn = document.getElementById('msLoginBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style="width:20px;height:20px;flex-shrink:0;"><rect x="1" y="1" width="10" height="10" fill="#f25022"/><rect x="12" y="1" width="10" height="10" fill="#7fba00"/><rect x="1" y="12" width="10" height="10" fill="#00a4ef"/><rect x="12" y="12" width="10" height="10" fill="#ffb900"/></svg> Iniciar sesión con Microsoft`;
-    }
-};
-</script>
-<script>
-// Proxies for sidebar functions — called from HTML onclicks before dashboard.js loads
-function toggleSidebar(){ if(window._sidebarReady) window._toggleSidebar(); }
-function selectBoard(b){ if(window._sidebarReady) window._selectBoard(b); }
-function selectBoardTab(b,t){ if(window._sidebarReady) window._selectBoardTab(b,t); }
+// Proxies para sidebar — llamados desde HTML antes de que cargue dashboard.js
+function toggleSidebar()         { if(window._sidebarReady) window._toggleSidebar(); }
+function selectBoard(b)          { if(window._sidebarReady) window._selectBoard(b); }
+function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardTab(b,t); }
 </script>
 <script src="dashboard.js"></script>
 </body>
