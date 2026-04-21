@@ -1130,6 +1130,7 @@ async function renderInventarioPrincipal() {
 
 window.renderInventarioPrincipal = renderInventarioPrincipal;
 window.loadInventarioData = loadInventarioData;
+window.invGetRaw = function() { return INV_RAW; };
 
 // ══════════════════════════════════════════════════════════════════
 //  CARGA ANTICIPADA — en paralelo con dashboard.js

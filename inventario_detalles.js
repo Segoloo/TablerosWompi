@@ -69,8 +69,17 @@ function invFmtFecha(raw) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  ESTADO DEL TAB DETALLES
+//  GETTER SEGURO PARA LOS DATOS RAW
+//  Intenta window.INV_RAW primero, luego el getter expuesto por inventario.js
 // ══════════════════════════════════════════════════════════════════
+function _getInvRaw() {
+  // Opción 1: window.INV_RAW expuesto explícitamente
+  if (window.INV_RAW && window.INV_RAW.length) return window.INV_RAW;
+  // Opción 2: getter expuesto por inventario.js
+  if (typeof window.invGetRaw === 'function') return window.invGetRaw();
+  // Opción 3: leer de INV_FILTERED que sí es window
+  return null;
+}
 let DET_FILTERED  = [];
 let DET_PAGE_T1   = 1;
 let DET_PAGE_T2   = 1;
@@ -83,7 +92,7 @@ let DET_SORT_DIR  = 1;
 //  POBLAR FILTROS DEL TAB DETALLES
 // ══════════════════════════════════════════════════════════════════
 function detPopulateFilters() {
-  const raw = window.INV_RAW || [];
+  const raw = _getInvRaw() || [];
   if (!raw.length) return;
 
   // Tipo de negocio — reutiliza invNegocio global
@@ -122,7 +131,7 @@ function _detSetSelect(id, opts) {
 //  APLICAR FILTROS DETALLES
 // ══════════════════════════════════════════════════════════════════
 function detApplyFilters() {
-  const raw = window.INV_RAW || [];
+  const raw = _getInvRaw() || [];
   if (!raw.length) { DET_FILTERED = []; detRenderAll(); return; }
 
   const negocio    = document.getElementById('det-f-negocio')?.value    || '';
@@ -605,20 +614,27 @@ async function renderInventarioDetalles() {
   const loadingEl = document.getElementById('det-loading');
   const contentEl = document.getElementById('det-content');
 
-  // Si los datos aún no están, esperarlos
-  if (!window.INV_RAW) {
+  let raw = _getInvRaw();
+  console.log('[Detalles] raw al entrar:', raw ? raw.length + ' filas' : 'null');
+
+  if (!raw || !raw.length) {
     if (loadingEl) loadingEl.style.display = 'flex';
     if (contentEl) contentEl.style.display = 'none';
+    // Intentar cargar
     if (typeof window.loadInventarioData === 'function') {
       await window.loadInventarioData();
     }
+    raw = _getInvRaw();
+    console.log('[Detalles] raw después de load:', raw ? raw.length + ' filas' : 'null');
   }
 
-  // Siempre ocultar loading y mostrar contenido
   if (loadingEl) loadingEl.style.display = 'none';
   if (contentEl) contentEl.style.display = '';
 
-  DET_FILTERED = (window.INV_RAW || []).slice();
+  DET_FILTERED = (raw || []).slice();
+  console.log('[Detalles] DET_FILTERED:', DET_FILTERED.length, 'filas');
+  if (DET_FILTERED.length > 0) console.log('[Detalles] keys muestra:', Object.keys(DET_FILTERED[0]).join(', '));
+
   DET_PAGE_T1 = 1;
   DET_PAGE_T2 = 1;
   detPopulateFilters();

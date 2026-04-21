@@ -654,7 +654,7 @@ function renderAll() {
   renderANSAlerts(k);
   renderMainTable();
   const badge = document.getElementById('topbar-badge');
-  if (badge) badge.textContent = `${FILTERED.length} registros`;
+  if (badge) badge.textContent = `App Activa`;
   const fd = document.getElementById('footer-date');
   if (fd) fd.textContent = new Date().toLocaleDateString('es-CO', { dateStyle: 'long' });
 }
