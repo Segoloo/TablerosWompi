@@ -197,9 +197,10 @@ function _invRenderKPIs() {
     { label:'EN BODEGA',        value:fmtN(unBodega),   sub1:fmtPct(unBodega,total),         sub2:fmtN(unBodega)+' uds',   color:INV_PALETTE.bodega,   icon:'🏪', drillRows: rows.filter(function(r){ return INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim()); }),                                                     drillTitle:'Stock en Bodega' },
     { label:'EN COMERCIO',      value:fmtN(unComercio), sub1:fmtPct(unComercio,total),       sub2:fmtN(unComercio)+' uds', color:INV_PALETTE.comercio, icon:'🏬', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Site'; }),                                                                  drillTitle:'Stock en Comercio (Site)' },
     { label:'TÉC. LINEACOM',    value:fmtN(unTecnico),  sub1:fmtPct(unTecnico,total),        sub2:fmtN(unTecnico)+' uds',  color:INV_PALETTE.tecnico,  icon:'🔧', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Staff'; }),                                                                 drillTitle:'Stock Técnicos Lineacom (Staff)' },
-    { label:'GEST. & EMPL.',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤', drillRows: rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }),                                                              drillTitle:'Stock Gestores & Empleados (GW)' },
+    { label:'GEST. & EMPL. WOMPI',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤', drillRows: rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }),                                                              drillTitle:'Stock Gestores & Empleados (GW)' },
     { label:'INGENICO',         value:fmtN(unIngenico), sub1:fmtPct(unIngenico,total),       sub2:fmtN(unIngenico)+' uds', color:INV_PALETTE.ingenico, icon:'🔌', drillRows: rows.filter(function(r){ return (r['Nombre de la ubicación']||'').trim() === 'ALMACEN INGENICO - PROVEEDOR WOMPI'; }),                             drillTitle:'Stock Ingenico (Proveedor)' },
     { label:'OPL',              value:fmtN(unOPL),      sub1:fmtPct(unOPL,total),            sub2:fmtN(unOPL)+' uds',      color:INV_PALETTE.opl,      icon:'🚚', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Supplier'; }),                                                             drillTitle:'Stock OPL (Supplier)' },
+    { label:'42 BODEGAS',       value:'42',             sub1:'Bodegas Wompi',                sub2:'Ver distribución',       color:'#67e8f9',             icon:'🗺️', drillRows: null, drillTitle:'Bodegas', special:'bodegas' },
   ];
 
   const grid = document.getElementById('inv-kpi-grid');
@@ -208,7 +209,7 @@ function _invRenderKPIs() {
   grid.innerHTML = kpis.map(function(k, idx) {
     // Guardamos las rows de cada KPI en un objeto global indexado para poder llamarlas desde onclick inline
     window._invKpiDrillData = window._invKpiDrillData || [];
-    window._invKpiDrillData[idx] = { rows: k.drillRows, title: k.drillTitle };
+    window._invKpiDrillData[idx] = { rows: k.drillRows, title: k.drillTitle, special: k.special || null };
     return (
       '<div class="kpi-card inv-kpi-v2 fade-up" style="' +
         'background:linear-gradient(145deg,rgba(10,26,18,.95) 0%,rgba(8,20,14,.9) 100%);' +
@@ -220,7 +221,7 @@ function _invRenderKPIs() {
         'cursor:pointer;' +
         (k.wide ? 'grid-column:span 2;' : '') +
       '" ' +
-      'onclick="invOpenDrillModal(window._invKpiDrillData[' + idx + '].title, window._invKpiDrillData[' + idx + '].rows)" ' +
+      'onclick="(window._invKpiDrillData[' + idx + '].special===\'bodegas\') ? invOpenBodegasModal() : invOpenDrillModal(window._invKpiDrillData[' + idx + '].title, window._invKpiDrillData[' + idx + '].rows)" ' +
       'title="🔍 Ver detalle de ' + k.label + '" ' +
       'onmouseover="this.style.transform=\'translateY(-5px)\';this.style.borderColor=\'' + k.color + '55\';this.style.boxShadow=\'0 12px 40px rgba(0,0,0,.5),0 0 30px ' + k.color + '22\'" ' +
       'onmouseout="this.style.transform=\'\';this.style.borderColor=\'rgba(176,242,174,.1)\';this.style.boxShadow=\'0 4px 20px rgba(0,0,0,.4)\'">' +
@@ -543,7 +544,7 @@ function invOpenDrillModal(title, rows) {
     if (!slice.length) {
       var emptyRow = document.createElement('tr');
       var emptyTd  = el('td', 'text-align:center;padding:48px;color:#7A7674;font-family:\'Outfit\',sans-serif;', 'Sin registros para los filtros aplicados');
-      emptyTd.colSpan = 8;
+      emptyTd.colSpan = 9;
       emptyRow.appendChild(emptyTd);
       tbody.appendChild(emptyRow);
     } else {
@@ -573,7 +574,12 @@ function invOpenDrillModal(title, rows) {
         refTd.title = r['Nombre'] || '';
         refTd.textContent = r['Nombre'] || '—';
 
+        var serialTd = td('color:#a5f3fc;font-family:\'JetBrains Mono\',monospace;font-size:11px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;');
+        serialTd.title = r['Número de serie'] || r['Numero de serie'] || r['Serial'] || '';
+        serialTd.textContent = r['Número de serie'] || r['Numero de serie'] || r['Serial'] || '—';
+
         tr.appendChild(refTd);
+        tr.appendChild(serialTd);
         tr.appendChild(td('', badge(cat, catColor)));
         tr.appendChild(td('', badge(neg, negColor)));
         var bodTd = td('color:#cbd5e1;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;');
@@ -635,6 +641,7 @@ function invOpenDrillModal(title, rows) {
     var exportRows = _filtered.map(function(r) {
       return {
         'Referencia':       r['Nombre'] || '',
+        'N.° de Serie':     r['Número de serie'] || r['Numero de serie'] || r['Serial'] || '',
         'Categoría':        invCategoria(r['Nombre']),
         'Negocio':          invNegocio(r['Subtipo']),
         'Bodega':           r['Nombre de la ubicación'] || '',
@@ -752,13 +759,13 @@ function invOpenDrillModal(title, rows) {
   var thead = document.createElement('thead');
   var theadRow = document.createElement('tr');
   theadRow.style.cssText = 'position:sticky;top:0;background:#181715;z-index:2;';
-  ['Referencia','Categoría','Negocio','Bodega','Tipo Ubic.','Cód. Ubic.','Cantidad','Subtipo'].forEach(function(h){
+  ['Referencia','N.° de Serie','Categoría','Negocio','Bodega','Tipo Ubic.','Cód. Ubic.','Cantidad','Subtipo'].forEach(function(h){
     var th = el('th','padding:10px 12px;text-align:left;color:#B0F2AE;font-weight:700;font-size:10px;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;font-family:\'Syne\',sans-serif;');
     th.textContent = h;
     theadRow.appendChild(th);
   });
   // Ajustar alineación de Cantidad
-  theadRow.children[6].style.textAlign = 'right';
+  theadRow.children[7].style.textAlign = 'right';
   thead.appendChild(theadRow);
   table.appendChild(thead);
 
@@ -883,6 +890,224 @@ function _invRenderTable() {
       '</tbody>' +
     '</table>';
 }
+
+// ══════════════════════════════════════════════════════════════════
+//  MODAL BODEGAS — muestra las 42 bodegas hardcodeadas con su stock
+// ══════════════════════════════════════════════════════════════════
+function invOpenBodegasModal() {
+  var prev = document.getElementById('inv-bodegas-modal');
+  if (prev) prev.remove();
+
+  // Calcular stock por bodega desde los datos filtrados actuales
+  var stockMap = {};
+  (INV_FILTERED || []).forEach(function(r) {
+    var bod = (r['Nombre de la ubicación'] || '').trim();
+    if (bod) stockMap[bod] = (stockMap[bod] || 0) + (parseInt(r['Cantidad']) || 0);
+  });
+
+  // Construir lista de las 42 bodegas con stock (0 si no hay datos)
+  var bodegaList = [...INV_BODEGAS].map(function(b) {
+    return { nombre: b, stock: stockMap[b] || 0 };
+  }).sort(function(a, b) { return b.stock - a.stock; });
+
+  var totalBodStock = bodegaList.reduce(function(s, b) { return s + b.stock; }, 0);
+
+  // Helper
+  function el(tag, css, text) {
+    var e = document.createElement(tag);
+    if (css)  e.style.cssText = css;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // Nombre corto para display
+  function shortName(n) {
+    return n.replace('ALMACEN WOMPI VP ', '').replace('ALMACEN WOMPI ', '').replace('ALMACEN ', '');
+  }
+
+  // Tipo de bodega
+  function bodTipo(n) {
+    if (n.includes('| ALQUILER')) return { label: 'VP Alquiler', color: '#C084FC' };
+    if (n.includes('| VENTA'))   return { label: 'VP Venta',    color: '#F87171' };
+    if (n.includes('BAJAS'))     return { label: 'Bajas',       color: '#FB923C' };
+    if (n.includes('INGENICO'))  return { label: 'Proveedor',   color: '#FFC04D' };
+    if (n.includes('ALISTAMIENTO')) return { label: 'Alist.',   color: '#DFFF61' };
+    return { label: 'Almacén',   color: '#B0F2AE' };
+  }
+
+  // Overlay
+  var overlay = el('div', 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.82);backdrop-filter:blur(8px);padding:20px;animation:fadeIn .18s ease;');
+  overlay.id = 'inv-bodegas-modal';
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+  // Panel
+  var panel = el('div',
+    'background:#181715;border:1px solid rgba(103,232,249,.22);border-radius:18px;' +
+    'width:100%;max-width:1100px;max-height:90vh;display:flex;flex-direction:column;' +
+    'box-shadow:0 32px 96px rgba(0,0,0,.9);animation:slideUp .2s cubic-bezier(.34,1.2,.64,1);overflow:hidden;'
+  );
+
+  // Barra color
+  var topBar = el('div', 'height:3px;background:linear-gradient(90deg,#67e8f9,#B0F2AE,#C084FC);flex-shrink:0;');
+  panel.appendChild(topBar);
+
+  // Header
+  var header = el('div', 'display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(103,232,249,.12);flex-shrink:0;gap:16px;');
+  var hLeft  = el('div', '');
+  var hTitle = el('div', 'font-family:\'Syne\',sans-serif;font-size:17px;font-weight:800;color:#67e8f9;letter-spacing:-.2px;', '🗺️  42 Bodegas Wompi');
+  var hSub   = el('div', 'font-size:12px;color:#7A7674;margin-top:4px;font-family:\'Outfit\',sans-serif;',
+    'Stock total en bodegas: ' + totalBodStock.toLocaleString('es-CO') + ' uds  ·  42 ubicaciones');
+  hLeft.appendChild(hTitle);
+  hLeft.appendChild(hSub);
+
+  var btnClose = el('button',
+    'background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#7A7674;' +
+    'width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:20px;' +
+    'display:flex;align-items:center;justify-content:center;line-height:1;transition:all .2s;'
+  );
+  btnClose.innerHTML = '&times;';
+  btnClose.addEventListener('click', function() { overlay.remove(); });
+  btnClose.addEventListener('mouseover', function() { btnClose.style.background='rgba(255,80,80,.15)';btnClose.style.color='#f87171'; });
+  btnClose.addEventListener('mouseout',  function() { btnClose.style.background='rgba(255,80,80,0)';btnClose.style.color='#7A7674'; });
+
+  header.appendChild(hLeft);
+  header.appendChild(btnClose);
+  panel.appendChild(header);
+
+  // Barra búsqueda
+  var filterBar = el('div', 'padding:12px 24px;border-bottom:1px solid rgba(103,232,249,.07);flex-shrink:0;display:flex;gap:10px;flex-wrap:wrap;background:rgba(0,0,0,.18);align-items:center;');
+  var searchInput = el('input', 'flex:1;min-width:200px;background:rgba(255,255,255,.05);border:1px solid rgba(103,232,249,.2);border-radius:8px;color:#FAFAFA;padding:8px 12px;font-size:13px;font-family:\'Outfit\',sans-serif;outline:none;');
+  searchInput.placeholder = '🔍 Buscar bodega...';
+
+  var selTipo = el('select', 'background:#1a1916;border:1px solid rgba(103,232,249,.2);border-radius:8px;color:#FAFAFA;padding:8px 10px;font-size:12px;font-family:\'Outfit\',sans-serif;cursor:pointer;min-width:140px;');
+  [['Todos los tipos',''],['Almacén','Almacén'],['VP Alquiler','VP Alquiler'],['VP Venta','VP Venta'],['Bajas','Bajas'],['Proveedor','Proveedor'],['Alist.','Alist.']].forEach(function(o){
+    selTipo.appendChild(new Option(o[0], o[1]));
+  });
+
+  filterBar.appendChild(searchInput);
+  filterBar.appendChild(selTipo);
+  panel.appendChild(filterBar);
+
+  // Grid de bodegas
+  var gridWrap = el('div', 'overflow:auto;flex:1;padding:20px 24px;');
+  var grid = el('div', 'display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;');
+  gridWrap.appendChild(grid);
+  panel.appendChild(gridWrap);
+
+  var maxStock = bodegaList[0] ? bodegaList[0].stock : 1;
+
+  function renderCards(list) {
+    grid.innerHTML = '';
+    if (!list.length) {
+      var empty = el('div', 'grid-column:1/-1;text-align:center;padding:40px;color:#7A7674;font-family:\'Outfit\',sans-serif;', 'Sin bodegas para los filtros aplicados');
+      grid.appendChild(empty);
+      return;
+    }
+    list.forEach(function(b, i) {
+      var tipo  = bodTipo(b.nombre);
+      var pct   = maxStock ? (b.stock / maxStock * 100) : 0;
+      var short = shortName(b.nombre);
+
+      var card = el('div',
+        'background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));' +
+        'border:1px solid rgba(103,232,249,.1);border-top:2px solid ' + tipo.color + ';' +
+        'border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;' +
+        'transition:all .2s cubic-bezier(.4,0,.2,1);cursor:default;'
+      );
+      card.addEventListener('mouseover', function() {
+        card.style.transform = 'translateY(-3px)';
+        card.style.borderColor = tipo.color + '55';
+        card.style.boxShadow = '0 8px 32px rgba(0,0,0,.5),0 0 20px ' + tipo.color + '18';
+      });
+      card.addEventListener('mouseout', function() {
+        card.style.transform = '';
+        card.style.borderColor = 'rgba(103,232,249,.1)';
+        card.style.boxShadow = '';
+      });
+
+      // Glow orb
+      var orb = el('div', 'position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:' + tipo.color + ';opacity:.05;filter:blur(10px);pointer-events:none;');
+      card.appendChild(orb);
+
+      // Rank badge
+      var rank = el('div', 'position:absolute;top:10px;right:12px;font-size:9px;font-family:\'JetBrains Mono\',monospace;color:' + tipo.color + ';opacity:.5;font-weight:700;', '#' + String(i+1).padStart(2,'0'));
+      card.appendChild(rank);
+
+      // Tipo badge
+      var tipoBadge = el('span',
+        'display:inline-block;background:' + tipo.color + '22;color:' + tipo.color + ';' +
+        'font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;' +
+        'font-family:\'Outfit\',sans-serif;letter-spacing:.3px;margin-bottom:10px;',
+        tipo.label
+      );
+      card.appendChild(tipoBadge);
+
+      // Nombre
+      var nameEl = el('div',
+        'font-family:\'Outfit\',sans-serif;font-size:13px;font-weight:600;color:#FAFAFA;' +
+        'margin-bottom:12px;line-height:1.3;padding-right:28px;',
+        short
+      );
+      nameEl.title = b.nombre;
+      card.appendChild(nameEl);
+
+      // Stock
+      var stockRow = el('div', 'display:flex;align-items:baseline;gap:6px;margin-bottom:10px;');
+      var stockNum = el('div',
+        'font-family:\'JetBrains Mono\',monospace;font-size:22px;font-weight:700;color:' + tipo.color + ';' +
+        'line-height:1;letter-spacing:-1px;text-shadow:0 0 20px ' + tipo.color + '55;',
+        b.stock.toLocaleString('es-CO')
+      );
+      var stockLbl = el('div', 'font-size:10px;color:#7A7674;font-family:\'Outfit\',sans-serif;', 'unidades');
+      stockRow.appendChild(stockNum);
+      stockRow.appendChild(stockLbl);
+      card.appendChild(stockRow);
+
+      // Barra de progreso
+      var barWrap = el('div', 'background:rgba(255,255,255,.05);border-radius:4px;height:4px;overflow:hidden;');
+      var barFill = el('div',
+        'height:100%;border-radius:4px;background:linear-gradient(90deg,' + tipo.color + '66,' + tipo.color + ');' +
+        'transition:width .8s cubic-bezier(.4,0,.2,1);',
+        ''
+      );
+      barFill.style.width = Math.max(b.stock > 0 ? 4 : 0, Math.min(pct, 100)) + '%';
+      barWrap.appendChild(barFill);
+      card.appendChild(barWrap);
+
+      grid.appendChild(card);
+    });
+  }
+
+  function applyBodFilter() {
+    var search = (searchInput.value || '').toLowerCase().trim();
+    var tipo   = selTipo.value;
+    var filtered = bodegaList.filter(function(b) {
+      if (tipo && bodTipo(b.nombre).label !== tipo) return false;
+      if (search && !b.nombre.toLowerCase().includes(search) && !shortName(b.nombre).toLowerCase().includes(search)) return false;
+      return true;
+    });
+    renderCards(filtered);
+  }
+
+  searchInput.addEventListener('input',  applyBodFilter);
+  selTipo.addEventListener('change', applyBodFilter);
+
+  // Render inicial
+  renderCards(bodegaList);
+
+  overlay.appendChild(panel);
+  document.body.appendChild(overlay);
+
+  // Keyframes (reutiliza los mismos del drill modal si ya existen)
+  if (!document.getElementById('inv-drill-keyframes')) {
+    var style = document.createElement('style');
+    style.id = 'inv-drill-keyframes';
+    style.textContent = '@keyframes fadeIn{from{opacity:0}to{opacity:1}}@keyframes slideUp{from{opacity:0;transform:translateY(24px) scale(.97)}to{opacity:1;transform:none}}';
+    document.head.appendChild(style);
+  }
+}
+
+window.invOpenBodegasModal = invOpenBodegasModal;
 
 // ══════════════════════════════════════════════════════════════════
 //  ENTRY POINT
