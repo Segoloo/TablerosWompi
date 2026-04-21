@@ -207,29 +207,38 @@ function _invRenderKPIs() {
 
   grid.innerHTML = kpis.map(function(k) {
     return (
-      '<div class="kpi-card inv-kpi-v2" style="' +
-        'border-top:3px solid ' + k.color + ';' +
-        'background:linear-gradient(160deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.01) 100%);' +
-        'border-radius:16px;padding:20px 22px 18px;position:relative;overflow:hidden;' +
-        'transition:transform 0.2s ease,box-shadow 0.2s ease;' +
+      '<div class="kpi-card inv-kpi-v2 fade-up" style="' +
+        'background:linear-gradient(145deg,rgba(10,26,18,.95) 0%,rgba(8,20,14,.9) 100%);' +
+        'border:1px solid rgba(176,242,174,.1);border-top:2px solid ' + k.color + ';' +
+        'border-radius:var(--radius,18px);padding:22px 20px;' +
+        'position:relative;overflow:hidden;' +
+        'box-shadow:0 4px 20px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03);' +
+        'transition:all .25s cubic-bezier(.4,0,.2,1);' +
         (k.wide ? 'grid-column:span 2;' : '') +
       '" ' +
-      'onmouseover="this.style.transform=\'translateY(-3px)\';this.style.boxShadow=\'0 12px 40px rgba(0,0,0,0.35)\'" ' +
-      'onmouseout="this.style.transform=\'\';this.style.boxShadow=\'\'">' +
-        // Glow accent
-        '<div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:' + k.color + ';opacity:0.07;pointer-events:none;"></div>' +
-        // Header row
-        '<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">' +
-          '<span style="font-size:10px;font-weight:700;letter-spacing:1px;color:var(--muted);text-transform:uppercase;line-height:1.3;">' + k.label + '</span>' +
-          '<span style="font-size:18px;line-height:1;">' + k.icon + '</span>' +
-        '</div>' +
-        // Main value
-        '<div style="font-size:32px;font-weight:800;color:' + k.color + ';font-family:\'Syne\',sans-serif;line-height:1;margin-bottom:12px;letter-spacing:-0.5px;">' + k.value + '</div>' +
+      'onmouseover="this.style.transform=\'translateY(-5px)\';this.style.borderColor=\'' + k.color + '55\';this.style.boxShadow=\'0 12px 40px rgba(0,0,0,.5),0 0 30px ' + k.color + '22\'" ' +
+      'onmouseout="this.style.transform=\'\';this.style.borderColor=\'rgba(176,242,174,.1)\';this.style.boxShadow=\'0 4px 20px rgba(0,0,0,.4)\'">' +
+        // Glow orb
+        '<div style="position:absolute;top:-24px;right:-24px;width:88px;height:88px;border-radius:50%;background:' + k.color + ';opacity:0.06;pointer-events:none;filter:blur(12px);"></div>' +
+        // Icon
+        '<span style="font-size:18px;margin-bottom:14px;display:block;">' + k.icon + '</span>' +
+        // Label — VP system style
+        '<div style="font-size:10px;font-weight:600;color:var(--muted,#7A7674);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;line-height:1.3;font-family:\'Outfit\',sans-serif;">' + k.label + '</div>' +
+        // Value — JetBrains Mono like VP
+        '<div style="font-family:\'JetBrains Mono\',monospace;font-size:34px;font-weight:700;color:' + k.color + ';line-height:1;letter-spacing:-1.5px;animation:countUp .4s cubic-bezier(.34,1.56,.64,1);text-shadow:0 0 28px ' + k.color + '66;margin-bottom:10px;">' + k.value + '</div>' +
         // Sub tags
         '<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">' +
-          '<span style="display:inline-block;background:' + k.color + '22;color:' + k.color + ';font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;font-family:\'JetBrains Mono\',monospace;">' + k.sub1 + '</span>' +
-          '<span style="font-size:11px;color:var(--muted);">' + k.sub2 + '</span>' +
+          '<span style="display:inline-block;background:' + k.color + '22;color:' + k.color + ';font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;font-family:\'JetBrains Mono\',monospace;letter-spacing:.3px;">' + k.sub1 + '</span>' +
+          '<span style="font-size:11px;color:var(--muted,#7A7674);font-family:\'Outfit\',sans-serif;">' + k.sub2 + '</span>' +
         '</div>' +
+        // Progress bar for percentage values
+        (k.sub1.includes('%') && k.sub1 !== '100.0%' ? (
+          '<div style="margin-top:14px;">' +
+            '<div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden;">' +
+              '<div style="width:' + Math.min(parseFloat(k.sub1), 100) + '%;height:100%;background:linear-gradient(90deg,' + k.color + '88,' + k.color + ');border-radius:2px;transition:width 1s cubic-bezier(.4,0,.2,1);"></div>' +
+            '</div>' +
+          '</div>'
+        ) : '') +
       '</div>'
     );
   }).join('');
@@ -287,25 +296,49 @@ function _invRenderCharts() {
   });
   const topBodegas = Object.entries(bodMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0, 10);
 
-  // ── Chart defaults ─────────────────────────────────────────────
+  // ── Chart defaults — VP system ─────────────────────────────────
   const TOOLTIP_OPTS = {
-    backgroundColor: 'rgba(15,23,42,0.95)',
-    titleColor: '#B0F2AE', bodyColor: '#e2e8f0',
-    borderColor: 'rgba(176,242,174,0.2)', borderWidth: 1, padding: 12,
+    backgroundColor: 'rgba(24,23,21,.95)',
+    titleColor: '#B0F2AE', bodyColor: '#FAFAFA',
+    borderColor: 'rgba(176,242,174,.2)', borderWidth: 1, padding: 12,
+    titleFont: { family: 'Syne', size: 13, weight: '700' },
+    bodyFont:  { family: 'Outfit', size: 12 },
   };
-  const LEGEND_OPTS = { labels: { color: '#94a3b8', font: { family: 'Outfit', size: 12 }, padding: 16 } };
-  const XGRID = { color: 'rgba(255,255,255,0.05)' };
-  const YTICK = { color: '#94a3b8', font: { family: 'Outfit', size: 12 } };
-  const XTICK_MONO = { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 }, callback: function(v){ return v.toLocaleString('es-CO'); } };
+  const LEGEND_OPTS = {
+    labels: {
+      color: '#FAFAFA',
+      font: { family: 'Outfit', size: 12 },
+      padding: 16,
+      boxWidth: 12,
+    }
+  };
+  const XGRID   = { color: 'rgba(255,255,255,.05)' };
+  const YTICK   = { color: '#7A7674', font: { family: 'Outfit', size: 12 }, border: { display: false } };
+  const XTICK_MONO = {
+    color: '#7A7674',
+    font: { family: 'JetBrains Mono', size: 11 },
+    callback: function(v){ return v.toLocaleString('es-CO'); },
+    border: { display: false }
+  };
 
-  // ── Card builder ───────────────────────────────────────────────
+  // ── Card builder — VP style ────────────────────────────────────
   function makeCard(canvasId, title, sub) {
     const div = document.createElement('div');
-    div.style.cssText = 'background:linear-gradient(160deg,rgba(255,255,255,0.04) 0%,rgba(255,255,255,0.01) 100%);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:22px 24px 20px;position:relative;overflow:hidden;';
+    div.style.cssText = [
+      'background:linear-gradient(145deg,rgba(10,26,18,.95) 0%,rgba(8,20,14,.9) 100%)',
+      'border:1px solid rgba(176,242,174,.1)',
+      'border-radius:var(--radius,18px)',
+      'padding:22px 24px 20px',
+      'position:relative',
+      'overflow:hidden',
+      'box-shadow:0 4px 20px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)',
+      'transition:all .25s cubic-bezier(.4,0,.2,1)',
+    ].join(';');
     div.innerHTML =
+      '<div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--verde-menta,#B0F2AE),var(--azul-cielo,#99D1FC),transparent);opacity:.6;"></div>' +
       '<div style="margin-bottom:16px;">' +
-        '<div style="font-size:13px;font-weight:700;color:#f1f5f9;letter-spacing:0.3px;font-family:\'Outfit\',sans-serif;">' + title + '</div>' +
-        (sub ? '<div style="font-size:11px;color:var(--muted);margin-top:3px;">' + sub + '</div>' : '') +
+        '<div style="font-family:\'Syne\',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;letter-spacing:.3px;">' + title + '</div>' +
+        (sub ? '<div style="font-size:11px;color:var(--muted,#7A7674);margin-top:3px;font-family:\'Outfit\',sans-serif;">' + sub + '</div>' : '') +
       '</div>' +
       '<canvas id="' + canvasId + '" style="max-height:260px;"></canvas>';
     return div;
@@ -402,7 +435,7 @@ function _invRenderCharts() {
         })
       },
       scales: {
-        x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { family: 'Outfit', size: 13, weight: '600' } } },
+        x: { grid: { display: false }, ticks: { color: '#FAFAFA', font: { family: 'Outfit', size: 13, weight: '600' } }, border: { display: false } },
         y: { grid: XGRID, ticks: XTICK_MONO }
       }
     }
@@ -442,7 +475,158 @@ function _invRenderCharts() {
       plugins: { legend: { display: false }, tooltip: TOOLTIP_OPTS },
       scales: {
         x: { grid: XGRID, ticks: XTICK_MONO },
-        y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { family: 'Outfit', size: 11 } } }
+        y: { grid: { display: false }, ticks: { color: '#FAFAFA', font: { family: 'Outfit', size: 11 }, border: { display: false } } }
+      }
+    }
+  });
+
+  // ── 5. Stacked bar: CB vs VP por categoría ────────────────────
+  var catNames = Object.keys(catMap);
+  var cbByCat = {}, vpByCat = {};
+  catNames.forEach(function(c) { cbByCat[c] = 0; vpByCat[c] = 0; });
+  rows.forEach(function(r) {
+    var cat = invCategoria(r['Nombre']);
+    var qty = parseInt(r['Cantidad']) || 0;
+    var neg = invNegocio(r['Subtipo']);
+    if (neg === 'VP') vpByCat[cat] = (vpByCat[cat] || 0) + qty;
+    else              cbByCat[cat] = (cbByCat[cat] || 0) + qty;
+  });
+  // Sort by total desc
+  catNames = catNames.sort(function(a,b){ return (cbByCat[b]+vpByCat[b]) - (cbByCat[a]+vpByCat[a]); });
+
+  var c5 = makeCard('inv-c-cb-vp-cat', 'CB vs VP por Categoría', 'Distribución de negocio dentro de cada tipo de producto');
+  chartsGrid.appendChild(c5);
+  INV_CHARTS['cbVpCat'] = new Chart(document.getElementById('inv-c-cb-vp-cat'), {
+    type: 'bar',
+    data: {
+      labels: catNames,
+      datasets: [
+        {
+          label: 'CB (Wompi)',
+          data: catNames.map(function(c){ return cbByCat[c]; }),
+          backgroundColor: '#99D1FCCC',
+          borderColor: '#99D1FC',
+          borderWidth: 2, borderRadius: 4, borderSkipped: false,
+        },
+        {
+          label: 'VP (Valor Plus)',
+          data: catNames.map(function(c){ return vpByCat[c]; }),
+          backgroundColor: '#C084FCCC',
+          borderColor: '#C084FC',
+          borderWidth: 2, borderRadius: 4, borderSkipped: false,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: LEGEND_OPTS,
+        tooltip: Object.assign({}, TOOLTIP_OPTS, {
+          callbacks: {
+            label: function(ctx) {
+              return ' ' + ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString('es-CO') + ' uds';
+            }
+          }
+        })
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: YTICK, border: { display: false } },
+        y: { stacked: true, grid: XGRID, ticks: XTICK_MONO }
+      }
+    }
+  });
+
+  // ── 6. Polar area: proporción de categorías en stock ─────────
+  var polarLabels = catEntries.map(function(e){ return e[0]; });
+  var polarVals   = catEntries.map(function(e){ return e[1]; });
+  var polarColors = ['#B0F2AECC','#99D1FCCC','#DFFF61CC','#C084FCCC','#FFC04DCC','#F87171CC','#FB923CCC','#7BC8FBCC'];
+
+  var c6 = makeCard('inv-c-polar', 'Proporción por Categoría', 'Peso relativo de cada tipo en el inventario total');
+  chartsGrid.appendChild(c6);
+  INV_CHARTS['polar'] = new Chart(document.getElementById('inv-c-polar'), {
+    type: 'polarArea',
+    data: {
+      labels: polarLabels,
+      datasets: [{
+        data: polarVals,
+        backgroundColor: polarColors.slice(0, polarLabels.length),
+        borderColor: polarColors.slice(0, polarLabels.length).map(function(c){ return c.replace('CC',''); }),
+        borderWidth: 2,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: LEGEND_OPTS,
+        tooltip: Object.assign({}, TOOLTIP_OPTS, {
+          callbacks: {
+            label: function(ctx) {
+              var v = ctx.parsed.r;
+              var pct = total ? (v / total * 100).toFixed(1) : 0;
+              return ' ' + v.toLocaleString('es-CO') + ' uds (' + pct + '%)';
+            }
+          }
+        })
+      },
+      scales: {
+        r: {
+          grid: { color: 'rgba(255,255,255,.06)' },
+          ticks: { color: '#7A7674', font: { family: 'JetBrains Mono', size: 10 }, backdropColor: 'transparent', callback: function(v){ return v.toLocaleString('es-CO'); } },
+          pointLabels: { display: false },
+        }
+      }
+    }
+  });
+
+  // ── 7. Horizontal bar: % ocupación bodega (stock/total) ───────
+  var topLabels7   = topBodegas.map(function(b){ return shortName(b[0]); });
+  var topVals7     = topBodegas.map(function(b){ return b[1]; });
+  var topPcts7     = topVals7.map(function(v){ return total ? parseFloat((v / total * 100).toFixed(1)) : 0; });
+  var pctColors7   = topPcts7.map(function(p){
+    if (p > 15) return '#B0F2AECC';
+    if (p > 8)  return '#DFFF61CC';
+    return '#FFC04DCC';
+  });
+
+  var c7 = makeCard('inv-c-ocupacion', '% de Stock por Bodega', 'Participación porcentual de cada ubicación sobre el total');
+  c7.style.gridColumn = '1 / -1';
+  chartsGrid.appendChild(c7);
+  INV_CHARTS['ocupacion'] = new Chart(document.getElementById('inv-c-ocupacion'), {
+    type: 'bar',
+    data: {
+      labels: topLabels7,
+      datasets: [{
+        label: '% del total',
+        data: topPcts7,
+        backgroundColor: pctColors7,
+        borderColor: pctColors7.map(function(c){ return c.replace('CC',''); }),
+        borderWidth: 2, borderRadius: 6, borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: Object.assign({}, TOOLTIP_OPTS, {
+          callbacks: {
+            label: function(ctx) {
+              var idx = ctx.dataIndex;
+              return [
+                ' ' + ctx.parsed.x.toFixed(1) + '% del inventario',
+                ' ' + topVals7[idx].toLocaleString('es-CO') + ' unidades',
+              ];
+            }
+          }
+        })
+      },
+      scales: {
+        x: {
+          grid: XGRID,
+          ticks: { color: '#7A7674', font: { family: 'JetBrains Mono', size: 11 }, callback: function(v){ return v + '%'; }, border: { display: false } },
+          max: Math.ceil(Math.max.apply(null, topPcts7) * 1.15),
+        },
+        y: { grid: { display: false }, ticks: YTICK }
       }
     }
   });
@@ -477,35 +661,34 @@ function _invRenderTable() {
   container.innerHTML =
     '<table style="width:100%;border-collapse:separate;border-spacing:0;font-family:\'Outfit\',sans-serif;font-size:13px;">' +
       '<thead>' +
-        '<tr style="border-bottom:2px solid rgba(255,255,255,0.08);">' +
-          '<th style="padding:12px 16px;text-align:left;font-size:10px;letter-spacing:1px;font-weight:700;color:#64748b;text-transform:uppercase;">#</th>' +
-          '<th style="padding:12px 16px;text-align:left;font-size:10px;letter-spacing:1px;font-weight:700;color:#64748b;text-transform:uppercase;">Referencia</th>' +
-          '<th style="padding:12px 16px;text-align:left;font-size:10px;letter-spacing:1px;font-weight:700;color:#64748b;text-transform:uppercase;">Categoría</th>' +
-          '<th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;font-weight:700;color:#64748b;text-transform:uppercase;">Unidades</th>' +
-          '<th style="padding:12px 16px;text-align:right;font-size:10px;letter-spacing:1px;font-weight:700;color:#64748b;text-transform:uppercase;">% Total</th>' +
-          '<th style="padding:12px 24px 12px 16px;text-align:left;font-size:10px;letter-spacing:1px;font-weight:700;color:#64748b;text-transform:uppercase;">Distribución</th>' +
+        '<tr style="border-bottom:1px solid rgba(176,242,174,.1);">' +
+          '<th style="padding:12px 16px;text-align:left;font-family:\'Syne\',sans-serif;font-size:9px;letter-spacing:2px;font-weight:700;color:rgba(176,242,174,.6);text-transform:uppercase;">#</th>' +
+          '<th style="padding:12px 16px;text-align:left;font-family:\'Syne\',sans-serif;font-size:9px;letter-spacing:2px;font-weight:700;color:rgba(176,242,174,.6);text-transform:uppercase;">Referencia</th>' +
+          '<th style="padding:12px 16px;text-align:left;font-family:\'Syne\',sans-serif;font-size:9px;letter-spacing:2px;font-weight:700;color:rgba(176,242,174,.6);text-transform:uppercase;">Categoría</th>' +
+          '<th style="padding:12px 16px;text-align:right;font-family:\'Syne\',sans-serif;font-size:9px;letter-spacing:2px;font-weight:700;color:rgba(176,242,174,.6);text-transform:uppercase;">Unidades</th>' +
+          '<th style="padding:12px 16px;text-align:right;font-family:\'Syne\',sans-serif;font-size:9px;letter-spacing:2px;font-weight:700;color:rgba(176,242,174,.6);text-transform:uppercase;">% Total</th>' +
+          '<th style="padding:12px 24px 12px 16px;text-align:left;font-family:\'Syne\',sans-serif;font-size:9px;letter-spacing:2px;font-weight:700;color:rgba(176,242,174,.6);text-transform:uppercase;">Distribución</th>' +
         '</tr>' +
       '</thead>' +
       '<tbody>' +
         sorted.map(function(r, i) {
           var pct   = total ? (r.total / total * 100) : 0;
           var color = catColor[r.cat] || '#94a3b8';
-          var bg    = i % 2 === 0 ? 'rgba(255,255,255,0.015)' : 'transparent';
-          var bgOut = bg;
+          var bg    = i % 2 === 0 ? 'rgba(176,242,174,.015)' : 'transparent';
           return (
             '<tr style="background:' + bg + ';transition:background 0.15s;" ' +
-                'onmouseover="this.style.background=\'rgba(176,242,174,0.06)\'" ' +
-                'onmouseout="this.style.background=\'' + bgOut + '\'">' +
-              '<td style="padding:11px 16px;color:#475569;font-family:\'JetBrains Mono\',monospace;font-size:11px;font-weight:600;">' + String(i+1).padStart(2,'0') + '</td>' +
-              '<td style="padding:11px 16px;color:#e2e8f0;font-weight:500;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + r.nombre + '">' + r.nombre + '</td>' +
+                'onmouseover="this.style.background=\'rgba(176,242,174,0.05)\'" ' +
+                'onmouseout="this.style.background=\'' + bg + '\'">' +
+              '<td style="padding:11px 16px;color:rgba(176,242,174,.4);font-family:\'JetBrains Mono\',monospace;font-size:11px;font-weight:600;">' + String(i+1).padStart(2,'0') + '</td>' +
+              '<td style="padding:11px 16px;color:#FAFAFA;font-weight:500;font-family:\'Outfit\',sans-serif;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="' + r.nombre + '">' + r.nombre + '</td>' +
               '<td style="padding:11px 16px;">' +
-                '<span style="display:inline-block;background:' + color + '22;color:' + color + ';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:0.3px;">' + r.cat + '</span>' +
+                '<span style="display:inline-block;background:' + color + '22;color:' + color + ';font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;letter-spacing:0.3px;font-family:\'Outfit\',sans-serif;">' + r.cat + '</span>' +
               '</td>' +
-              '<td style="padding:11px 16px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:700;color:' + color + ';">' + r.total.toLocaleString('es-CO') + '</td>' +
-              '<td style="padding:11px 16px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:12px;color:#94a3b8;">' + pct.toFixed(1) + '%</td>' +
+              '<td style="padding:11px 16px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:' + color + ';text-shadow:0 0 16px ' + color + '66;">' + r.total.toLocaleString('es-CO') + '</td>' +
+              '<td style="padding:11px 16px;text-align:right;font-family:\'JetBrains Mono\',monospace;font-size:12px;color:#7A7674;">' + pct.toFixed(1) + '%</td>' +
               '<td style="padding:11px 24px 11px 16px;min-width:140px;">' +
-                '<div style="background:rgba(255,255,255,0.05);border-radius:4px;height:6px;overflow:hidden;">' +
-                  '<div style="width:' + Math.min(pct * 5, 100) + '%;height:100%;background:' + color + ';border-radius:4px;transition:width 0.6s ease;"></div>' +
+                '<div style="background:rgba(255,255,255,.05);border-radius:4px;height:4px;overflow:hidden;">' +
+                  '<div style="width:' + Math.min(pct * 5, 100) + '%;height:100%;background:linear-gradient(90deg,' + color + '88,' + color + ');border-radius:4px;transition:width 0.8s cubic-bezier(.4,0,.2,1);"></div>' +
                 '</div>' +
               '</td>' +
             '</tr>'
