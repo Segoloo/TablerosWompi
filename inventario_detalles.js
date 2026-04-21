@@ -211,12 +211,9 @@ function _detRenderKPIStrip() {
   });
 
   window._detKpiDrillData = [
-    { title:'Total Inventario Detalles',  rows: segs.total,     uds: totalQty,     reg: totalReg,     color:'#DFFF61', icon:'📦' },
     { title:'Todas las Unidades',         rows: segs.total,     uds: totalQty,     reg: totalReg,     color:'#B0F2AE', icon:'⚡' },
     { title:'Con Alerta >8 días',         rows: segs.conAlerta, uds: udsConAlerta, reg: regConAlerta, color:'#F87171', icon:'🚨' },
     { title:'Sin Alerta',                 rows: segs.sinAlerta, uds: udsSinAlerta, reg: regSinAlerta, color:'#B0F2AE', icon:'✅' },
-    { title:'Gestor LineaCom',            rows: segs.gestorLC,  uds: udsGLC,       reg: regGLC,       color:'#FFC04D', icon:'🔧' },
-    { title:'Gestor Wompi',               rows: segs.gestorWP,  uds: udsGWP,       reg: regGWP,       color:'#C084FC', icon:'👤' },
   ];
 
   strip.innerHTML = window._detKpiDrillData.map((k, idx) => `
