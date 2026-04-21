@@ -1427,7 +1427,7 @@ function _selectBoard(board) {
   const isOpen  = section?.classList.contains('open');
 
   // Collapse all boards
-  ['datafonos','rollos'].forEach(b => {
+  ['datafonos','rollos','inventario'].forEach(b => {
     document.getElementById('sb-board-' + b)?.classList.remove('open');
     document.getElementById('sb-btn-' + b)?.classList.remove('active');
   });
@@ -1438,9 +1438,10 @@ function _selectBoard(board) {
     document.getElementById('sb-btn-' + board)?.classList.add('active');
 
     const label = document.getElementById('topbar-board-label');
-    if (label) label.textContent = board === 'datafonos' ? 'Tracking VP · Datafonos' : 'Tracking Rollos Trim y VP';
+    if (label) label.textContent = board === 'datafonos' ? 'Tracking VP · Datafonos' : board === 'inventario' ? 'Inventario Wompi' : 'Tracking Rollos Trim y VP';
 
     if (board === 'datafonos') _selectBoardTab('datafonos', 'tracking');
+    else if (board === 'inventario') _selectBoardTab('inventario', 'inv-principal');
     else _selectBoardTab('rollos', 'rollos-main');
   }
   // If was already open (toggle close) — just collapse, keep current panel visible (don't redirect to home)
@@ -1471,6 +1472,7 @@ function _selectBoardTab(board, tab) {
   if (tab === 'rollos-main')     renderRollosTab();
   if (tab === 'rollos-detalle')  { if (ROLLOS_RAW) renderRollosDetalleTable(); }
   if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
+  if (tab === 'inv-principal')   renderInventarioPrincipal();
 }
 
 function _showAllPanels(activeTab) {
@@ -1482,10 +1484,11 @@ function _showAllPanels(activeTab) {
     'rollos-main':     'panel-rollos',
     'rollos-detalle':  'panel-rollos-detalle',
     'rollos-comercio': 'panel-rollos-comercio',
+    'inv-principal':   'panel-inv-principal',
   };
   // Hide all
   ['panel-home','panel-tracking','panel-detalle','panel-tabla','panel-incump',
-   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio'].forEach(id => {
+   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio','panel-inv-principal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });

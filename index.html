@@ -133,6 +133,20 @@
           <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')"><span class="sidebar-tab-icon">🏪</span> Tabla Detalle por Comercio</div>
         </div>
       </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Board: Inventario -->
+      <div class="sidebar-board-section" id="sb-board-inventario">
+        <div class="sidebar-board-btn" id="sb-btn-inventario" onclick="selectBoard('inventario')">
+          <span class="sidebar-board-icon">📦</span>
+          <span class="sidebar-board-name">INVENTARIO WOMPI</span>
+          <span class="sidebar-board-chevron">▶</span>
+        </div>
+        <div class="sidebar-tabs">
+          <div class="sidebar-tab" id="sb-tab-inv-principal" onclick="selectBoardTab('inventario','inv-principal')"><span class="sidebar-tab-icon">📊</span> Principal</div>
+        </div>
+      </div>
     </div>
 
     <!-- ══ CONTENT AREA ══ -->
@@ -156,6 +170,11 @@
               <div style="font-size:32px;margin-bottom:12px;">🎞️</div>
               <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--azul-cielo);letter-spacing:.5px;margin-bottom:6px;">TRACKING ROLLOS TRIM Y VP</div>
               <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs, distribución, tendencias y detalle de rollos Wompi</div>
+            </div>
+          <div onclick="selectBoard('inventario')" style="cursor:pointer;background:linear-gradient(145deg,rgba(10,18,28,.98),rgba(40,0,80,.10));border:1px solid rgba(192,132,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(192,132,252,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(192,132,252,.2)';this.style.transform='translateY(0)'">
+              <div style="font-size:32px;margin-bottom:12px;">📦</div>
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#C084FC;letter-spacing:.5px;margin-bottom:6px;">INVENTARIO WOMPI</div>
+              <div style="font-size:11px;color:var(--muted);line-height:1.5;">KPIs de stock: bodegas, comercio, técnico, gestores y OPL</div>
             </div>
           </div>
         </div>
@@ -503,6 +522,50 @@
           </div>
         </div>
 
+
+        <!-- PANEL: INVENTARIO PRINCIPAL -->
+        <div id="panel-inv-principal" style="display:none">
+
+          <!-- Filtros -->
+          <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
+            <div class="filters-title" style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:18px">📦</span>
+              <span>Filtros Inventario — aplican a todos los KPIs</span>
+            </div>
+            <div class="filters-row">
+              <div class="filter-group">
+                <label>Tipo de Negocio</label>
+                <select id="inv-f-negocio">
+                  <option value="Todos">Todos</option>
+                  <option value="CB">CB (Wompi)</option>
+                  <option value="VP">VP</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>Categoría</label>
+                <select id="inv-f-categoria"><option value="Todas">Todas</option></select>
+              </div>
+              <div class="filter-group">
+                <label>Referencia</label>
+                <select id="inv-f-referencia"><option value="Todas">Todas</option></select>
+              </div>
+              <div class="filter-group">
+                <label>Bodega</label>
+                <select id="inv-f-bodega"><option value="Todas">Todas</option></select>
+              </div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="invApplyFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="invResetFilters()">↺ Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label fade-up fade-up-1">KPIs Inventario</div>
+          <div id="inv-kpi-grid" class="kpi-grid fade-up fade-up-2" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));">
+            <div class="loading"><div class="spinner"></div><span>Cargando inventario...</span></div>
+          </div>
+
+        </div>
       </div><!-- /main -->
     </div><!-- /content-area -->
   </div><!-- /app-body -->
@@ -529,5 +592,6 @@ function selectBoard(b)          { if(window._sidebarReady) window._selectBoard(
 function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardTab(b,t); }
 </script>
 <script src="dashboard.js"></script>
+<script src="inventario.js"></script>
 </body>
 </html>
