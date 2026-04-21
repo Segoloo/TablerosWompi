@@ -119,21 +119,89 @@ async function loadInventarioData() {
 }
 
 // ══════════════════════════════════════════════════════════════════
+//  AUTOCOMPLETE HELPER (compartido con inventario_detalles.js)
+// ══════════════════════════════════════════════════════════════════
+window._invAcSetup = function(inputId, allOpts) {
+  const inp = document.getElementById(inputId);
+  const ul  = document.getElementById(inputId + '-list');
+  if (!inp || !ul) return;
+
+  // valor exacto seleccionado ('' = sin filtro)
+  inp._acValue = '';
+
+  function show(query) {
+    const q = query.trim().toLowerCase();
+    const matches = q
+      ? allOpts.filter(o => o.toLowerCase().includes(q)).slice(0, 100)
+      : allOpts.slice(0, 100);
+    ul.innerHTML = '<li class="inv-ac-clear" data-val="">✕ Sin filtro</li>' +
+      matches.map(o => `<li data-val="${o.replace(/"/g,'&quot;')}">${_invAcHL(o,q)}</li>`).join('');
+    ul.style.display = 'block';
+  }
+
+  function hide() { ul.style.display = 'none'; }
+
+  function pick(val) {
+    inp._acValue = val;
+    inp.value = val;
+    inp.classList.toggle('inv-ac-selected', !!val);
+    hide();
+  }
+
+  inp.addEventListener('focus', () => show(inp.value));
+  inp.addEventListener('input', () => { inp._acValue = ''; show(inp.value); });
+  ul.addEventListener('mousedown', e => {
+    const li = e.target.closest('li');
+    if (li) { e.preventDefault(); pick(li.dataset.val); }
+  });
+  document.addEventListener('click', e => { if (!inp.contains(e.target) && !ul.contains(e.target)) hide(); });
+  inp.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { hide(); }
+    if (e.key === 'Enter')  { e.preventDefault();
+      const active = ul.querySelector('.inv-ac-active');
+      if (active) pick(active.dataset.val);
+      else hide();
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const items = [...ul.querySelectorAll('li')];
+      if (!items.length) return;
+      const cur = ul.querySelector('.inv-ac-active');
+      let idx = items.indexOf(cur);
+      items.forEach(i => i.classList.remove('inv-ac-active'));
+      idx = e.key === 'ArrowDown' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
+      items[idx].classList.add('inv-ac-active');
+      items[idx].scrollIntoView({ block: 'nearest' });
+    }
+  });
+};
+
+function _invAcHL(text, q) {
+  if (!q) return text;
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return text;
+  return text.slice(0,i) + '<strong style="color:#B0F2AE">' + text.slice(i, i+q.length) + '</strong>' + text.slice(i+q.length);
+}
+window._invAcHL = _invAcHL;
+
+// ══════════════════════════════════════════════════════════════════
 //  POBLAR FILTROS
 // ══════════════════════════════════════════════════════════════════
 function _invPopulateFilters() {
   if (!INV_RAW || !INV_RAW.length) return;
   const cats = ['Todas','Rollos','Pin pad','Forros','Accesorios','SIM','KIT POP VP','Datáfonos'];
   _invSetSelect('inv-f-categoria', cats);
+
   const refs = [...new Set(INV_RAW.map(r => r['Nombre']).filter(Boolean))].sort();
-  _invSetSelect('inv-f-referencia', ['Todas', ...refs]);
+  window._invAcSetup('inv-f-referencia', refs);
+
   const bods = [...INV_BODEGAS].sort();
-  _invSetSelect('inv-f-bodega', ['Todas', ...bods]);
+  window._invAcSetup('inv-f-bodega', bods);
 }
 
 function _invSetSelect(id, opts) {
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!el || el.tagName !== 'SELECT') return;
   const cur = el.value;
   el.innerHTML = opts.map(o => '<option value="' + o + '">' + o + '</option>').join('');
   if (opts.includes(cur)) el.value = cur;
@@ -147,14 +215,16 @@ function invApplyFilters() {
 
   const negocio    = (document.getElementById('inv-f-negocio')?.value    || '');
   const categoria  = (document.getElementById('inv-f-categoria')?.value  || '');
-  const referencia = (document.getElementById('inv-f-referencia')?.value || '');
-  const bodega     = (document.getElementById('inv-f-bodega')?.value     || '');
+  const refEl      = document.getElementById('inv-f-referencia');
+  const referencia = refEl?._acValue ?? refEl?.value ?? '';
+  const bodEl      = document.getElementById('inv-f-bodega');
+  const bodega     = bodEl?._acValue ?? bodEl?.value ?? '';
 
   INV_FILTERED = INV_RAW.filter(r => {
     if (negocio    && negocio    !== 'Todos' && invNegocio(r['Subtipo'])                 !== negocio)    return false;
     if (categoria  && categoria  !== 'Todas' && invCategoria(r['Nombre'])                !== categoria)  return false;
-    if (referencia && referencia !== 'Todas' && r['Nombre']                              !== referencia) return false;
-    if (bodega     && bodega     !== 'Todas' && (r['Nombre de la ubicación']||'').trim() !== bodega.trim()) return false;
+    if (referencia && r['Nombre']                              !== referencia) return false;
+    if (bodega     && (r['Nombre de la ubicación']||'').trim() !== bodega.trim()) return false;
     return true;
   });
 
@@ -163,9 +233,12 @@ function invApplyFilters() {
 
 window.invApplyFilters = invApplyFilters;
 window.invResetFilters = function() {
-  ['inv-f-negocio','inv-f-categoria','inv-f-referencia','inv-f-bodega'].forEach(function(id) {
+  const selects = ['inv-f-negocio','inv-f-categoria'];
+  selects.forEach(id => { const el = document.getElementById(id); if (el) el.selectedIndex = 0; });
+  // Limpiar inputs ac
+  ['inv-f-referencia','inv-f-bodega'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.selectedIndex = 0;
+    if (el) { el.value = ''; el._acValue = ''; el.classList.remove('inv-ac-selected'); }
   });
   invApplyFilters();
 };

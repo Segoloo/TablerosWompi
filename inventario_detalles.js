@@ -95,33 +95,30 @@ function detPopulateFilters() {
   const raw = _getInvRaw() || [];
   if (!raw.length) return;
 
-  // Tipo de negocio — reutiliza invNegocio global
-  // Categoría — reutiliza invCategoria global
-
-  // Ubicación V3 única
+  // Ubicación V3 — pocas opciones, sigue siendo select
   const ubicaciones = [...new Set(raw.map(r => invUbicacionV3(r)))].sort();
   _detSetSelect('det-f-ubicacion', ['Todas', ...ubicaciones]);
 
-  // Nombre de la ubicación
+  // Nombre de la ubicación → autocomplete
   const nombres = [...new Set(raw.map(r => (r['Nombre de la ubicación']||'').trim()).filter(Boolean))].sort();
-  _detSetSelect('det-f-nombre-ubic', ['Todas', ...nombres]);
+  window._invAcSetup('det-f-nombre-ubic', nombres);
 
-  // Código de comercio
-  const codCom = [...new Set(raw.map(r => (r['Código de comercio'] || r['codigo_de_comercio'] || r['Código de ubicación']||'').trim()).filter(Boolean))].sort();
-  _detSetSelect('det-f-cod-comercio', ['Todos', ...codCom]);
+  // Código de comercio → autocomplete
+  const codCom = [...new Set(raw.map(r => (r['Código de comercio']||r['codigo_de_comercio']||r['Código de ubicación']||'').trim()).filter(Boolean))].sort();
+  window._invAcSetup('det-f-cod-comercio', codCom);
 
-  // Número de serie
+  // Número de serie → autocomplete (todos, sin límite)
   const seriales = [...new Set(raw.map(r => (r['Número de serie']||r['Numero de serie']||r['Serial']||'').trim()).filter(Boolean))].sort();
-  _detSetSelect('det-f-serial', ['Todos', ...seriales.slice(0,500)]);
+  window._invAcSetup('det-f-serial', seriales);
 
-  // Referencia (Nombre)
+  // Referencia → autocomplete
   const refs = [...new Set(raw.map(r => (r['Nombre']||'').trim()).filter(Boolean))].sort();
-  _detSetSelect('det-f-referencia', ['Todas', ...refs]);
+  window._invAcSetup('det-f-referencia', refs);
 }
 
 function _detSetSelect(id, opts) {
   const el = document.getElementById(id);
-  if (!el) return;
+  if (!el || el.tagName !== 'SELECT') return;
   const cur = el.value;
   el.innerHTML = opts.map(o => `<option value="${o}">${o}</option>`).join('');
   if (opts.includes(cur)) el.value = cur;
@@ -137,26 +134,29 @@ function detApplyFilters() {
   const negocio    = document.getElementById('det-f-negocio')?.value    || '';
   const categoria  = document.getElementById('det-f-categoria')?.value  || '';
   const ubicacion  = document.getElementById('det-f-ubicacion')?.value  || '';
-  const nombreUbic = document.getElementById('det-f-nombre-ubic')?.value || '';
-  const codCom     = document.getElementById('det-f-cod-comercio')?.value || '';
   const alerta     = document.getElementById('det-f-alerta')?.value     || '';
-  const serial     = document.getElementById('det-f-serial')?.value     || '';
-  const referencia = document.getElementById('det-f-referencia')?.value || '';
+
+  // Inputs autocomplete — leer _acValue (exacto) o vacío
+  function acVal(id) { const el = document.getElementById(id); return el?._acValue ?? ''; }
+  const nombreUbic = acVal('det-f-nombre-ubic');
+  const codCom     = acVal('det-f-cod-comercio');
+  const serial     = acVal('det-f-serial');
+  const referencia = acVal('det-f-referencia');
 
   DET_FILTERED = raw.filter(r => {
-    if (negocio   && negocio   !== 'Todos' && invNegocio(r['Subtipo'])                       !== negocio)   return false;
-    if (categoria && categoria !== 'Todas' && invCategoria(r['Nombre'])                       !== categoria) return false;
+    if (negocio   && negocio   !== 'Todos' && invNegocio(r['Subtipo'])               !== negocio)   return false;
+    if (categoria && categoria !== 'Todas' && invCategoria(r['Nombre'])               !== categoria) return false;
     const ubV3 = invUbicacionV3(r);
-    if (ubicacion && ubicacion !== 'Todas' && ubV3 !== ubicacion) return false;
-    if (nombreUbic && nombreUbic !== 'Todas' && (r['Nombre de la ubicación']||'').trim()     !== nombreUbic) return false;
+    if (ubicacion && ubicacion !== 'Todas' && ubV3                                    !== ubicacion) return false;
+    if (nombreUbic && (r['Nombre de la ubicación']||'').trim()                        !== nombreUbic) return false;
     const codVal = (r['Código de comercio']||r['codigo_de_comercio']||r['Código de ubicación']||'').trim();
-    if (codCom    && codCom    !== 'Todos' && codVal !== codCom) return false;
+    if (codCom    && codVal                                                            !== codCom) return false;
     const tieneAlerta = invGetAlerta(r, ubV3);
-    if (alerta === 'con_alerta'    && !tieneAlerta) return false;
-    if (alerta === 'sin_alerta'    && tieneAlerta)  return false;
+    if (alerta === 'con_alerta' && !tieneAlerta) return false;
+    if (alerta === 'sin_alerta' &&  tieneAlerta) return false;
     const serialVal = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').trim();
-    if (serial    && serial    !== 'Todos' && serialVal !== serial) return false;
-    if (referencia && referencia !== 'Todas' && (r['Nombre']||'').trim() !== referencia) return false;
+    if (serial    && serialVal                                                         !== serial) return false;
+    if (referencia && (r['Nombre']||'').trim()                                         !== referencia) return false;
     return true;
   });
 
@@ -167,10 +167,13 @@ function detApplyFilters() {
 
 window.detApplyFilters = detApplyFilters;
 window.detResetFilters = function() {
-  ['det-f-negocio','det-f-categoria','det-f-ubicacion','det-f-nombre-ubic',
-   'det-f-cod-comercio','det-f-alerta','det-f-serial','det-f-referencia'].forEach(id => {
+  ['det-f-negocio','det-f-categoria','det-f-ubicacion','det-f-alerta'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.selectedIndex = 0;
+    if (el && el.tagName === 'SELECT') el.selectedIndex = 0;
+  });
+  ['det-f-nombre-ubic','det-f-cod-comercio','det-f-serial','det-f-referencia'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el._acValue = ''; el.classList.remove('inv-ac-selected'); }
   });
   detApplyFilters();
 };

@@ -8,6 +8,26 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="dashboard.css">
+<style>
+/* ── Autocomplete tipo Excel para filtros de inventario ── */
+.inv-ac-list{position:absolute;top:100%;left:0;right:0;z-index:9999;
+  background:#1c1b18;border:1px solid rgba(176,242,174,.35);border-radius:8px;
+  margin:3px 0 0;padding:0;list-style:none;max-height:220px;overflow-y:auto;
+  box-shadow:0 8px 28px rgba(0,0,0,.7);
+  scrollbar-width:thin;scrollbar-color:rgba(176,242,174,.3) transparent;}
+.inv-ac-list::-webkit-scrollbar{width:4px;}
+.inv-ac-list::-webkit-scrollbar-thumb{background:rgba(176,242,174,.3);border-radius:2px;}
+.inv-ac-list li{padding:7px 12px;font-size:12px;font-family:'Outfit',sans-serif;
+  color:#e2e8f0;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.inv-ac-list li:last-child{border-bottom:none;}
+.inv-ac-list li:hover,.inv-ac-list li.inv-ac-active{background:rgba(176,242,174,.12);color:#B0F2AE;}
+.inv-ac-list li.inv-ac-clear{color:#64748b;font-style:italic;}
+.inv-ac-list li.inv-ac-clear:hover{background:rgba(255,255,255,.05);color:#94a3b8;}
+/* Input con valor activo */
+input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
+  background:rgba(176,242,174,.07)!important;color:#B0F2AE!important;}
+</style>
 </head>
 <body>
 
@@ -546,13 +566,15 @@
                 <label>Categoría</label>
                 <select id="inv-f-categoria"><option value="Todas">Todas</option></select>
               </div>
-              <div class="filter-group">
+              <div class="filter-group" style="position:relative">
                 <label>Referencia</label>
-                <select id="inv-f-referencia"><option value="Todas">Todas</option></select>
+                <input type="text" id="inv-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off" data-inv-ac="inv-f-referencia-list" style="width:100%;box-sizing:border-box;">
+                <ul id="inv-f-referencia-list" class="inv-ac-list" style="display:none"></ul>
               </div>
-              <div class="filter-group">
+              <div class="filter-group" style="position:relative">
                 <label>Bodega</label>
-                <select id="inv-f-bodega"><option value="Todas">Todas</option></select>
+                <input type="text" id="inv-f-bodega" placeholder="🔍 Escribir bodega..." autocomplete="off" data-inv-ac="inv-f-bodega-list" style="width:100%;box-sizing:border-box;">
+                <ul id="inv-f-bodega-list" class="inv-ac-list" style="display:none"></ul>
               </div>
               <div class="filters-actions">
                 <button class="btn-apply" onclick="invApplyFilters()">✦ Aplicar</button>
@@ -627,13 +649,15 @@
                   <label>Ubicación (V3)</label>
                   <select id="det-f-ubicacion"><option value="Todas">Todas</option></select>
                 </div>
-                <div class="filter-group">
+                <div class="filter-group" style="position:relative">
                   <label>Nombre de Ubicación</label>
-                  <select id="det-f-nombre-ubic"><option value="Todas">Todas</option></select>
+                  <input type="text" id="det-f-nombre-ubic" placeholder="🔍 Escribir ubicación..." autocomplete="off" data-inv-ac="det-f-nombre-ubic-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-nombre-ubic-list" class="inv-ac-list" style="display:none"></ul>
                 </div>
-                <div class="filter-group">
+                <div class="filter-group" style="position:relative">
                   <label>Código de Comercio</label>
-                  <select id="det-f-cod-comercio"><option value="Todos">Todos</option></select>
+                  <input type="text" id="det-f-cod-comercio" placeholder="🔍 Escribir código..." autocomplete="off" data-inv-ac="det-f-cod-comercio-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-cod-comercio-list" class="inv-ac-list" style="display:none"></ul>
                 </div>
                 <div class="filter-group">
                   <label>Estado de Alerta</label>
@@ -643,13 +667,15 @@
                     <option value="sin_alerta">✅ Sin alerta</option>
                   </select>
                 </div>
-                <div class="filter-group">
+                <div class="filter-group" style="position:relative">
                   <label>Número de Serie</label>
-                  <select id="det-f-serial"><option value="Todos">Todos</option></select>
+                  <input type="text" id="det-f-serial" placeholder="🔍 Escribir serial..." autocomplete="off" data-inv-ac="det-f-serial-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-serial-list" class="inv-ac-list" style="display:none"></ul>
                 </div>
-                <div class="filter-group">
+                <div class="filter-group" style="position:relative">
                   <label>Referencia</label>
-                  <select id="det-f-referencia"><option value="Todas">Todas</option></select>
+                  <input type="text" id="det-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off" data-inv-ac="det-f-referencia-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-referencia-list" class="inv-ac-list" style="display:none"></ul>
                 </div>
               </div>
               <div class="filters-actions" style="margin-top:12px;">
