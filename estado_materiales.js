@@ -1,17 +1,15 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════╗
- * ║  estado_materiales.js — Tab "Estado de Materiales"             ║
- * ║  Datáfonos en bodega · SIMCards · Análisis de estado           ║
+ * ║  estado_materiales.js — Tab Estado de Materiales                ║
+ * ║  Sección 1: Estado de Datáfonos en Bodega                       ║
+ * ║  Sección 2: Estado de SIMCards                                  ║
  * ╚══════════════════════════════════════════════════════════════════╝
  */
 
 'use strict';
 
-// ══════════════════════════════════════════════════════════════════
-//  CONSTANTES
-// ══════════════════════════════════════════════════════════════════
-
-const EM_REFS_DATAFONO = new Set([
+// ── Referencias de datáfonos ──────────────────────────────────────
+const EM_DATAFONO_REFS = new Set([
   'PINPAD DESK 1700 - INGENICO',
   'DATAFONO EX6000 - INGENICO',
   'DATAFONO EX4000 - INGENICO',
@@ -19,838 +17,929 @@ const EM_REFS_DATAFONO = new Set([
   'DATAFONO DX4000 ESCRITORIO - INGENICO',
 ]);
 
-const EM_REF_SIMCARD = 'SIM LTE MULTI 256K P17 POST QR - CLARO';
+const EM_SIM_REF = 'SIM LTE MULTI 256K P17 POST QR - CLARO';
 
-const EM_ESTADOS_DEPOSITO = new Set([
-  'EN DAÑO',
-  'DESINSTALADO-INCIDENTE',
-  'DESINSTALADO-CIERRE',
-]);
+// ── Posiciones de depósito de interés ────────────────────────────
+const EM_POS_DANIO      = 'EN DAÑO';
+const EM_POS_INC        = 'DESINSTALADO-INCIDENTE';
+const EM_POS_CIERRE     = 'DESINSTALADO-CIERRE';
 
-const EM_COLORS = {
-  danio:       '#FF5C5C',
-  incidente:   '#FFC04D',
-  cierre:      '#99D1FC',
-  asociado:    '#C084FC',
-  disponible:  '#B0F2AE',
-  activada:    '#B0F2AE',
-  sinActivar:  '#FF5C5C',
-  palette: ['#B0F2AE','#99D1FC','#DFFF61','#C084FC','#FFC04D','#FF5C5C','#F49D6E','#7B8CDE','#00C87A','#A8E6CF'],
+// ── Colores del sistema ───────────────────────────────────────────
+const EM_C = {
+  verde:   '#B0F2AE',
+  azul:    '#99D1FC',
+  lima:    '#DFFF61',
+  purple:  '#C084FC',
+  danger:  '#F87171',
+  warn:    '#FFC04D',
+  orange:  '#FB923C',
+  teal:    '#67E8F9',
+  muted:   '#7A7674',
+  bg:      'rgba(10,26,18,.95)',
+  card:    'linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9))',
+  border:  'rgba(176,242,174,.12)',
 };
 
-// ── Estado módulo ─────────────────────────────────────────────────
+// ── Estado global del módulo ──────────────────────────────────────
 let EM_CHARTS = {};
-let EM_DF_ALL   = [];   // datáfonos en bodegas
-let EM_SIM_ALL  = [];   // simcards
-let EM_DF_PAGE  = 1;
+let EM_DF_ALL  = [];   // todos los datáfonos en bodegas
+let EM_SIM_ALL = [];   // todas las simcards
+let EM_DF_PAGE = 1;
 let EM_SIM_PAGE = 1;
+let EM_DF_SEARCH = '';
+let EM_SIM_SEARCH = '';
 const EM_PAGE_SIZE = 50;
 
-// ── Filtro de búsqueda tabla datáfonos ───────────────────────────
-let EM_DF_SEARCH = '';
-let EM_DF_FILTERED = [];
-let EM_SIM_SEARCH  = '';
-let EM_SIM_FILTERED = [];
-
-// ══════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────
 //  HELPERS
-// ══════════════════════════════════════════════════════════════════
-
-function _emGetRaw() {
-  if (window.INV_RAW && window.INV_RAW.length) return window.INV_RAW;
-  if (typeof window.invGetRaw === 'function') return window.invGetRaw();
-  return [];
+// ─────────────────────────────────────────────────────────────────
+function _emGetPos(row) {
+  return (row['Posición en depósito'] || '').trim().toUpperCase();
 }
 
-function _emDestroyChart(id) {
-  if (EM_CHARTS[id]) { try { EM_CHARTS[id].destroy(); } catch(e){} delete EM_CHARTS[id]; }
+function _emGetComment(row) {
+  return (row['Comentarios'] || '').trim();
 }
 
-/** Determina el estado de un datáfono en bodega */
-function _emEstadoDatafono(row) {
-  const pos  = (row['Posición en depósito'] || '').trim().toUpperCase();
-  const com  = (row['Comentarios'] || '').trim();
+function _emGetRef(row) {
+  return (row['Nombre'] || '').trim();
+}
 
-  if (pos === 'EN DAÑO')                 return 'DAÑADO';
-  if (pos === 'DESINSTALADO-INCIDENTE')  return 'DES. INCIDENTE';
-  if (pos === 'DESINSTALADO-CIERRE')     return 'DES. CIERRE';
+function _emGetSerial(row) {
+  return (row['Número de serie'] || row['Serial'] || row['SERIAL'] || '').trim();
+}
 
-  // Determinar asociado / disponible a partir de comentarios
-  if (!com) return 'DISPONIBLE';
-  const parts = com.split('|');
-  const numero = (parts[0] || '').trim();
-  if (numero === '99999') return 'DISPONIBLE';
-  if (/^\d+$/.test(numero) && numero !== '99999') return 'ASOCIADO';
+function _emGetBodega(row) {
+  return (row['Nombre de la ubicación'] || '').trim();
+}
+
+function _emGetAtributos(row) {
+  return (row['Atributos'] || '').trim();
+}
+
+/**
+ * Clasifica el estado de un datáfono según sus campos.
+ * Retorna: 'DISPONIBLE' | 'ASOCIADO' | 'EN DAÑO' | 'DES. CIERRE' | 'DES. INCIDENTE'
+ */
+function _emDfEstado(row) {
+  const pos = _emGetPos(row);
+  if (pos === EM_POS_DANIO)   return 'EN DAÑO';
+  if (pos === EM_POS_CIERRE)  return 'DES. CIERRE';
+  if (pos === EM_POS_INC)     return 'DES. INCIDENTE';
+
+  const comment = _emGetComment(row);
+  if (!comment) return 'DISPONIBLE';
+
+  // Extrae el primer segmento antes de ' | '
+  const parts = comment.split('|');
+  const firstNum = (parts[0] || '').trim();
+  if (firstNum === '99999' || firstNum === '') return 'DISPONIBLE';
+  // Si hay número y no es 99999 → ASOCIADO
+  if (/^\d+$/.test(firstNum)) return 'ASOCIADO';
   return 'DISPONIBLE';
 }
 
-/** Extrae el tipo de daño del campo Comentarios (para datáfonos EN DAÑO) */
-function _emTipoDanio(row) {
-  const com = (row['Comentarios'] || '').trim();
-  if (!com) return 'SIN DESCRIPCIÓN';
-  const parts = com.split('|');
-  if (parts.length >= 2) {
-    return (parts[1] || '').trim().toUpperCase() || 'SIN DESCRIPCIÓN';
+/**
+ * Extrae el tipo de daño desde Comentarios cuando empieza con 99999.
+ * Ej: "99999 | LECTOR TARJETAS | 18/03/2026" → "LECTOR TARJETAS"
+ */
+function _emDaño(row) {
+  const comment = _emGetComment(row);
+  if (!comment) return null;
+  const parts = comment.split('|').map(s => s.trim());
+  if (parts[0] !== '99999' || parts.length < 2) return null;
+  const tipo = parts[1] || '';
+  const exclude = ['DESASOCIADO', 'DISPONIBLE', ''];
+  if (exclude.includes(tipo.toUpperCase())) return null;
+  return tipo.toUpperCase();
+}
+
+/**
+ * SIM: determina si está activada y extrae fecha.
+ * Busca "FA:DD/MM/AAAA" en Atributos.
+ */
+function _emSimEstado(row) {
+  const attr = _emGetAtributos(row);
+  const match = attr.match(/FA:(\d{1,2}\/\d{1,2}\/\d{4})/i);
+  if (match) return { activa: true, fecha: match[1] };
+  return { activa: false, fecha: null };
+}
+
+function _emDestroyChart(id) {
+  if (EM_CHARTS[id]) { EM_CHARTS[id].destroy(); delete EM_CHARTS[id]; }
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  TOOLTIP / LEGEND defaults (copian estilo inventario.js)
+// ─────────────────────────────────────────────────────────────────
+const EM_TT = {
+  backgroundColor: 'rgba(24,23,21,.95)',
+  titleColor: '#B0F2AE', bodyColor: '#FAFAFA',
+  borderColor: 'rgba(176,242,174,.2)', borderWidth: 1, padding: 12,
+  titleFont: { family: 'Syne', size: 13, weight: '700' },
+  bodyFont:  { family: 'Outfit', size: 12 },
+};
+const EM_LEG = {
+  labels: { color: '#FAFAFA', font: { family: 'Outfit', size: 11 }, padding: 12, boxWidth: 12 }
+};
+
+// ─────────────────────────────────────────────────────────────────
+//  CARD BUILDER
+// ─────────────────────────────────────────────────────────────────
+function _emCard(canvasId, title, sub, accentColor) {
+  const color = accentColor || EM_C.verde;
+  const div = document.createElement('div');
+  div.style.cssText = [
+    'background:' + EM_C.card,
+    'border:1px solid rgba(176,242,174,.1)',
+    'border-top:2px solid ' + color,
+    'border-radius:18px',
+    'padding:22px 24px 20px',
+    'position:relative',
+    'overflow:hidden',
+    'box-shadow:0 4px 20px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.03)',
+  ].join(';');
+  div.innerHTML =
+    '<div style="position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:' + color + ';opacity:.05;filter:blur(12px);pointer-events:none;"></div>' +
+    '<div style="margin-bottom:16px;">' +
+      '<div style="font-family:\'Syne\',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;letter-spacing:.3px;">' + title + '</div>' +
+      (sub ? '<div style="font-size:11px;color:' + EM_C.muted + ';margin-top:3px;font-family:\'Outfit\',sans-serif;">' + sub + '</div>' : '') +
+    '</div>' +
+    '<canvas id="' + canvasId + '" style="max-height:260px;"></canvas>';
+  return div;
+}
+
+function _emKpiCard(icon, label, value, sub, color, span2) {
+  const c = color || EM_C.verde;
+  const div = document.createElement('div');
+  div.style.cssText = [
+    'background:' + EM_C.card,
+    'border:1px solid rgba(176,242,174,.1)',
+    'border-top:2px solid ' + c,
+    'border-radius:18px',
+    'padding:20px',
+    'position:relative',
+    'overflow:hidden',
+    'box-shadow:0 4px 20px rgba(0,0,0,.4)',
+    span2 ? 'grid-column:span 2' : '',
+  ].filter(Boolean).join(';');
+  div.innerHTML =
+    '<div style="position:absolute;top:-20px;right:-20px;width:70px;height:70px;border-radius:50%;background:' + c + ';opacity:.05;filter:blur(12px);pointer-events:none;"></div>' +
+    '<span style="font-size:20px;display:block;margin-bottom:10px;">' + icon + '</span>' +
+    '<div style="font-size:10px;font-weight:700;color:' + EM_C.muted + ';text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-family:\'Outfit\',sans-serif;">' + label + '</div>' +
+    '<div style="font-family:\'JetBrains Mono\',monospace;font-size:32px;font-weight:700;color:' + c + ';line-height:1;text-shadow:0 0 24px ' + c + '55;margin-bottom:8px;">' + value + '</div>' +
+    '<span style="background:' + c + '22;color:' + c + ';font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:\'JetBrains Mono\',monospace;">' + sub + '</span>';
+  return div;
+}
+
+function _emSectionTitle(text, color, emoji) {
+  const div = document.createElement('div');
+  div.style.cssText = 'font-family:\'Syne\',sans-serif;font-size:16px;font-weight:800;color:' + (color||EM_C.verde) + ';letter-spacing:-.3px;margin:36px 0 18px;display:flex;align-items:center;gap:10px;border-left:3px solid ' + (color||EM_C.verde) + ';padding-left:14px;';
+  div.innerHTML = (emoji ? '<span style="font-size:18px">' + emoji + '</span>' : '') + text;
+  return div;
+}
+
+function _emDivider() {
+  const d = document.createElement('div');
+  d.style.cssText = 'height:1px;background:linear-gradient(90deg,rgba(176,242,174,.2),transparent);margin:32px 0;';
+  return d;
+}
+
+function _emTableWrap(id, maxH) {
+  const d = document.createElement('div');
+  d.id = id;
+  d.style.cssText = 'overflow-x:auto;max-height:' + (maxH||'480px') + ';';
+  return d;
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  PAGINATION
+// ─────────────────────────────────────────────────────────────────
+function _emMkPag(containerId, current, total, callbackName) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (total <= 1) { el.innerHTML = ''; return; }
+  const maxShow = 7;
+  let pages = [];
+  if (total <= maxShow) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages = [1];
+    if (current > 3) pages.push('...');
+    for (let i = Math.max(2, current-1); i <= Math.min(total-1, current+1); i++) pages.push(i);
+    if (current < total-2) pages.push('...');
+    pages.push(total);
   }
-  return 'SIN DESCRIPCIÓN';
+  el.innerHTML = pages.map(p =>
+    p === '...'
+      ? '<span style="color:' + EM_C.muted + ';padding:0 4px;">…</span>'
+      : '<button onclick="' + callbackName + '(' + p + ')" style="background:' + (p===current ? EM_C.verde : 'rgba(255,255,255,.06)') + ';color:' + (p===current ? '#0a1a12' : '#FAFAFA') + ';border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-family:\'JetBrains Mono\',monospace;font-size:11px;font-weight:700;transition:all .15s;">' + p + '</button>'
+  ).join('');
 }
 
-/** Determina si una simcard está activada */
-function _emSimActivada(row) {
-  const attr = (row['Atributos'] || '').toUpperCase();
-  return /FA:\d{2}\/\d{2}\/\d{4}/.test(attr);
-}
+// ─────────────────────────────────────────────────────────────────
+//  MAIN RENDER ENTRY POINT
+// ─────────────────────────────────────────────────────────────────
+function renderEstadoMateriales() {
+  const panel = document.getElementById('panel-estado-materiales');
+  if (!panel) return;
 
-/** Extrae la fecha de activación de una simcard */
-function _emSimFechaActivacion(row) {
-  const attr = row['Atributos'] || '';
-  const m = attr.match(/FA:(\d{2}\/\d{2}\/\d{4})/i);
-  return m ? m[1] : '—';
-}
-
-/** Crea un chart donut estándar */
-function _emDonut(canvasId, labels, data, colors, title) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  _emDestroyChart(canvasId);
-  const total = data.reduce((a, b) => a + b, 0);
-  EM_CHARTS[canvasId] = new Chart(canvas, {
-    type: 'doughnut',
-    data: {
-      labels,
-      datasets: [{ data, backgroundColor: colors, borderWidth: 2, borderColor: '#181715', hoverBorderColor: '#fff', hoverOffset: 6 }]
-    },
-    options: {
-      cutout: '65%',
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { color: '#cbd5e1', font: { size: 11, family: "'Outfit', sans-serif" }, padding: 12, boxWidth: 12 } },
-        tooltip: {
-          backgroundColor: 'rgba(24,23,21,.95)',
-          titleColor: '#B0F2AE', bodyColor: '#FAFAFA',
-          borderColor: 'rgba(176,242,174,.2)', borderWidth: 1, padding: 12,
-          callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.toLocaleString('es-CO')} (${total ? (ctx.parsed/total*100).toFixed(1) : 0}%)` }
-        },
-        ...(title ? { title: { display: false } } : {}),
+  const raw = window.INV_RAW;
+  if (!raw || !raw.length) {
+    panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;padding:80px;gap:16px;"><div class="spinner"></div><span style="color:var(--muted);font-family:\'Outfit\',sans-serif;">Cargando datos de inventario...</span></div>';
+    // Retry after data loads
+    const retry = setInterval(() => {
+      if (window.INV_RAW && window.INV_RAW.length) {
+        clearInterval(retry);
+        renderEstadoMateriales();
       }
-    }
-  });
-}
-
-/** Crea un chart de barras horizontal */
-function _emBarH(canvasId, labels, data, colors, label) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  _emDestroyChart(canvasId);
-  const maxVal = Math.max(...data, 1);
-  EM_CHARTS[canvasId] = new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{ label, data,
-        backgroundColor: Array.isArray(colors) ? colors : labels.map((_,i) => EM_COLORS.palette[i % EM_COLORS.palette.length] + 'BB'),
-        borderColor:     Array.isArray(colors) ? colors.map(c => c) : labels.map((_,i) => EM_COLORS.palette[i % EM_COLORS.palette.length]),
-        borderWidth: 1, borderRadius: 6,
-      }]
-    },
-    options: {
-      indexAxis: 'y',
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { backgroundColor: 'rgba(24,23,21,.95)', titleColor: '#B0F2AE', bodyColor: '#FAFAFA', borderColor: 'rgba(176,242,174,.2)', borderWidth: 1, padding: 10 }
-      },
-      scales: {
-        x: { ticks: { color: '#7A7674', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.05)' } },
-        y: { ticks: { color: '#e2e8f0', font: { size: 11, family: "'Outfit', sans-serif" } }, grid: { display: false } }
-      }
-    }
-  });
-}
-
-/** Crea chart de barras agrupadas */
-function _emBarGrouped(canvasId, labels, datasets) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  _emDestroyChart(canvasId);
-  EM_CHARTS[canvasId] = new Chart(canvas, {
-    type: 'bar',
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: '#cbd5e1', font: { size: 11 }, padding: 10, boxWidth: 12 } },
-        tooltip: { backgroundColor: 'rgba(24,23,21,.95)', titleColor: '#B0F2AE', bodyColor: '#FAFAFA', borderColor: 'rgba(176,242,174,.2)', borderWidth: 1, padding: 10 }
-      },
-      scales: {
-        x: { ticks: { color: '#cbd5e1', font: { size: 10 }, maxRotation: 30 }, grid: { display: false } },
-        y: { ticks: { color: '#7A7674' }, grid: { color: 'rgba(255,255,255,.05)' } }
-      }
-    }
-  });
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  PROCESAMIENTO DE DATOS
-// ══════════════════════════════════════════════════════════════════
-
-function _emProcesar() {
-  const raw = _emGetRaw();
-  if (!raw || !raw.length) { EM_DF_ALL = []; EM_SIM_ALL = []; return; }
-
-  const bodegas = typeof INV_BODEGAS !== 'undefined' ? INV_BODEGAS : window.INV_BODEGAS;
-
-  // ── Datáfonos en bodegas ─────────────────────────────────────
-  EM_DF_ALL = raw.filter(r => {
-    const nombre = (r['Nombre'] || '').trim();
-    const ubic   = (r['Nombre de la ubicación'] || '').trim();
-    return EM_REFS_DATAFONO.has(nombre) && bodegas && bodegas.has(ubic);
-  });
-
-  // ── SIMCards ─────────────────────────────────────────────────
-  EM_SIM_ALL = raw.filter(r => {
-    const nombre = (r['Nombre'] || '').trim();
-    return nombre === EM_REF_SIMCARD;
-  });
-
-  EM_DF_FILTERED  = EM_DF_ALL.slice();
-  EM_SIM_FILTERED = EM_SIM_ALL.slice();
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  SECCIÓN DATÁFONOS
-// ══════════════════════════════════════════════════════════════════
-
-function _emRenderDatafonos() {
-  const data = EM_DF_ALL;
-
-  // ── KPIs resumen ─────────────────────────────────────────────
-  const counts = { DISPONIBLE: 0, ASOCIADO: 0, DAÑADO: 0, 'DES. INCIDENTE': 0, 'DES. CIERRE': 0 };
-  data.forEach(r => { const e = _emEstadoDatafono(r); counts[e] = (counts[e]||0) + 1; });
-  const total = data.length;
-
-  const kpiEl = document.getElementById('em-df-kpis');
-  if (kpiEl) {
-    const kpis = [
-      { label: 'Total en Bodegas', val: total, color: '#DFFF61', icon: '📦' },
-      { label: 'Disponibles', val: counts['DISPONIBLE'], color: '#B0F2AE', icon: '✅' },
-      { label: 'Asociados', val: counts['ASOCIADO'], color: '#C084FC', icon: '🔗' },
-      { label: 'En Daño', val: counts['DAÑADO'], color: '#FF5C5C', icon: '🔴' },
-      { label: 'Des. Incidente', val: counts['DES. INCIDENTE'], color: '#FFC04D', icon: '⚠️' },
-      { label: 'Des. Cierre', val: counts['DES. CIERRE'], color: '#99D1FC', icon: '🔵' },
-    ];
-    kpiEl.innerHTML = kpis.map(k => `
-      <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-        border:1px solid ${k.color}22;border-top:2px solid ${k.color};border-radius:14px;
-        padding:18px 20px;min-width:130px;flex:1;">
-        <div style="font-size:20px;margin-bottom:6px">${k.icon}</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:11px;color:#7A7674;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">${k.label}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:${k.color};line-height:1;text-shadow:0 0 20px ${k.color}55">${k.val.toLocaleString('es-CO')}</div>
-        <div style="font-size:10px;color:#64748b;margin-top:4px">${total ? (k.val/total*100).toFixed(1) : 0}% del total</div>
-      </div>`).join('');
-  }
-
-  // ── Gráfica 1: Dona — estados depósito de interés ──────────
-  const depositoCounts = { 'EN DAÑO': 0, 'DESINSTALADO-INCIDENTE': 0, 'DESINSTALADO-CIERRE': 0 };
-  data.forEach(r => {
-    const pos = (r['Posición en depósito'] || '').trim().toUpperCase();
-    if (EM_ESTADOS_DEPOSITO.has(pos)) depositoCounts[pos]++;
-  });
-  const donaLabels  = Object.keys(depositoCounts);
-  const donaData    = Object.values(depositoCounts);
-  const donaColors  = [EM_COLORS.danio, EM_COLORS.incidente, EM_COLORS.cierre];
-  _emDonut('em-chart-deposito', donaLabels, donaData, donaColors, 'Posición Depósito');
-
-  // ── Gráfica 2: Barras — por referencia × estado depósito ───
-  const refStates = {};
-  [...EM_REFS_DATAFONO].forEach(ref => { refStates[ref] = { 'EN DAÑO': 0, 'DESINSTALADO-INCIDENTE': 0, 'DESINSTALADO-CIERRE': 0 }; });
-  data.forEach(r => {
-    const nombre = (r['Nombre'] || '').trim();
-    const pos    = (r['Posición en depósito'] || '').trim().toUpperCase();
-    if (refStates[nombre] && EM_ESTADOS_DEPOSITO.has(pos)) refStates[nombre][pos]++;
-  });
-
-  // Abreviar nombres de referencias
-  const _abbrev = n => n.replace('DATAFONO ','').replace(' - INGENICO','').replace('PORTATIL','PORT.').replace('ESCRITORIO','ESC.');
-  const refLabels = [...EM_REFS_DATAFONO].map(_abbrev);
-  const estadosKeys = ['EN DAÑO','DESINSTALADO-INCIDENTE','DESINSTALADO-CIERRE'];
-  const estadosColors = [EM_COLORS.danio, EM_COLORS.incidente, EM_COLORS.cierre];
-  const estadosLabels = ['En Daño', 'Des. Incidente', 'Des. Cierre'];
-
-  const datasets = estadosKeys.map((est, i) => ({
-    label: estadosLabels[i],
-    data:  [...EM_REFS_DATAFONO].map(ref => refStates[ref][est]),
-    backgroundColor: estadosColors[i] + 'BB',
-    borderColor:     estadosColors[i],
-    borderWidth: 1, borderRadius: 5,
-  }));
-  _emBarGrouped('em-chart-ref-estado', refLabels, datasets);
-
-  // ── Gráfica 3: Dona — tipos de daño ─────────────────────────
-  const danioRows = data.filter(r => (r['Posición en depósito']||'').trim().toUpperCase() === 'EN DAÑO');
-  const danioMap  = {};
-  danioRows.forEach(r => {
-    const tipo = _emTipoDanio(r);
-    danioMap[tipo] = (danioMap[tipo] || 0) + 1;
-  });
-  const danioSorted = Object.entries(danioMap).sort((a,b) => b[1]-a[1]);
-  _emBarH('em-chart-tipos-danio',
-    danioSorted.map(d => d[0]),
-    danioSorted.map(d => d[1]),
-    danioSorted.map((_,i) => EM_COLORS.palette[i % EM_COLORS.palette.length] + 'BB'),
-    'Cantidad'
-  );
-
-  // ── Tabla por bodega ─────────────────────────────────────────
-  const bodegas = typeof INV_BODEGAS !== 'undefined' ? INV_BODEGAS : window.INV_BODEGAS;
-  const bodegaMap = {};
-  data.forEach(r => {
-    const b = (r['Nombre de la ubicación'] || 'Sin bodega').trim();
-    if (!bodegaMap[b]) bodegaMap[b] = { DISPONIBLE:0, ASOCIADO:0, DAÑADO:0, 'DES. CIERRE':0, 'DES. INCIDENTE':0 };
-    const est = _emEstadoDatafono(r);
-    bodegaMap[b][est] = (bodegaMap[b][est] || 0) + 1;
-  });
-  const bodegaRows = Object.entries(bodegaMap)
-    .map(([nombre, c]) => ({ nombre, ...c, total: Object.values(c).reduce((a,b)=>a+b,0) }))
-    .sort((a,b) => b.total - a.total);
-
-  const bodTablaEl = document.getElementById('em-tabla-bodegas-wrap');
-  if (bodTablaEl) {
-    if (!bodegaRows.length) {
-      bodTablaEl.innerHTML = '<div style="text-align:center;padding:32px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin datos</div>';
-    } else {
-      bodTablaEl.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-        <thead>
-          <tr style="background:rgba(0,0,0,.3)">
-            ${['Bodega','Disponible','Asociado','Dañado','Des. Cierre','Des. Incidente','Total'].map(h =>
-              `<th style="padding:10px 14px;text-align:left;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;
-                color:#B0F2AE;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;
-                border-bottom:1px solid rgba(176,242,174,.15);">${h}</th>`
-            ).join('')}
-          </tr>
-        </thead>
-        <tbody>
-          ${bodegaRows.map((b, i) => {
-            const bg = i%2===0 ? 'rgba(176,242,174,.012)' : 'transparent';
-            const _pill = (n, color) => `<span style="background:${color}22;color:${color};font-family:'JetBrains Mono',monospace;
-              font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;display:inline-block;">${n}</span>`;
-            return `<tr style="background:${bg}" onmouseover="this.style.background='rgba(176,242,174,.04)'" onmouseout="this.style.background='${bg}'">
-              <td style="padding:9px 14px;color:#e2e8f0;font-size:11px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${b.nombre}">${b.nombre}</td>
-              <td style="padding:9px 14px;text-align:center">${_pill(b['DISPONIBLE']||0, '#B0F2AE')}</td>
-              <td style="padding:9px 14px;text-align:center">${_pill(b['ASOCIADO']||0, '#C084FC')}</td>
-              <td style="padding:9px 14px;text-align:center">${_pill(b['DAÑADO']||0, '#FF5C5C')}</td>
-              <td style="padding:9px 14px;text-align:center">${_pill(b['DES. CIERRE']||0, '#99D1FC')}</td>
-              <td style="padding:9px 14px;text-align:center">${_pill(b['DES. INCIDENTE']||0, '#FFC04D')}</td>
-              <td style="padding:9px 14px;text-align:center"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#DFFF61;font-size:13px;">${b.total}</span></td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
-    }
-  }
-
-  // ── Tabla completa datáfonos ─────────────────────────────────
-  _emApplyDfSearch('');
-}
-
-function _emApplyDfSearch(query) {
-  EM_DF_SEARCH = (query || '').toLowerCase().trim();
-  EM_DF_FILTERED = EM_DF_ALL.filter(r => {
-    if (!EM_DF_SEARCH) return true;
-    const serial = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').toLowerCase();
-    const nombre = (r['Nombre']||'').toLowerCase();
-    const ubic   = (r['Nombre de la ubicación']||'').toLowerCase();
-    const pos    = (r['Posición en depósito']||'').toLowerCase();
-    const com    = (r['Comentarios']||'').toLowerCase();
-    return serial.includes(EM_DF_SEARCH) || nombre.includes(EM_DF_SEARCH) || ubic.includes(EM_DF_SEARCH) || pos.includes(EM_DF_SEARCH) || com.includes(EM_DF_SEARCH);
-  });
-  EM_DF_PAGE = 1;
-  _emRenderDfTabla();
-}
-
-function _emRenderDfTabla() {
-  const wrap  = document.getElementById('em-df-tabla-wrap');
-  const count = document.getElementById('em-df-tabla-count');
-  const pagEl = document.getElementById('em-df-tabla-pag');
-  if (!wrap) return;
-
-  const data  = EM_DF_FILTERED;
-  const pages = Math.max(1, Math.ceil(data.length / EM_PAGE_SIZE));
-  const slice = data.slice((EM_DF_PAGE-1)*EM_PAGE_SIZE, EM_DF_PAGE*EM_PAGE_SIZE);
-
-  if (count) count.textContent = `${data.length.toLocaleString('es-CO')} registros`;
-
-  if (!slice.length) {
-    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin resultados</div>';
-    if (pagEl) pagEl.innerHTML = '';
+    }, 500);
     return;
   }
 
-  const COLS = [
-    { h:'Serial',         fn: r => r['Número de serie']||r['Numero de serie']||r['Serial']||'—', mono:true, color:'#a5f3fc' },
-    { h:'Referencia',     fn: r => r['Nombre']||'—', color:'#e2e8f0' },
-    { h:'Bodega',         fn: r => r['Nombre de la ubicación']||'—', color:'#cbd5e1' },
-    { h:'Posición Dep.',  fn: r => r['Posición en depósito']||'—', color:'#94a3b8' },
-    { h:'Estado',         fn: r => _emEstadoDatafono(r), isEstado: true },
-    { h:'Comentarios',    fn: r => r['Comentarios']||'—', color:'#94a3b8' },
-  ];
+  // ── Filtrar datáfonos en bodegas ───────────────────────────────
+  EM_DF_ALL = raw.filter(r => {
+    const ref = _emGetRef(r);
+    const bod = _emGetBodega(r);
+    return EM_DATAFONO_REFS.has(ref) && window.INV_BODEGAS && window.INV_BODEGAS.has(bod);
+  });
 
-  const _estadoStyle = est => {
-    const m = { 'DISPONIBLE': ['#B0F2AE','rgba(176,242,174,.12)'], 'ASOCIADO': ['#C084FC','rgba(192,132,252,.12)'],
-      'DAÑADO': ['#FF5C5C','rgba(255,92,92,.12)'], 'DES. INCIDENTE': ['#FFC04D','rgba(255,192,77,.12)'], 'DES. CIERRE': ['#99D1FC','rgba(153,209,252,.12)'] };
-    const [col, bg] = m[est] || ['#7A7674','rgba(255,255,255,.06)'];
-    return `background:${bg};color:${col};font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;
-      border:1px solid ${col}44;display:inline-block;font-family:'Outfit',sans-serif;white-space:nowrap;`;
-  };
+  // ── Filtrar SIMcards ───────────────────────────────────────────
+  EM_SIM_ALL = raw.filter(r => _emGetRef(r) === EM_SIM_REF);
 
-  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <thead>
-      <tr style="background:rgba(0,0,0,.3);">
-        ${COLS.map(c => `<th style="padding:10px 14px;text-align:left;font-family:'Syne',sans-serif;font-size:10px;
-          font-weight:700;color:#B0F2AE;letter-spacing:1px;text-transform:uppercase;
-          border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;">${c.h}</th>`).join('')}
-      </tr>
-    </thead>
-    <tbody>
-      ${slice.map((r, i) => {
-        const bg = i%2===0 ? 'rgba(176,242,174,.012)' : 'transparent';
-        return `<tr style="background:${bg}" onmouseover="this.style.background='rgba(176,242,174,.04)'" onmouseout="this.style.background='${bg}'">
-          ${COLS.map(c => {
-            const v = c.fn(r);
-            if (c.isEstado) return `<td style="padding:9px 14px"><span style="${_estadoStyle(v)}">${v}</span></td>`;
-            const st = `padding:9px 14px;${c.mono?`font-family:'JetBrains Mono',monospace;font-size:11px;`:'font-size:11px;'}color:${c.color||'#e2e8f0'};max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
-            return `<td style="${st}" title="${String(v).replace(/"/g,'&quot;')}">${v}</td>`;
-          }).join('')}
-        </tr>`;
-      }).join('')}
-    </tbody>
-  </table>`;
+  // ── Construir panel ───────────────────────────────────────────
+  panel.innerHTML = '';
 
-  _emRenderPag(pagEl, EM_DF_PAGE, pages, p => { EM_DF_PAGE = p; _emRenderDfTabla(); }, '#B0F2AE');
+  // SECCIÓN 1: DATÁFONOS
+  panel.appendChild(_emSectionTitle('ESTADO DE DATÁFONOS EN BODEGA', EM_C.verde, '📱'));
+  _emRenderDfKPIs(panel);
+  _emRenderDfCharts(panel);
+  _emRenderBodegaTable(panel);
+  _emRenderDañoChart(panel);
+  _emRenderDfTable(panel);
+
+  panel.appendChild(_emDivider());
+
+  // SECCIÓN 2: SIMCARDS
+  panel.appendChild(_emSectionTitle('ESTADO DE SIMCARDS', EM_C.teal, '📡'));
+  _emRenderSimKPIs(panel);
+  _emRenderSimCharts(panel);
+  _emRenderSimTable(panel);
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  SECCIÓN SIMCARDS
-// ══════════════════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 1 — KPIs DATÁFONOS
+// ─────────────────────────────────────────────────────────────────
+function _emRenderDfKPIs(panel) {
+  const rows = EM_DF_ALL;
+  const total       = rows.length;
+  const disponibles = rows.filter(r => _emDfEstado(r) === 'DISPONIBLE').length;
+  const asociados   = rows.filter(r => _emDfEstado(r) === 'ASOCIADO').length;
+  const enDanio     = rows.filter(r => _emDfEstado(r) === 'EN DAÑO').length;
+  const desCierre   = rows.filter(r => _emDfEstado(r) === 'DES. CIERRE').length;
+  const desInc      = rows.filter(r => _emDfEstado(r) === 'DES. INCIDENTE').length;
 
-function _emRenderSimcards() {
-  const data = EM_SIM_ALL;
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:28px;';
 
-  const activas    = data.filter(r => _emSimActivada(r)).length;
-  const sinActivar = data.length - activas;
+  const kpis = [
+    { icon:'📦', label:'TOTAL BODEGAS',       value: total,       sub: '100% datáfonos',   color: EM_C.lima },
+    { icon:'✅', label:'DISPONIBLES',          value: disponibles, sub: pctStr(disponibles,total), color: EM_C.verde },
+    { icon:'🔗', label:'ASOCIADOS',            value: asociados,   sub: pctStr(asociados,total),   color: EM_C.azul },
+    { icon:'💥', label:'EN DAÑO',              value: enDanio,     sub: pctStr(enDanio,total),     color: EM_C.danger },
+    { icon:'🔒', label:'DES. CIERRE',          value: desCierre,   sub: pctStr(desCierre,total),   color: EM_C.warn },
+    { icon:'🚨', label:'DES. INCIDENTE',       value: desInc,      sub: pctStr(desInc,total),      color: EM_C.orange },
+  ];
 
-  // ── KPIs ─────────────────────────────────────────────────────
-  const kpiEl = document.getElementById('em-sim-kpis');
-  if (kpiEl) {
-    const kpis = [
-      { label:'Total SIMCards', val: data.length, color:'#DFFF61', icon:'📡' },
-      { label:'Activadas',      val: activas,      color:'#B0F2AE', icon:'✅' },
-      { label:'Sin Activar',    val: sinActivar,   color:'#FF5C5C', icon:'❌' },
-      { label:'% Activación',   val: data.length ? Math.round(activas/data.length*100)+'%' : '0%', color:'#99D1FC', icon:'📊' },
-    ];
-    kpiEl.innerHTML = kpis.map(k => `
-      <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-        border:1px solid ${k.color}22;border-top:2px solid ${k.color};border-radius:14px;
-        padding:18px 20px;min-width:130px;flex:1;">
-        <div style="font-size:20px;margin-bottom:6px">${k.icon}</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:11px;color:#7A7674;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px">${k.label}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:${k.color};line-height:1;text-shadow:0 0 20px ${k.color}55">${typeof k.val === 'number' ? k.val.toLocaleString('es-CO') : k.val}</div>
-      </div>`).join('');
-  }
-
-  // ── Gráfica 1: Dona activadas vs no activadas ───────────────
-  _emDonut('em-chart-sim-estado',
-    ['Activadas', 'Sin Activar'],
-    [activas, sinActivar],
-    [EM_COLORS.activada, EM_COLORS.sinActivar],
-    'Estado SIMCards'
-  );
-
-  // ── Gráfica 2: Top sitios con más SIMCards ──────────────────
-  const sitioMap = {};
-  data.forEach(r => {
-    const s = (r['Nombre de la ubicación'] || 'Sin ubicación').trim();
-    sitioMap[s] = (sitioMap[s] || 0) + (parseInt(r['Cantidad'])||1);
+  kpis.forEach(k => {
+    grid.appendChild(_emKpiCard(k.icon, k.label, k.value.toLocaleString('es-CO'), k.sub, k.color));
   });
-  const topSitios = Object.entries(sitioMap).sort((a,b)=>b[1]-a[1]).slice(0,15);
-  _emBarH('em-chart-sim-sitios',
-    topSitios.map(s => s[0].length > 28 ? s[0].substring(0,28)+'…' : s[0]),
-    topSitios.map(s => s[1]),
-    null,
-    'SIMCards'
-  );
+  panel.appendChild(grid);
+}
 
-  // ── Gráfica 3: Sitios con más SIMCards ACTIVADAS ────────────
-  const sitioActivMap = {};
-  data.filter(r => _emSimActivada(r)).forEach(r => {
-    const s = (r['Nombre de la ubicación'] || 'Sin ubicación').trim();
-    sitioActivMap[s] = (sitioActivMap[s] || 0) + (parseInt(r['Cantidad'])||1);
-  });
-  const topActiv = Object.entries(sitioActivMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
-  _emBarH('em-chart-sim-activadas',
-    topActiv.map(s => s[0].length > 28 ? s[0].substring(0,28)+'…' : s[0]),
-    topActiv.map(s => s[1]),
-    topActiv.map(() => '#B0F2AEBB'),
-    'Activadas'
-  );
+function pctStr(n, d) {
+  if (!d) return '0.0%';
+  return (n / d * 100).toFixed(1) + '%';
+}
 
-  // ── Gráfica 4: Distribución por fecha de activación (mensual) ─
-  const mesMap = {};
-  data.filter(r => _emSimActivada(r)).forEach(r => {
-    const fa = _emSimFechaActivacion(r);
-    if (fa === '—') return;
-    const parts = fa.split('/');
-    if (parts.length < 3) return;
-    const key = `${parts[2]}-${parts[1]}`;  // YYYY-MM
-    mesMap[key] = (mesMap[key]||0) + 1;
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 1 — GRÁFICAS DATÁFONOS
+// ─────────────────────────────────────────────────────────────────
+function _emRenderDfCharts(panel) {
+  const rows  = EM_DF_ALL;
+
+  // Contar por posición de depósito
+  const posCounts = {
+    'EN DAÑO': rows.filter(r => _emGetPos(r) === EM_POS_DANIO).length,
+    'DES. INCIDENTE': rows.filter(r => _emGetPos(r) === EM_POS_INC).length,
+    'DES. CIERRE': rows.filter(r => _emGetPos(r) === EM_POS_CIERRE).length,
+  };
+
+  // Por referencia × estado
+  const REFS_SHORT = {
+    'PINPAD DESK 1700 - INGENICO':       'PINPAD 1700',
+    'DATAFONO EX6000 - INGENICO':        'EX6000',
+    'DATAFONO EX4000 - INGENICO':        'EX4000',
+    'DATAFONO DX4000 PORTATIL - INGENICO':'DX4000 PORT.',
+    'DATAFONO DX4000 ESCRITORIO - INGENICO':'DX4000 ESCR.',
+  };
+
+  const refStats = {};
+  [...EM_DATAFONO_REFS].forEach(ref => {
+    refStats[ref] = { 'EN DAÑO':0, 'DES. INCIDENTE':0, 'DES. CIERRE':0, 'DISPONIBLE':0, 'ASOCIADO':0 };
   });
-  const mesSorted = Object.entries(mesMap).sort((a,b)=>a[0].localeCompare(b[0]));
-  if (mesSorted.length) {
-    const canvasMes = document.getElementById('em-chart-sim-mensual');
-    if (canvasMes) {
-      _emDestroyChart('em-chart-sim-mensual');
-      EM_CHARTS['em-chart-sim-mensual'] = new Chart(canvasMes, {
-        type: 'bar',
+  rows.forEach(r => {
+    const ref = _emGetRef(r);
+    const est = _emDfEstado(r);
+    if (refStats[ref] && refStats[ref][est] !== undefined) refStats[ref][est]++;
+  });
+
+  const chartsGrid = document.createElement('div');
+  chartsGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-bottom:28px;';
+
+  // Donut: distribución por posición de depósito
+  const c1 = _emCard('em-c-pos-dona', 'Distribución por Estado en Depósito', 'Solo EN DAÑO / DES. INC. / DES. CIERRE', EM_C.danger);
+  chartsGrid.appendChild(c1);
+
+  // Bar: por referencia × estado
+  const c2 = _emCard('em-c-ref-bar', 'Estado por Referencia de Datáfono', 'Desglose de los 3 estados clave', EM_C.azul);
+  chartsGrid.appendChild(c2);
+
+  panel.appendChild(chartsGrid);
+
+  // Render Chart 1: Donut posición
+  requestAnimationFrame(() => {
+    _emDestroyChart('em-c-pos-dona');
+    const ctx1 = document.getElementById('em-c-pos-dona');
+    if (ctx1) {
+      EM_CHARTS['em-c-pos-dona'] = new Chart(ctx1, {
+        type: 'doughnut',
         data: {
-          labels: mesSorted.map(([k]) => { const [y,m] = k.split('-'); return `${m}/${y}`; }),
+          labels: Object.keys(posCounts),
           datasets: [{
-            label: 'Activaciones',
-            data:  mesSorted.map(([,v]) => v),
-            backgroundColor: '#B0F2AEAA',
-            borderColor: '#B0F2AE',
-            borderWidth: 1, borderRadius: 6,
+            data: Object.values(posCounts),
+            backgroundColor: [EM_C.danger+'CC', EM_C.orange+'CC', EM_C.warn+'CC'],
+            borderColor: 'rgba(0,0,0,0)', borderWidth: 0, hoverOffset: 8,
           }]
         },
         options: {
-          responsive: true, maintainAspectRatio: false,
+          cutout: '68%',
           plugins: {
-            legend: { display: false },
-            tooltip: { backgroundColor: 'rgba(24,23,21,.95)', titleColor: '#B0F2AE', bodyColor: '#FAFAFA', borderColor: 'rgba(176,242,174,.2)', borderWidth: 1, padding: 10 }
-          },
-          scales: {
-            x: { ticks: { color: '#cbd5e1', font: { size: 10 }, maxRotation: 30 }, grid: { display: false } },
-            y: { ticks: { color: '#7A7674' }, grid: { color: 'rgba(255,255,255,.05)' } }
+            legend: EM_LEG,
+            tooltip: Object.assign({}, EM_TT, {
+              callbacks: {
+                label: ctx => ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString('es-CO') + ' uds'
+              }
+            })
           }
         }
       });
     }
-  }
 
-  // ── Tabla SIMCards ───────────────────────────────────────────
-  _emApplySimSearch('');
-}
-
-function _emApplySimSearch(query) {
-  EM_SIM_SEARCH = (query || '').toLowerCase().trim();
-  EM_SIM_FILTERED = EM_SIM_ALL.filter(r => {
-    if (!EM_SIM_SEARCH) return true;
-    const serial = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').toLowerCase();
-    const ubic   = (r['Nombre de la ubicación']||'').toLowerCase();
-    const attr   = (r['Atributos']||'').toLowerCase();
-    const cod    = (r['Código de ubicación']||'').toLowerCase();
-    return serial.includes(EM_SIM_SEARCH) || ubic.includes(EM_SIM_SEARCH) || attr.includes(EM_SIM_SEARCH) || cod.includes(EM_SIM_SEARCH);
+    // Chart 2: stacked bar por referencia
+    _emDestroyChart('em-c-ref-bar');
+    const ctx2 = document.getElementById('em-c-ref-bar');
+    if (ctx2) {
+      const refLabels = [...EM_DATAFONO_REFS].map(r => REFS_SHORT[r] || r);
+      EM_CHARTS['em-c-ref-bar'] = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: refLabels,
+          datasets: [
+            { label:'EN DAÑO',       data: [...EM_DATAFONO_REFS].map(r => refStats[r]['EN DAÑO']),       backgroundColor: EM_C.danger+'BB', borderColor: EM_C.danger, borderWidth:1, borderRadius:4 },
+            { label:'DES. INCIDENTE',data: [...EM_DATAFONO_REFS].map(r => refStats[r]['DES. INCIDENTE']),backgroundColor: EM_C.orange+'BB', borderColor: EM_C.orange, borderWidth:1, borderRadius:4 },
+            { label:'DES. CIERRE',   data: [...EM_DATAFONO_REFS].map(r => refStats[r]['DES. CIERRE']),   backgroundColor: EM_C.warn+'BB',   borderColor: EM_C.warn,   borderWidth:1, borderRadius:4 },
+          ]
+        },
+        options: {
+          plugins: { legend: EM_LEG, tooltip: EM_TT },
+          scales: {
+            x: { stacked: false, grid:{display:false}, ticks:{color:EM_C.muted,font:{family:'Outfit',size:10}} },
+            y: { grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:EM_C.muted,font:{family:'Outfit',size:11}} }
+          }
+        }
+      });
+    }
   });
-  EM_SIM_PAGE = 1;
-  _emRenderSimTabla();
 }
 
-function _emRenderSimTabla() {
-  const wrap  = document.getElementById('em-sim-tabla-wrap');
-  const count = document.getElementById('em-sim-tabla-count');
-  const pagEl = document.getElementById('em-sim-tabla-pag');
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 1 — TABLA POR BODEGA
+// ─────────────────────────────────────────────────────────────────
+function _emRenderBodegaTable(panel) {
+  // Construir mapa por bodega
+  const bodMap = {};
+  EM_DF_ALL.forEach(r => {
+    const bod = _emGetBodega(r);
+    if (!bodMap[bod]) bodMap[bod] = { asociado:0, danio:0, cierre:0, incidente:0, disponible:0, total:0 };
+    const est = _emDfEstado(r);
+    bodMap[bod].total++;
+    if (est === 'ASOCIADO')      bodMap[bod].asociado++;
+    else if (est === 'EN DAÑO')  bodMap[bod].danio++;
+    else if (est === 'DES. CIERRE') bodMap[bod].cierre++;
+    else if (est === 'DES. INCIDENTE') bodMap[bod].incidente++;
+    else if (est === 'DISPONIBLE') bodMap[bod].disponible++;
+  });
+
+  const rows = Object.entries(bodMap).sort((a,b) => b[1].total - a[1].total);
+  const maxVal = rows[0] ? rows[0][1].total : 1;
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:' + EM_C.card + ';border:1px solid ' + EM_C.border + ';border-radius:18px;overflow:hidden;margin-bottom:28px;box-shadow:0 4px 20px rgba(0,0,0,.4);';
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">📊 Estado por Bodega</div>
+        <div style="font-size:11px;color:${EM_C.muted};margin-top:2px;">${rows.length} bodegas con datáfonos</div>
+      </div>
+    </div>
+    <div style="overflow-x:auto;max-height:460px;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:rgba(0,0,0,.3);">
+            <th style="padding:10px 16px;text-align:left;font-family:'Outfit',sans-serif;font-size:11px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;white-space:nowrap;">Bodega</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:${EM_C.azul};text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">Asociados</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:${EM_C.danger};text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">EN DAÑO</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:${EM_C.warn};text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">DES. CIERRE</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:${EM_C.orange};text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">DES. INCIDENTE</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:${EM_C.verde};text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">Disponible</th>
+            <th style="padding:10px 12px;text-align:center;font-size:11px;font-weight:700;color:${EM_C.lima};text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;">Total</th>
+            <th style="padding:10px 16px;font-size:11px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:.5px;min-width:100px;">Distribución</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(([bod, s], i) => {
+            const pct = maxVal ? (s.total / maxVal * 100) : 0;
+            return `<tr style="border-top:1px solid rgba(255,255,255,.04);background:${i%2?'transparent':'rgba(255,255,255,.015)'};">
+              <td style="padding:9px 16px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;color:#e2e8f0;white-space:nowrap;">${bod.replace('ALMACEN WOMPI ','').replace('ALMACEN ','')} <span style="font-size:9px;color:${EM_C.muted};font-weight:400;">· ${bod.includes('VP')?(bod.includes('ALQUILER')?'VP Alquiler':'VP Venta'):(bod.includes('BAJA')?'Bajas':'Almacén')}</span></td>
+              <td style="padding:9px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:${EM_C.azul};">${s.asociado||'—'}</td>
+              <td style="padding:9px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:${s.danio?EM_C.danger:EM_C.muted};">${s.danio||'—'}</td>
+              <td style="padding:9px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:${s.cierre?EM_C.warn:EM_C.muted};">${s.cierre||'—'}</td>
+              <td style="padding:9px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:${s.incidente?EM_C.orange:EM_C.muted};">${s.incidente||'—'}</td>
+              <td style="padding:9px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;color:${EM_C.verde};">${s.disponible||'—'}</td>
+              <td style="padding:9px 12px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${EM_C.lima};">${s.total}</td>
+              <td style="padding:9px 16px;">
+                <div style="background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;min-width:80px;">
+                  <div style="height:100%;border-radius:4px;background:linear-gradient(90deg,${EM_C.verde}88,${EM_C.verde});width:${Math.max(pct,2)}%;transition:width .6s ease;"></div>
+                </div>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  panel.appendChild(wrap);
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 1 — GRÁFICA DE TIPOS DE DAÑO
+// ─────────────────────────────────────────────────────────────────
+function _emRenderDañoChart(panel) {
+  // Solo datáfonos con 99999 y algún daño en comentarios
+  const daños = {};
+  EM_DF_ALL.forEach(r => {
+    const d = _emDaño(r);
+    if (d) daños[d] = (daños[d] || 0) + 1;
+  });
+  const sorted = Object.entries(daños).sort((a,b) => b[1]-a[1]);
+
+  if (!sorted.length) return;
+
+  const chartsGrid = document.createElement('div');
+  chartsGrid.style.cssText = 'display:grid;grid-template-columns:1fr;gap:18px;margin-bottom:28px;';
+
+  const c3 = _emCard('em-c-dano', 'Tipos de Daño (desde Comentarios)', 'Solo equipos con código 99999 y daño registrado', EM_C.danger);
+  c3.style.maxWidth = '640px';
+  chartsGrid.appendChild(c3);
+  panel.appendChild(chartsGrid);
+
+  const danoPalette = [EM_C.danger, EM_C.orange, EM_C.warn, EM_C.purple, '#F49D6E', '#FF5C5C', '#C084FC', EM_C.azul];
+
+  requestAnimationFrame(() => {
+    _emDestroyChart('em-c-dano');
+    const ctx = document.getElementById('em-c-dano');
+    if (ctx) {
+      EM_CHARTS['em-c-dano'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(e => e[0]),
+          datasets: [{
+            label: 'Cantidad',
+            data: sorted.map(e => e[1]),
+            backgroundColor: sorted.map((_,i) => danoPalette[i % danoPalette.length] + 'BB'),
+            borderColor: sorted.map((_,i) => danoPalette[i % danoPalette.length]),
+            borderWidth: 2, borderRadius: 6, borderSkipped: false,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend:{display:false}, tooltip: EM_TT },
+          scales: {
+            x: { grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:EM_C.muted,font:{family:'JetBrains Mono',size:11}} },
+            y: { grid:{display:false}, ticks:{color:'#FAFAFA',font:{family:'Outfit',size:11}} }
+          }
+        }
+      });
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 1 — TABLA COMPLETA DATÁFONOS
+// ─────────────────────────────────────────────────────────────────
+function _emRenderDfTable(panel) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:' + EM_C.card + ';border:1px solid ' + EM_C.border + ';border-radius:18px;overflow:hidden;margin-bottom:28px;box-shadow:0 4px 20px rgba(0,0,0,.4);';
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">🔍 Tabla Completa de Datáfonos en Bodega</div>
+        <div style="font-size:11px;color:${EM_C.muted};margin-top:2px;" id="em-df-count">${EM_DF_ALL.length} registros</div>
+      </div>
+    </div>
+    <div style="padding:10px 20px;border-bottom:1px solid rgba(176,242,174,.07);background:rgba(0,0,0,.15);display:flex;gap:10px;flex-wrap:wrap;">
+      <input type="text" id="em-df-search-inp" placeholder="🔍 Buscar serial, referencia, bodega, estado, comentario..." oninput="emDfSearch(this.value)"
+        style="flex:1;min-width:250px;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
+      <select id="em-df-filter-ref" onchange="emDfSearch(document.getElementById('em-df-search-inp').value)"
+        style="background:#1a1916;border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#FAFAFA;padding:8px 12px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;">
+        <option value="">Todas las referencias</option>
+        ${[...EM_DATAFONO_REFS].map(r=>`<option value="${r}">${r.replace(' - INGENICO','')}</option>`).join('')}
+      </select>
+      <select id="em-df-filter-est" onchange="emDfSearch(document.getElementById('em-df-search-inp').value)"
+        style="background:#1a1916;border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#FAFAFA;padding:8px 12px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;">
+        <option value="">Todos los estados</option>
+        <option>DISPONIBLE</option><option>ASOCIADO</option><option>EN DAÑO</option><option>DES. CIERRE</option><option>DES. INCIDENTE</option>
+      </select>
+    </div>
+    <div id="em-df-table-wrap" style="overflow-x:auto;max-height:480px;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-top:1px solid rgba(176,242,174,.07);">
+      <span id="em-df-count-footer" style="font-size:11px;color:${EM_C.muted};font-family:'Outfit',sans-serif;"></span>
+      <div id="em-df-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>`;
+
+  panel.appendChild(wrap);
+  emDfSearch('');
+}
+
+window.emDfSearch = function(q) {
+  EM_DF_SEARCH = (q || '').toLowerCase().trim();
+  EM_DF_PAGE = 1;
+  _emRenderDfTableBody();
+};
+
+window.emDfGoPage = function(p) {
+  EM_DF_PAGE = p;
+  _emRenderDfTableBody();
+};
+
+function _emDfFiltered() {
+  const refFilter = (document.getElementById('em-df-filter-ref')?.value || '');
+  const estFilter = (document.getElementById('em-df-filter-est')?.value || '');
+  return EM_DF_ALL.filter(r => {
+    const ref = _emGetRef(r);
+    const est = _emDfEstado(r);
+    const serial = _emGetSerial(r);
+    const bod    = _emGetBodega(r);
+    const com    = _emGetComment(r);
+    if (refFilter && ref !== refFilter) return false;
+    if (estFilter && est !== estFilter) return false;
+    if (EM_DF_SEARCH) {
+      const haystack = [ref, serial, bod, com, est].join(' ').toLowerCase();
+      if (!haystack.includes(EM_DF_SEARCH)) return false;
+    }
+    return true;
+  });
+}
+
+function _emRenderDfTableBody() {
+  const wrap = document.getElementById('em-df-table-wrap');
+  const countEl = document.getElementById('em-df-count');
+  const countFooter = document.getElementById('em-df-count-footer');
   if (!wrap) return;
 
-  const data  = EM_SIM_FILTERED;
-  const pages = Math.max(1, Math.ceil(data.length / EM_PAGE_SIZE));
-  const slice = data.slice((EM_SIM_PAGE-1)*EM_PAGE_SIZE, EM_SIM_PAGE*EM_PAGE_SIZE);
+  const filtered = _emDfFiltered();
+  const total  = filtered.length;
+  const pages  = Math.max(1, Math.ceil(total / EM_PAGE_SIZE));
+  EM_DF_PAGE   = Math.min(EM_DF_PAGE, pages);
+  const slice  = filtered.slice((EM_DF_PAGE-1)*EM_PAGE_SIZE, EM_DF_PAGE*EM_PAGE_SIZE);
 
-  if (count) count.textContent = `${data.length.toLocaleString('es-CO')} registros`;
+  if (countEl) countEl.textContent = total + ' registros' + (EM_DF_SEARCH ? ' (filtrados)' : '');
+  if (countFooter) countFooter.textContent = `Mostrando ${(EM_DF_PAGE-1)*EM_PAGE_SIZE+1}–${Math.min(EM_DF_PAGE*EM_PAGE_SIZE,total)} de ${total}`;
 
-  if (!slice.length) {
-    wrap.innerHTML = '<div style="text-align:center;padding:40px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin resultados</div>';
-    if (pagEl) pagEl.innerHTML = '';
-    return;
-  }
+  const estColor = { 'DISPONIBLE': EM_C.verde, 'ASOCIADO': EM_C.azul, 'EN DAÑO': EM_C.danger, 'DES. CIERRE': EM_C.warn, 'DES. INCIDENTE': EM_C.orange };
 
-  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
-    <thead>
-      <tr style="background:rgba(0,0,0,.3);">
-        ${['Serial','Ubicación','Cód. Ubic.','Estado','Fecha Activación','Atributos'].map(h =>
-          `<th style="padding:10px 14px;text-align:left;font-family:'Syne',sans-serif;font-size:10px;
-            font-weight:700;color:#99D1FC;letter-spacing:1px;text-transform:uppercase;
-            border-bottom:1px solid rgba(153,209,252,.15);white-space:nowrap;">${h}</th>`
-        ).join('')}
-      </tr>
-    </thead>
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:rgba(0,0,0,.3);">
+      <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Serial</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Referencia</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Bodega</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Estado</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Posición Depósito</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Comentarios</th>
+    </tr></thead>
     <tbody>
-      ${slice.map((r, i) => {
-        const activa = _emSimActivada(r);
-        const fa     = _emSimFechaActivacion(r);
-        const serial = r['Número de serie']||r['Numero de serie']||r['Serial']||'—';
-        const ubic   = r['Nombre de la ubicación']||'—';
-        const cod    = r['Código de ubicación']||'—';
-        const attr   = r['Atributos']||'—';
-        const bg = i%2===0 ? 'rgba(153,209,252,.012)' : 'transparent';
-        const estadoPill = activa
-          ? `<span style="background:rgba(176,242,174,.12);color:#B0F2AE;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid rgba(176,242,174,.3);display:inline-block;font-family:'Outfit',sans-serif;">✅ ACTIVADA</span>`
-          : `<span style="background:rgba(255,92,92,.12);color:#FF5C5C;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid rgba(255,92,92,.3);display:inline-block;font-family:'Outfit',sans-serif;">❌ SIN ACTIVAR</span>`;
-        return `<tr style="background:${bg}" onmouseover="this.style.background='rgba(153,209,252,.04)'" onmouseout="this.style.background='${bg}'">
-          <td style="padding:9px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#a5f3fc;">${serial}</td>
-          <td style="padding:9px 14px;font-size:11px;color:#cbd5e1;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ubic}">${ubic}</td>
-          <td style="padding:9px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#67e8f9;">${cod}</td>
-          <td style="padding:9px 14px;">${estadoPill}</td>
-          <td style="padding:9px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${activa?'#B0F2AE':'#64748b'};">${fa}</td>
-          <td style="padding:9px 14px;font-size:11px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${attr}">${attr}</td>
+      ${slice.map((r,i) => {
+        const est   = _emDfEstado(r);
+        const color = estColor[est] || EM_C.muted;
+        const serial= _emGetSerial(r) || '—';
+        const ref   = _emGetRef(r).replace(' - INGENICO','');
+        const bod   = _emGetBodega(r).replace('ALMACEN WOMPI ','').replace('ALMACEN ','');
+        const pos   = _emGetPos(r) || '—';
+        const com   = _emGetComment(r) || '—';
+        return `<tr style="border-top:1px solid rgba(255,255,255,.04);background:${i%2?'transparent':'rgba(255,255,255,.015)'};">
+          <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e2e8f0;white-space:nowrap;">${serial}</td>
+          <td style="padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;color:#94a3b8;white-space:nowrap;">${ref}</td>
+          <td style="padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;color:#cbd5e1;white-space:nowrap;">${bod}</td>
+          <td style="padding:8px 14px;"><span style="background:${color}22;color:${color};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;letter-spacing:.3px;white-space:nowrap;">${est}</span></td>
+          <td style="padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;color:${EM_C.muted};white-space:nowrap;">${pos}</td>
+          <td style="padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;color:#94a3b8;max-width:240px;white-space:normal;line-height:1.4;">${com}</td>
         </tr>`;
       }).join('')}
+      ${!slice.length ? `<tr><td colspan="6" style="text-align:center;padding:40px;color:${EM_C.muted};font-family:'Outfit',sans-serif;">Sin resultados para los filtros aplicados</td></tr>` : ''}
     </tbody>
   </table>`;
 
-  _emRenderPag(pagEl, EM_SIM_PAGE, pages, p => { EM_SIM_PAGE = p; _emRenderSimTabla(); }, '#99D1FC');
+  _emMkPag('em-df-pag', EM_DF_PAGE, pages, 'emDfGoPage');
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  PAGINACIÓN
-// ══════════════════════════════════════════════════════════════════
-function _emRenderPag(el, cur, total, onPage, accent) {
-  if (!el) return;
-  el.innerHTML = '';
-  if (total <= 1) return;
-  const btnCSS = `padding:5px 11px;border-radius:7px;cursor:pointer;font-size:12px;
-    font-family:'Outfit',sans-serif;border:1px solid rgba(255,255,255,.1);transition:all .15s;`;
-  function mk(label, page, active) {
-    const b = document.createElement('button');
-    b.style.cssText = btnCSS + (active
-      ? `background:${accent};color:#0a1a12;font-weight:700;border-color:${accent};`
-      : 'background:rgba(255,255,255,.06);color:#94a3b8;');
-    b.textContent = label;
-    b.addEventListener('click', () => onPage(page));
-    return b;
-  }
-  if (cur > 1) el.appendChild(mk('‹', cur-1, false));
-  const s = Math.max(1, cur-2), e = Math.min(total, cur+2);
-  for (let p = s; p <= e; p++) el.appendChild(mk(String(p), p, p === cur));
-  if (cur < total) el.appendChild(mk('›', cur+1, false));
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 2 — KPIs SIMCARDS
+// ─────────────────────────────────────────────────────────────────
+function _emRenderSimKPIs(panel) {
+  const rows    = EM_SIM_ALL;
+  const total   = rows.length;
+  const activas = rows.filter(r => _emSimEstado(r).activa).length;
+  const sinAct  = total - activas;
+
+  // Sitio con más SIMs
+  const sitioMap = {};
+  rows.forEach(r => {
+    const s = _emGetBodega(r);
+    sitioMap[s] = (sitioMap[s] || 0) + 1;
+  });
+  const topSitio = Object.entries(sitioMap).sort((a,b)=>b[1]-a[1])[0];
+
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px;';
+
+  const kpis = [
+    { icon:'📡', label:'TOTAL SIMCARDS',    value: total,   sub: '100% del inventario', color: EM_C.teal },
+    { icon:'✅', label:'ACTIVADAS',          value: activas, sub: pctStr(activas,total),  color: EM_C.verde },
+    { icon:'⏸️', label:'SIN ACTIVAR',        value: sinAct,  sub: pctStr(sinAct,total),   color: EM_C.warn },
+    { icon:'🏆', label:'SITIO TOP',          value: topSitio ? topSitio[1] : 0, sub: topSitio ? topSitio[0].replace('ALMACEN WOMPI ','').replace('ALMACEN ','').substring(0,18) : '—', color: EM_C.purple },
+  ];
+  kpis.forEach(k => grid.appendChild(_emKpiCard(k.icon, k.label, k.value.toLocaleString('es-CO'), k.sub, k.color)));
+  panel.appendChild(grid);
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  RENDER HTML PRINCIPAL
-// ══════════════════════════════════════════════════════════════════
-function _emBuildHTML() {
-  const panel = document.getElementById('panel-estado-materiales');
-  if (!panel) return;
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 2 — GRÁFICAS SIMCARDS
+// ─────────────────────────────────────────────────────────────────
+function _emRenderSimCharts(panel) {
+  const rows = EM_SIM_ALL;
 
-  const _sectionTitle = (text, color, icon) => `
-    <div style="display:flex;align-items:center;gap:12px;margin:36px 0 20px;padding-bottom:10px;
-      border-bottom:1px solid ${color}22;">
-      <span style="font-size:22px;">${icon}</span>
-      <div>
-        <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:${color};letter-spacing:-.3px;">${text}</div>
-      </div>
-    </div>`;
+  // Donut activas/sin activar
+  const activas = rows.filter(r => _emSimEstado(r).activa).length;
+  const sinAct  = rows.length - activas;
 
-  const _chartCard = (title, sub, canvasId, h = '260px', extra = '') => `
-    <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-      border:1px solid rgba(103,232,249,.1);border-radius:18px;padding:20px 22px;${extra}">
-      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:4px">${title}</div>
-      ${sub ? `<div style="font-size:11px;color:#7A7674;margin-bottom:14px">${sub}</div>` : '<div style="margin-bottom:14px"></div>'}
-      <div style="position:relative;height:${h}"><canvas id="${canvasId}"></canvas></div>
-    </div>`;
+  // Top 10 sitios por cantidad de SIMs
+  const sitioMap = {};
+  rows.forEach(r => {
+    const s = _emGetBodega(r) || 'Sin ubicación';
+    sitioMap[s] = (sitioMap[s] || 0) + 1;
+  });
+  const topSitios = Object.entries(sitioMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
 
-  panel.innerHTML = `
-  <div style="padding:0 4px 40px;">
+  // Activaciones por mes
+  const mesMap = {};
+  rows.forEach(r => {
+    const { activa, fecha } = _emSimEstado(r);
+    if (!activa || !fecha) return;
+    const parts = fecha.split('/');
+    if (parts.length < 3) return;
+    const key = parts[2] + '-' + parts[1].padStart(2,'0');
+    mesMap[key] = (mesMap[key] || 0) + 1;
+  });
+  const mesSorted = Object.entries(mesMap).sort((a,b) => a[0].localeCompare(b[0]));
 
-    <!-- ══ SECCIÓN DATÁFONOS ══ -->
-    ${_sectionTitle('ESTADO DE DATÁFONOS EN BODEGA', '#B0F2AE', '📱')}
+  const chartsGrid = document.createElement('div');
+  chartsGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:28px;';
 
-    <!-- KPIs datáfonos -->
-    <div id="em-df-kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
-      <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
-    </div>
+  const c1 = _emCard('em-c-sim-dona',    'Activadas vs Sin Activar',         '% del total de SIMcards',              EM_C.teal);
+  const c2 = _emCard('em-c-sim-sitios',  'Top Sitios por Cantidad de SIMs',  'Ubicaciones con mayor stock de SIMs',  EM_C.purple);
+  const c3 = _emCard('em-c-sim-meses',   'Activaciones por Mes',             'Evolución de activaciones en el tiempo', EM_C.verde);
+  c3.style.gridColumn = 'span 3';
 
-    <!-- Gráficas row 1 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
-      ${_chartCard('Posición en Depósito', 'Solo estados: EN DAÑO · DES. INCIDENTE · DES. CIERRE', 'em-chart-deposito', '240px')}
-      ${_chartCard('Estados por Referencia', 'Cantidad de datáfonos por referencia y estado de depósito', 'em-chart-ref-estado', '240px')}
-    </div>
+  chartsGrid.appendChild(c1);
+  chartsGrid.appendChild(c2);
+  panel.appendChild(chartsGrid);
 
-    <!-- Gráfica tipos de daño (ancho completo) -->
-    <div style="margin-bottom:24px;">
-      ${_chartCard('Tipos de Daño', 'Extraído del campo Comentarios (solo datáfonos EN DAÑO)', 'em-chart-tipos-danio', '280px', 'margin-bottom:0')}
-    </div>
+  // Chart de activaciones (full width)
+  const chartLine = document.createElement('div');
+  chartLine.style.cssText = 'margin-bottom:28px;';
+  chartLine.appendChild(c3);
+  panel.appendChild(chartLine);
 
-    <!-- Tabla por bodega -->
-    <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-      border:1px solid rgba(176,242,174,.12);border-radius:18px;overflow:hidden;margin-bottom:28px;
-      box-shadow:0 4px 20px rgba(0,0,0,.4);">
-      <div style="padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Estado por Bodega</div>
-          <div style="font-size:11px;color:#7A7674;margin-top:2px;">Disponible · Asociado · Dañado · Des. Cierre · Des. Incidente</div>
-        </div>
-      </div>
-      <div id="em-tabla-bodegas-wrap" style="overflow-x:auto;max-height:480px;">
-        <div class="loading"><div class="spinner"></div></div>
-      </div>
-    </div>
-
-    <!-- Tabla completa datáfonos -->
-    <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-      border:1px solid rgba(176,242,174,.12);border-radius:18px;overflow:hidden;margin-bottom:40px;
-      box-shadow:0 4px 20px rgba(0,0,0,.4);">
-      <div style="padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Tabla Completa — Datáfonos en Bodegas</div>
-          <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="em-df-tabla-count">0 registros</div>
-        </div>
-        <button onclick="emExportDfExcel()"
-          style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;
-          padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
-      </div>
-      <div style="padding:10px 20px;border-bottom:1px solid rgba(176,242,174,.07);background:rgba(0,0,0,.15);">
-        <input type="text" oninput="_emApplyDfSearch(this.value)"
-          placeholder="🔍 Buscar por serial, referencia, bodega, estado, comentarios..."
-          style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);
-          border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
-      </div>
-      <div id="em-df-tabla-wrap" style="overflow-x:auto;max-height:520px;">
-        <div class="loading"><div class="spinner"></div></div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(176,242,174,.07);">
-        <div id="em-df-tabla-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      </div>
-    </div>
-
-    <!-- ══ SECCIÓN SIMCARDS ══ -->
-    ${_sectionTitle('ESTADO DE SIMCARDS', '#99D1FC', '📡')}
-
-    <!-- KPIs simcards -->
-    <div id="em-sim-kpis" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;">
-      <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
-    </div>
-
-    <!-- Gráficas SIM row 1 -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
-      ${_chartCard('Activadas vs Sin Activar', 'FA:DD/MM/AAAA en Atributos = activada', 'em-chart-sim-estado', '240px')}
-      ${_chartCard('Sitios con más SIMCards Activadas', 'Top 12 por ubicación', 'em-chart-sim-activadas', '240px')}
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:24px;">
-      ${_chartCard('Top Sitios por SIMCards', 'Total por ubicación (activadas + sin activar)', 'em-chart-sim-sitios', '280px')}
-      ${_chartCard('Activaciones por Mes', 'Distribución temporal de fechas FA', 'em-chart-sim-mensual', '280px')}
-    </div>
-
-    <!-- Tabla SIMCards -->
-    <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-      border:1px solid rgba(153,209,252,.12);border-radius:18px;overflow:hidden;margin-bottom:40px;
-      box-shadow:0 4px 20px rgba(0,0,0,.4);">
-      <div style="padding:16px 20px;border-bottom:1px solid rgba(153,209,252,.08);display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Tabla Completa — SIMCards</div>
-          <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="em-sim-tabla-count">0 registros</div>
-        </div>
-        <button onclick="emExportSimExcel()"
-          style="background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.2);color:#99D1FC;
-          padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
-      </div>
-      <div style="padding:10px 20px;border-bottom:1px solid rgba(153,209,252,.07);background:rgba(0,0,0,.15);">
-        <input type="text" oninput="_emApplySimSearch(this.value)"
-          placeholder="🔍 Buscar por serial, nombre de sitio, atributos, código..."
-          style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(153,209,252,.2);
-          border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
-      </div>
-      <div id="em-sim-tabla-wrap" style="overflow-x:auto;max-height:520px;">
-        <div class="loading"><div class="spinner"></div></div>
-      </div>
-      <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(153,209,252,.07);">
-        <div id="em-sim-tabla-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-      </div>
-    </div>
-
-  </div>`;
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  EXPORTS EXCEL
-// ══════════════════════════════════════════════════════════════════
-window.emExportDfExcel = function() {
-  if (!EM_DF_FILTERED.length) { alert('Sin datos.'); return; }
-  if (typeof XLSX === 'undefined') { alert('XLSX no disponible.'); return; }
-  const rows = EM_DF_FILTERED.map(r => ({
-    'Serial':              r['Número de serie']||r['Numero de serie']||r['Serial']||'',
-    'Referencia':          r['Nombre']||'',
-    'Bodega':              r['Nombre de la ubicación']||'',
-    'Código Ubicación':    r['Código de ubicación']||'',
-    'Posición Depósito':   r['Posición en depósito']||'',
-    'Estado':              _emEstadoDatafono(r),
-    'Tipo Daño':           (r['Posición en depósito']||'').trim().toUpperCase() === 'EN DAÑO' ? _emTipoDanio(r) : '',
-    'Comentarios':         r['Comentarios']||'',
-    'Atributos':           r['Atributos']||'',
-  }));
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length+2, 14) }));
-  XLSX.utils.book_append_sheet(wb, ws, 'Datáfonos Bodegas');
-  XLSX.writeFile(wb, `Datafonos_Bodegas_${new Date().toISOString().slice(0,10)}.xlsx`);
-};
-
-window.emExportSimExcel = function() {
-  if (!EM_SIM_FILTERED.length) { alert('Sin datos.'); return; }
-  if (typeof XLSX === 'undefined') { alert('XLSX no disponible.'); return; }
-  const rows = EM_SIM_FILTERED.map(r => ({
-    'Serial':              r['Número de serie']||r['Numero de serie']||r['Serial']||'',
-    'Ubicación':           r['Nombre de la ubicación']||'',
-    'Código Ubicación':    r['Código de ubicación']||'',
-    'Estado':              _emSimActivada(r) ? 'ACTIVADA' : 'SIN ACTIVAR',
-    'Fecha Activación':    _emSimFechaActivacion(r),
-    'Atributos':           r['Atributos']||'',
-  }));
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.json_to_sheet(rows);
-  ws['!cols'] = Object.keys(rows[0]).map(k => ({ wch: Math.max(k.length+2, 14) }));
-  XLSX.utils.book_append_sheet(wb, ws, 'SIMCards');
-  XLSX.writeFile(wb, `SIMCards_${new Date().toISOString().slice(0,10)}.xlsx`);
-};
-
-// ══════════════════════════════════════════════════════════════════
-//  ENTRY POINT
-// ══════════════════════════════════════════════════════════════════
-async function renderEstadoMateriales() {
-  const panel = document.getElementById('panel-estado-materiales');
-  if (!panel) return;
-
-  let raw = _emGetRaw();
-  if (!raw || !raw.length) {
-    panel.innerHTML = '<div class="loading"><div class="spinner"></div><span>Cargando datos de inventario...</span></div>';
-    if (typeof window.loadInventarioData === 'function') {
-      await window.loadInventarioData();
-    }
-    raw = _emGetRaw();
-  }
-
-  if (!raw || !raw.length) {
-    panel.innerHTML = '<div class="loading"><div class="spinner"></div><span>No hay datos disponibles. Asegúrate de que stock_wompi_filtrado.json.gz esté cargado.</span></div>';
-    return;
-  }
-
-  // Destruir charts anteriores
-  Object.keys(EM_CHARTS).forEach(id => { try { EM_CHARTS[id].destroy(); } catch(e){} });
-  EM_CHARTS = {};
-
-  // Construir HTML
-  _emBuildHTML();
-
-  // Procesar datos
-  _emProcesar();
-
-  // Renderizar secciones
   requestAnimationFrame(() => {
-    _emRenderDatafonos();
-    _emRenderSimcards();
+    // Donut activadas
+    _emDestroyChart('em-c-sim-dona');
+    const d1 = document.getElementById('em-c-sim-dona');
+    if (d1) {
+      EM_CHARTS['em-c-sim-dona'] = new Chart(d1, {
+        type: 'doughnut',
+        data: {
+          labels: ['Activadas', 'Sin Activar'],
+          datasets: [{
+            data: [activas, sinAct],
+            backgroundColor: [EM_C.verde+'CC', EM_C.warn+'CC'],
+            borderColor: 'rgba(0,0,0,0)', borderWidth: 0, hoverOffset: 8,
+          }]
+        },
+        options: {
+          cutout: '68%',
+          plugins: {
+            legend: EM_LEG,
+            tooltip: Object.assign({}, EM_TT, {
+              callbacks: { label: ctx => ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString('es-CO') + ' SIMs (' + pctStr(ctx.parsed, rows.length) + ')' }
+            })
+          }
+        }
+      });
+    }
+
+    // Bar sitios
+    _emDestroyChart('em-c-sim-sitios');
+    const d2 = document.getElementById('em-c-sim-sitios');
+    if (d2) {
+      EM_CHARTS['em-c-sim-sitios'] = new Chart(d2, {
+        type: 'bar',
+        data: {
+          labels: topSitios.map(e => e[0].replace('ALMACEN WOMPI ','').replace('ALMACEN ','')),
+          datasets: [{
+            label: 'SIMcards',
+            data: topSitios.map(e => e[1]),
+            backgroundColor: EM_C.purple + 'BB',
+            borderColor: EM_C.purple,
+            borderWidth: 2, borderRadius: 6,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          plugins: { legend:{display:false}, tooltip: EM_TT },
+          scales: {
+            x: { grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:EM_C.muted,font:{family:'JetBrains Mono',size:10}} },
+            y: { grid:{display:false}, ticks:{color:'#FAFAFA',font:{family:'Outfit',size:10}} }
+          }
+        }
+      });
+    }
+
+    // Line activaciones por mes
+    _emDestroyChart('em-c-sim-meses');
+    const d3 = document.getElementById('em-c-sim-meses');
+    if (d3 && mesSorted.length) {
+      EM_CHARTS['em-c-sim-meses'] = new Chart(d3, {
+        type: 'bar',
+        data: {
+          labels: mesSorted.map(e => {
+            const [y,m] = e[0].split('-');
+            const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+            return meses[parseInt(m)] + ' ' + y;
+          }),
+          datasets: [{
+            label: 'Activaciones',
+            data: mesSorted.map(e => e[1]),
+            backgroundColor: EM_C.verde + '88',
+            borderColor: EM_C.verde,
+            borderWidth: 2, borderRadius: 4,
+            fill: true,
+          }]
+        },
+        options: {
+          plugins: { legend:{display:false}, tooltip: EM_TT },
+          scales: {
+            x: { grid:{display:false}, ticks:{color:EM_C.muted,font:{family:'Outfit',size:11}} },
+            y: { grid:{color:'rgba(255,255,255,.05)'}, ticks:{color:EM_C.muted,font:{family:'JetBrains Mono',size:11}} }
+          }
+        }
+      });
+    }
   });
 }
 
-// Exponer funciones que se llaman desde HTML inline
+// ─────────────────────────────────────────────────────────────────
+//  SECCIÓN 2 — TABLA SIMCARDS
+// ─────────────────────────────────────────────────────────────────
+function _emRenderSimTable(panel) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'background:' + EM_C.card + ';border:1px solid rgba(103,232,249,.15);border-top:2px solid ' + EM_C.teal + ';border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);';
+
+  wrap.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(103,232,249,.08);">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">🔍 Tabla Completa de SIMcards</div>
+        <div style="font-size:11px;color:${EM_C.muted};margin-top:2px;" id="em-sim-count">${EM_SIM_ALL.length} registros</div>
+      </div>
+    </div>
+    <div style="padding:10px 20px;border-bottom:1px solid rgba(103,232,249,.07);background:rgba(0,0,0,.15);display:flex;gap:10px;flex-wrap:wrap;">
+      <input type="text" id="em-sim-search-inp" placeholder="🔍 Buscar serial, sitio, atributos, fecha activación..."
+        oninput="emSimSearch(this.value)"
+        style="flex:1;min-width:250px;background:rgba(255,255,255,.05);border:1px solid rgba(103,232,249,.2);border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
+      <select id="em-sim-filter-est" onchange="emSimSearch(document.getElementById('em-sim-search-inp').value)"
+        style="background:#1a1916;border:1px solid rgba(103,232,249,.2);border-radius:8px;color:#FAFAFA;padding:8px 12px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;">
+        <option value="">Todas (activadas + sin activar)</option>
+        <option value="activa">✅ Activadas</option>
+        <option value="sin">⏸️ Sin Activar</option>
+      </select>
+    </div>
+    <div id="em-sim-table-wrap" style="overflow-x:auto;max-height:480px;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;border-top:1px solid rgba(103,232,249,.07);">
+      <span id="em-sim-count-footer" style="font-size:11px;color:${EM_C.muted};font-family:'Outfit',sans-serif;"></span>
+      <div id="em-sim-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+    </div>`;
+
+  panel.appendChild(wrap);
+  emSimSearch('');
+}
+
+window.emSimSearch = function(q) {
+  EM_SIM_SEARCH = (q || '').toLowerCase().trim();
+  EM_SIM_PAGE = 1;
+  _emRenderSimTableBody();
+};
+
+window.emSimGoPage = function(p) {
+  EM_SIM_PAGE = p;
+  _emRenderSimTableBody();
+};
+
+function _emSimFiltered() {
+  const estFilter = (document.getElementById('em-sim-filter-est')?.value || '');
+  return EM_SIM_ALL.filter(r => {
+    const { activa } = _emSimEstado(r);
+    if (estFilter === 'activa' && !activa) return false;
+    if (estFilter === 'sin'    &&  activa) return false;
+    if (EM_SIM_SEARCH) {
+      const serial = _emGetSerial(r);
+      const bod    = _emGetBodega(r);
+      const attr   = _emGetAtributos(r);
+      const haystack = [serial, bod, attr].join(' ').toLowerCase();
+      if (!haystack.includes(EM_SIM_SEARCH)) return false;
+    }
+    return true;
+  });
+}
+
+function _emRenderSimTableBody() {
+  const wrap = document.getElementById('em-sim-table-wrap');
+  const countEl = document.getElementById('em-sim-count');
+  const footer  = document.getElementById('em-sim-count-footer');
+  if (!wrap) return;
+
+  const filtered = _emSimFiltered();
+  const total  = filtered.length;
+  const pages  = Math.max(1, Math.ceil(total / EM_PAGE_SIZE));
+  EM_SIM_PAGE  = Math.min(EM_SIM_PAGE, pages);
+  const slice  = filtered.slice((EM_SIM_PAGE-1)*EM_PAGE_SIZE, EM_SIM_PAGE*EM_PAGE_SIZE);
+
+  if (countEl) countEl.textContent = total + ' registros';
+  if (footer)  footer.textContent  = `Mostrando ${(EM_SIM_PAGE-1)*EM_PAGE_SIZE+1}–${Math.min(EM_SIM_PAGE*EM_PAGE_SIZE,total)} de ${total}`;
+
+  wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+    <thead><tr style="background:rgba(0,0,0,.3);">
+      <th style="padding:9px 14px;text-align:left;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Serial</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Nombre de Sitio / Ubicación</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Estado</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Fecha Activación</th>
+      <th style="padding:9px 14px;font-size:10px;font-weight:700;color:${EM_C.muted};text-transform:uppercase;letter-spacing:1px;font-family:'Outfit',sans-serif;white-space:nowrap;">Atributos</th>
+    </tr></thead>
+    <tbody>
+      ${slice.map((r,i) => {
+        const { activa, fecha } = _emSimEstado(r);
+        const serial = _emGetSerial(r) || '—';
+        const bod    = _emGetBodega(r) || '—';
+        const attr   = _emGetAtributos(r) || '—';
+        const colorEst = activa ? EM_C.verde : EM_C.warn;
+        const label    = activa ? 'ACTIVADA' : 'SIN ACTIVAR';
+        return `<tr style="border-top:1px solid rgba(255,255,255,.04);background:${i%2?'transparent':'rgba(255,255,255,.015)'};">
+          <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#e2e8f0;white-space:nowrap;">${serial}</td>
+          <td style="padding:8px 14px;font-family:'Outfit',sans-serif;font-size:11px;color:#cbd5e1;">${bod}</td>
+          <td style="padding:8px 14px;"><span style="background:${colorEst}22;color:${colorEst};font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;white-space:nowrap;">${label}</span></td>
+          <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${fecha ? EM_C.teal : EM_C.muted};white-space:nowrap;">${fecha || '—'}</td>
+          <td style="padding:8px 14px;font-family:'Outfit',sans-serif;font-size:10px;color:#94a3b8;max-width:260px;white-space:normal;line-height:1.4;">${attr}</td>
+        </tr>`;
+      }).join('')}
+      ${!slice.length ? `<tr><td colspan="5" style="text-align:center;padding:40px;color:${EM_C.muted};font-family:'Outfit',sans-serif;">Sin resultados para los filtros aplicados</td></tr>` : ''}
+    </tbody>
+  </table>`;
+
+  _emMkPag('em-sim-pag', EM_SIM_PAGE, pages, 'emSimGoPage');
+}
+
+// ─────────────────────────────────────────────────────────────────
+//  EXPOSE
+// ─────────────────────────────────────────────────────────────────
 window.renderEstadoMateriales = renderEstadoMateriales;
-window._emApplyDfSearch  = _emApplyDfSearch;
-window._emApplySimSearch = _emApplySimSearch;
