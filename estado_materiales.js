@@ -115,7 +115,10 @@ function _emEstadoDatafono(row) {
     if (!texto)                         return 'DISPONIBLE';
     if (texto === 'DESASOCIADO')        return 'DISPONIBLE';
     if (texto.includes('MIGRACION'))    return 'DISPONIBLE';
-    return 'DISPONIBLE'; // ya no se mapea a DAÑADO desde comentarios
+    if (texto === 'INCIDENTE')          return 'DISPONIBLE';
+    if (texto === 'APERTURA')           return 'DISPONIBLE';
+    if (texto === 'SPON')               return 'DISPONIBLE';
+    return 'DAÑADO'; // 99999 con cualquier otro estado → DAÑADO
   }
 
   return 'DISPONIBLE';
@@ -129,7 +132,7 @@ function _emTipoDanio(row) {
   const numero = (parts[0] || '').trim();
   const texto  = (parts[1] || '').trim().toUpperCase();
   if (numero !== '99999') return null;
-  if (!texto || texto === 'DESASOCIADO' || texto.includes('MIGRACION')) return null;
+  if (!texto || texto === 'DESASOCIADO' || texto.includes('MIGRACION') || texto === 'INCIDENTE' || texto === 'APERTURA' || texto === 'SPON') return null;
   return texto;
 }
 
