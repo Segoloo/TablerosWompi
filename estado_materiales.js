@@ -21,6 +21,19 @@ const EM_REFS_DATAFONO = new Set([
 
 const EM_REF_SIMCARD = 'SIM LTE MULTI 256K P17 POST QR - CLARO';
 
+// SIMCards de prueba a excluir
+const EM_SIM_PRUEBA = new Set([
+  'SIMVP00001','SIMVP00002','SIMVP00003','SIMVP00004',
+  'SIMP00001','SIMP00002','SIMP00003',
+  '12341234','234234000000000'
+]);
+
+// Bodegas a excluir del KPI "Total en Bodegas"
+const EM_BODEGAS_EXCLUIR_TOTAL = new Set([
+  'ALMACEN BAJAS WOMPI','ALMACÉN BAJAS WOMPI',
+  'ALMACEN INGENICO - PROVEEDOR WOMPI'
+]);
+
 const EM_COLORS = {
   danio:      '#FF5C5C',
   incidente:  '#FFC04D',
@@ -44,6 +57,13 @@ let EM_DF_FILTERED  = [];
 let EM_SIM_SEARCH   = '';
 let EM_SIM_FILTERED = [];
 let _EM_KPI_ROWS    = [];
+
+// Filtros globales de Estado Materiales
+let EM_F_NEGOCIO  = '';   // 'CB' | 'VP' | ''
+let EM_F_UBICV3   = '';   // valor de invUbicacionV3 | ''
+let EM_F_BODEGA   = '';   // nombre de bodega exacto | ''
+let EM_F_SERIAL   = '';   // número de serie exacto | ''
+let EM_F_REF      = '';   // referencia exacta | ''
 
 // ══════════════════════════════════════════════════════════════════
 //  HELPERS DE DATOS
@@ -78,6 +98,8 @@ function _emEstadoDatafono(row) {
   // Datáfonos en ALMACEN BAJAS WOMPI → estado BAJAS WOMPI (no suman en disponible)
   if (ubi.includes('ALMACEN BAJAS WOMPI') || ubi.includes('ALMACÉN BAJAS WOMPI')) return 'BAJAS WOMPI';
 
+  // EN DAÑO viene directamente de la columna Posición en depósito
+  if (pos === 'EN DAÑO') return 'DAÑADO';
   if (pos === 'DESINSTALADO-INCIDENTE') return 'DES. INCIDENTE';
   if (pos === 'DESINSTALADO-CIERRE')    return 'DES. CIERRE';
 
@@ -93,7 +115,7 @@ function _emEstadoDatafono(row) {
     if (!texto)                         return 'DISPONIBLE';
     if (texto === 'DESASOCIADO')        return 'DISPONIBLE';
     if (texto.includes('MIGRACION'))    return 'DISPONIBLE';
-    return 'DAÑADO';
+    return 'DISPONIBLE'; // ya no se mapea a DAÑADO desde comentarios
   }
 
   return 'DISPONIBLE';
@@ -412,7 +434,62 @@ function _emProcesar() {
   if (!raw || !raw.length) { EM_DF_ALL=[]; EM_SIM_ALL=[]; return; }
   const bodegas = (typeof INV_BODEGAS!=='undefined'?INV_BODEGAS:null)||window.INV_BODEGAS;
   EM_DF_ALL  = raw.filter(r => EM_REFS_DATAFONO.has((r['Nombre']||'').trim()) && bodegas && bodegas.has((r['Nombre de la ubicación']||'').trim()));
-  EM_SIM_ALL = raw.filter(r => (r['Nombre']||'').trim()===EM_REF_SIMCARD);
+  // Excluir SIMCards de prueba
+  EM_SIM_ALL = raw.filter(r => {
+    if ((r['Nombre']||'').trim() !== EM_REF_SIMCARD) return false;
+    const serial = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').trim().toUpperCase();
+    // Excluir seriales de prueba (exacto y también el numérico 2.34234E+11 → 234234000000000)
+    if (EM_SIM_PRUEBA.has(serial)) return false;
+    // Excluir variantes numéricas del serial de prueba 2,34234E+11
+    if (/^2\.?34234[e\+]?/i.test(serial) || serial === '234234000000000' || serial === '23423400000000') return false;
+    return true;
+  });
+  _emApplyGlobalFilters();
+}
+
+// Aplica los filtros globales (negocio, ubicaciónV3, bodega, serial, referencia)
+function _emApplyGlobalFilters() {
+  const raw = _emGetRaw() || [];
+  const bodegas = (typeof INV_BODEGAS!=='undefined'?INV_BODEGAS:null)||window.INV_BODEGAS;
+
+  // Reconstruir DF_ALL con filtros globales aplicados
+  let dfBase = raw.filter(r => EM_REFS_DATAFONO.has((r['Nombre']||'').trim()) && bodegas && bodegas.has((r['Nombre de la ubicación']||'').trim()));
+  // Reconstruir SIM_ALL con filtros globales aplicados (excepto referencia fija)
+  let simBase = raw.filter(r => {
+    if ((r['Nombre']||'').trim() !== EM_REF_SIMCARD) return false;
+    const serial = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').trim().toUpperCase();
+    if (EM_SIM_PRUEBA.has(serial)) return false;
+    if (/^2\.?34234[e\+]?/i.test(serial) || serial === '234234000000000' || serial === '23423400000000') return false;
+    return true;
+  });
+
+  // Función de filtro común
+  function applyFilters(arr) {
+    return arr.filter(r => {
+      if (EM_F_NEGOCIO) {
+        const neg = (typeof invNegocio === 'function') ? invNegocio(r['Subtipo']) : (()=>{const s=(r['Subtipo']||'').trim().toUpperCase();return(s==='WOMPI VP'||s==='EQUIPO VP'||s==='VP')?'VP':'CB';})();
+        if (neg !== EM_F_NEGOCIO) return false;
+      }
+      if (EM_F_UBICV3) {
+        const ubv3 = (typeof invUbicacionV3 === 'function') ? invUbicacionV3(r) : '';
+        if (ubv3 !== EM_F_UBICV3) return false;
+      }
+      if (EM_F_BODEGA) {
+        if ((r['Nombre de la ubicación']||'').trim() !== EM_F_BODEGA) return false;
+      }
+      if (EM_F_SERIAL) {
+        const s = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').trim();
+        if (s !== EM_F_SERIAL) return false;
+      }
+      if (EM_F_REF) {
+        if ((r['Nombre']||'').trim() !== EM_F_REF) return false;
+      }
+      return true;
+    });
+  }
+
+  EM_DF_ALL  = applyFilters(dfBase);
+  EM_SIM_ALL = applyFilters(simBase);
   EM_DF_FILTERED  = EM_DF_ALL.slice();
   EM_SIM_FILTERED = EM_SIM_ALL.slice();
 }
@@ -430,8 +507,16 @@ function _emRenderDatafonos() {
   const total = data.length;
 
   // KPIs
+  // "Total en Bodegas" excluye ALMACEN BAJAS WOMPI y ALMACEN INGENICO - PROVEEDOR WOMPI
+  const dataParaTotal = data.filter(r => {
+    const ubi = (r['Nombre de la ubicación']||'').trim();
+    for (const excl of EM_BODEGAS_EXCLUIR_TOTAL) {
+      if (ubi.toUpperCase().includes(excl.toUpperCase())) return false;
+    }
+    return true;
+  });
   _EM_KPI_ROWS = [
-    { title:'Total en Bodegas',  rows:data,                    color:'#DFFF61', icon:'📦' },
+    { title:'Total en Bodegas',  rows:dataParaTotal,           color:'#DFFF61', icon:'📦' },
     { title:'Disponibles',       rows:seg['DISPONIBLE']||[],   color:'#B0F2AE', icon:'✅' },
     { title:'Asociados',         rows:seg['ASOCIADO']||[],     color:'#C084FC', icon:'🔗' },
     { title:'En Daño',           rows:seg['DAÑADO']||[],       color:'#FF5C5C', icon:'🔴' },
@@ -465,7 +550,7 @@ function _emRenderDatafonos() {
     }).join('');
   }
 
-  // Dona: posición en depósito
+  // Dona: posición en depósito — ahora EN DAÑO viene directamente del campo
   const depMap={'EN DAÑO':0,'DESINSTALADO-INCIDENTE':0,'DESINSTALADO-CIERRE':0};
   data.forEach(r=>{const p=(r['Posición en depósito']||'').trim().toUpperCase();if(depMap[p]!==undefined)depMap[p]++;});
   _emDonut('em-chart-deposito',Object.keys(depMap),Object.values(depMap),[EM_COLORS.danio,EM_COLORS.incidente,EM_COLORS.cierre]);
@@ -783,7 +868,7 @@ function _emRenderSimTabla() {
   if(!slice.length){wrap.innerHTML='<div style="text-align:center;padding:40px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin resultados</div>';if(pag)pag.innerHTML='';return;}
   wrap.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;font-family:'Outfit',sans-serif;">
     <thead><tr style="background:#181715;position:sticky;top:0;z-index:2;">
-      ${['Serial','Ubicación','Cód. Ubic.','Estado','Fecha Activación','Atributos'].map(h=>`<th style="padding:10px 14px;text-align:left;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:#99D1FC;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(153,209,252,.15);white-space:nowrap;">${h}</th>`).join('')}
+      ${['Serial','Ubicación','Cód. Ubic.','Estado','Fecha Activación','Atributos','Comentarios'].map(h=>`<th style="padding:10px 14px;text-align:left;font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:#99D1FC;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(153,209,252,.15);white-space:nowrap;">${h}</th>`).join('')}
     </tr></thead>
     <tbody>${slice.map((r,i)=>{const act=_emSimActivada(r);const bg=i%2===0?'rgba(153,209,252,.012)':'transparent';const pill=act?`<span style="background:rgba(176,242,174,.12);color:#B0F2AE;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid rgba(176,242,174,.3);display:inline-block;font-family:'Outfit',sans-serif;">✅ ACTIVADA</span>`:`<span style="background:rgba(255,92,92,.12);color:#FF5C5C;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;border:1px solid rgba(255,92,92,.3);display:inline-block;font-family:'Outfit',sans-serif;">❌ SIN ACTIVAR</span>`;
     return`<tr style="background:${bg}" onmouseover="this.style.background='rgba(153,209,252,.04)'" onmouseout="this.style.background='${bg}'">
@@ -793,6 +878,7 @@ function _emRenderSimTabla() {
       <td style="padding:9px 14px;">${pill}</td>
       <td style="padding:9px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${act?'#B0F2AE':'#64748b'};">${_emSimFechaActivacion(r)}</td>
       <td style="padding:9px 14px;font-size:11px;color:#94a3b8;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r['Atributos']||''}">${r['Atributos']||'—'}</td>
+      <td style="padding:9px 14px;font-size:11px;color:#7A7674;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r['Comentarios']||''}">${r['Comentarios']||'—'}</td>
     </tr>`;}).join('')}
     </tbody></table>`;
   _emRenderPag(pag,EM_SIM_PAGE,pages,p=>{EM_SIM_PAGE=p;_emRenderSimTabla();},'#99D1FC');
@@ -829,6 +915,74 @@ function _emBuildHTML() {
     </div>`;
 
   panel.innerHTML=`<div style="padding:0 4px 40px;">
+
+    <!-- ══ FILTROS GLOBALES ══ -->
+    <div id="em-filtros-globales" style="background:linear-gradient(145deg,rgba(10,26,18,.97),rgba(8,20,14,.95));border:1px solid rgba(176,242,174,.18);border-radius:16px;padding:18px 22px;margin-bottom:28px;box-shadow:0 4px 24px rgba(0,0,0,.4);">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#B0F2AE;letter-spacing:.8px;text-transform:uppercase;">🔽 Filtros — Aplican a todo: Datáfonos y SIMCards</div>
+        <button onclick="emResetGlobalFilters()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#94a3b8;padding:5px 14px;border-radius:8px;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;transition:all .2s;" onmouseover="this.style.background='rgba(176,242,174,.1)';this.style.color='#B0F2AE'" onmouseout="this.style.background='rgba(255,255,255,.06)';this.style.color='#94a3b8'">↺ Limpiar filtros</button>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+
+        <!-- Tipo de Negocio -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:140px;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Tipo Negocio</label>
+          <select id="em-f-negocio" onchange="emApplyGlobalFilters()" style="background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;">
+            <option value="">Todos</option>
+            <option value="CB">CB</option>
+            <option value="VP">VP</option>
+          </select>
+        </div>
+
+        <!-- Ubicación V3 -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:180px;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Ubicación (V3)</label>
+          <select id="em-f-ubicv3" onchange="emApplyGlobalFilters()" style="background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;">
+            <option value="">Todas</option>
+            <option value="En bodega">En bodega</option>
+            <option value="En corresponsal">En corresponsal</option>
+            <option value="Gestor LineaCom">Gestor LineaCom</option>
+            <option value="Gestor Wompi">Gestor Wompi</option>
+            <option value="Empleados Wompi">Empleados Wompi</option>
+            <option value="En operador Logistico">En operador Logístico</option>
+            <option value="En distribución">En distribución</option>
+            <option value="En Ingenico">En Ingenico</option>
+          </select>
+        </div>
+
+        <!-- Bodega -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:200px;flex:1;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Bodega</label>
+          <div style="position:relative;">
+            <input id="em-f-bodega" type="text" placeholder="Todas las bodegas..." autocomplete="off"
+              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;"
+              oninput="_emAcBodega(this.value)" onblur="_emAcBodegaHide()">
+            <div id="em-f-bodega-ac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#181715;border:1px solid rgba(176,242,174,.2);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;font-size:12px;font-family:'Outfit',sans-serif;"></div>
+          </div>
+        </div>
+
+        <!-- Número de Serie -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:160px;flex:1;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Número de Serie</label>
+          <input id="em-f-serial" type="text" placeholder="Buscar serial..." autocomplete="off"
+            style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;"
+            oninput="_emGfSerialInput(this.value)">
+        </div>
+
+        <!-- Referencia -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:200px;flex:1;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Referencia</label>
+          <div style="position:relative;">
+            <input id="em-f-ref" type="text" placeholder="Todas las referencias..." autocomplete="off"
+              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;"
+              oninput="_emAcRef(this.value)" onblur="_emAcRefHide()">
+            <div id="em-f-ref-ac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#181715;border:1px solid rgba(176,242,174,.2);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;font-size:12px;font-family:'Outfit',sans-serif;"></div>
+          </div>
+        </div>
+
+      </div>
+      <div id="em-filtros-tag" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:6px;min-height:20px;"></div>
+    </div>
 
     <div class="section-label fade-up" style="color:#B0F2AE;">ESTADO DE DATÁFONOS EN BODEGA</div>
 
@@ -934,8 +1088,117 @@ window.emExportDfExcel=function(){
 window.emExportSimExcel=function(){
   if(!EM_SIM_FILTERED.length){alert('Sin datos.');return;}
   if(typeof XLSX==='undefined'){alert('XLSX no disponible.');return;}
-  const rows=EM_SIM_FILTERED.map(r=>({'Serial':r['Número de serie']||r['Numero de serie']||r['Serial']||'','Ubicación':r['Nombre de la ubicación']||'','Código Ubicación':r['Código de ubicación']||'','Estado':_emSimActivada(r)?'ACTIVADA':'SIN ACTIVAR','Fecha Activación':_emSimFechaActivacion(r),'Atributos':r['Atributos']||''}));
+  const rows=EM_SIM_FILTERED.map(r=>({'Serial':r['Número de serie']||r['Numero de serie']||r['Serial']||'','Ubicación':r['Nombre de la ubicación']||'','Código Ubicación':r['Código de ubicación']||'','Estado':_emSimActivada(r)?'ACTIVADA':'SIN ACTIVAR','Fecha Activación':_emSimFechaActivacion(r),'Atributos':r['Atributos']||'','Comentarios':r['Comentarios']||''}));
   const wb=XLSX.utils.book_new();const ws=XLSX.utils.json_to_sheet(rows);ws['!cols']=Object.keys(rows[0]).map(k=>({wch:Math.max(k.length+2,14)}));XLSX.utils.book_append_sheet(wb,ws,'SIMCards');XLSX.writeFile(wb,`SIMCards_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+// ══════════════════════════════════════════════════════════════════
+//  FILTROS GLOBALES — funciones auxiliares
+// ══════════════════════════════════════════════════════════════════
+
+// Autocomplete para bodega
+let _emAcBodegaTimer = null;
+window._emAcBodega = function(val) {
+  clearTimeout(_emAcBodegaTimer);
+  _emAcBodegaTimer = setTimeout(() => {
+    const ac = document.getElementById('em-f-bodega-ac');
+    if (!ac) return;
+    const q = val.trim().toLowerCase();
+    const raw = _emGetRaw() || [];
+    const bodegas = (typeof INV_BODEGAS !== 'undefined' ? INV_BODEGAS : null) || window.INV_BODEGAS;
+    const opts = [...new Set(raw.filter(r => bodegas && bodegas.has((r['Nombre de la ubicación']||'').trim())).map(r => (r['Nombre de la ubicación']||'').trim()).filter(Boolean))].sort();
+    const matches = q ? opts.filter(o => o.toLowerCase().includes(q)) : opts;
+    if (!matches.length) { ac.style.display = 'none'; return; }
+    ac.innerHTML = matches.slice(0, 30).map(o => `<div style="padding:7px 12px;cursor:pointer;color:#e2e8f0;border-bottom:1px solid rgba(255,255,255,.04);" onmousedown="event.preventDefault();_emAcBodegaSelect('${o.replace(/'/g,"\\'")}')" onmouseover="this.style.background='rgba(176,242,174,.08)'" onmouseout="this.style.background=''">${o}</div>`).join('');
+    ac.style.display = 'block';
+  }, 120);
+};
+window._emAcBodegaSelect = function(val) {
+  const inp = document.getElementById('em-f-bodega');
+  if (inp) inp.value = val;
+  const ac = document.getElementById('em-f-bodega-ac');
+  if (ac) ac.style.display = 'none';
+  emApplyGlobalFilters();
+};
+window._emAcBodegaHide = function() {
+  setTimeout(() => { const ac = document.getElementById('em-f-bodega-ac'); if (ac) ac.style.display = 'none'; }, 200);
+};
+
+// Autocomplete para referencia
+let _emAcRefTimer = null;
+window._emAcRef = function(val) {
+  clearTimeout(_emAcRefTimer);
+  _emAcRefTimer = setTimeout(() => {
+    const ac = document.getElementById('em-f-ref-ac');
+    if (!ac) return;
+    const q = val.trim().toLowerCase();
+    const raw = _emGetRaw() || [];
+    const allRefs = [...new Set(raw.map(r => (r['Nombre']||'').trim()).filter(Boolean))].sort();
+    const matches = q ? allRefs.filter(o => o.toLowerCase().includes(q)) : allRefs;
+    if (!matches.length) { ac.style.display = 'none'; return; }
+    ac.innerHTML = matches.slice(0, 20).map(o => `<div style="padding:7px 12px;cursor:pointer;color:#e2e8f0;border-bottom:1px solid rgba(255,255,255,.04);" onmousedown="event.preventDefault();_emAcRefSelect('${o.replace(/'/g,"\\'")}')" onmouseover="this.style.background='rgba(176,242,174,.08)'" onmouseout="this.style.background=''">${o}</div>`).join('');
+    ac.style.display = 'block';
+  }, 120);
+};
+window._emAcRefSelect = function(val) {
+  const inp = document.getElementById('em-f-ref');
+  if (inp) inp.value = val;
+  const ac = document.getElementById('em-f-ref-ac');
+  if (ac) ac.style.display = 'none';
+  emApplyGlobalFilters();
+};
+window._emAcRefHide = function() {
+  setTimeout(() => { const ac = document.getElementById('em-f-ref-ac'); if (ac) ac.style.display = 'none'; }, 200);
+};
+
+// Serial — debounce directo
+let _emGfSerialTimer = null;
+window._emGfSerialInput = function(val) {
+  clearTimeout(_emGfSerialTimer);
+  _emGfSerialTimer = setTimeout(() => emApplyGlobalFilters(), 350);
+};
+
+// Renderiza los tags activos
+function _emRenderFilterTags() {
+  const tag = document.getElementById('em-filtros-tag');
+  if (!tag) return;
+  const tags = [];
+  if (EM_F_NEGOCIO) tags.push({ label: `Negocio: ${EM_F_NEGOCIO}`, clear: () => { EM_F_NEGOCIO=''; const el=document.getElementById('em-f-negocio'); if(el)el.value=''; } });
+  if (EM_F_UBICV3)  tags.push({ label: `Ubic. V3: ${EM_F_UBICV3}`, clear: () => { EM_F_UBICV3=''; const el=document.getElementById('em-f-ubicv3'); if(el)el.value=''; } });
+  if (EM_F_BODEGA)  tags.push({ label: `Bodega: ${EM_F_BODEGA}`, clear: () => { EM_F_BODEGA=''; const el=document.getElementById('em-f-bodega'); if(el)el.value=''; } });
+  if (EM_F_SERIAL)  tags.push({ label: `Serial: ${EM_F_SERIAL}`, clear: () => { EM_F_SERIAL=''; const el=document.getElementById('em-f-serial'); if(el)el.value=''; } });
+  if (EM_F_REF)     tags.push({ label: `Ref: ${EM_F_REF}`, clear: () => { EM_F_REF=''; const el=document.getElementById('em-f-ref'); if(el)el.value=''; } });
+  tag.innerHTML = tags.map((t,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(176,242,174,.1);border:1px solid rgba(176,242,174,.25);border-radius:20px;padding:3px 10px 3px 12px;font-size:11px;color:#B0F2AE;font-family:'Outfit',sans-serif;" data-tag-idx="${i}">${t.label}<button onclick="_emClearTag(${i})" style="background:transparent;border:none;color:#B0F2AE;cursor:pointer;font-size:13px;line-height:1;padding:0 0 1px 2px;" title="Quitar filtro">×</button></span>`).join('');
+  window._emTagsClear = tags.map(t=>t.clear);
+}
+window._emClearTag = function(i) {
+  if (window._emTagsClear && window._emTagsClear[i]) { window._emTagsClear[i](); emApplyGlobalFilters(); }
+};
+
+// Función principal de aplicación de filtros globales
+window.emApplyGlobalFilters = function() {
+  EM_F_NEGOCIO = (document.getElementById('em-f-negocio')?.value||'').trim();
+  EM_F_UBICV3  = (document.getElementById('em-f-ubicv3')?.value||'').trim();
+  EM_F_BODEGA  = (document.getElementById('em-f-bodega')?.value||'').trim();
+  EM_F_SERIAL  = (document.getElementById('em-f-serial')?.value||'').trim();
+  EM_F_REF     = (document.getElementById('em-f-ref')?.value||'').trim();
+
+  _emRenderFilterTags();
+  _emApplyGlobalFilters(); // reconstruye EM_DF_ALL y EM_SIM_ALL con filtros
+  EM_DF_SEARCH = ''; EM_SIM_SEARCH = '';
+  EM_DF_PAGE = 1; EM_SIM_PAGE = 1;
+  _emRenderDatafonos();
+  _emRenderSimcards();
+};
+
+window.emResetGlobalFilters = function() {
+  EM_F_NEGOCIO=''; EM_F_UBICV3=''; EM_F_BODEGA=''; EM_F_SERIAL=''; EM_F_REF='';
+  ['em-f-negocio','em-f-ubicv3'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['em-f-bodega','em-f-serial','em-f-ref'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  _emRenderFilterTags();
+  _emApplyGlobalFilters();
+  EM_DF_SEARCH=''; EM_SIM_SEARCH=''; EM_DF_PAGE=1; EM_SIM_PAGE=1;
+  _emRenderDatafonos(); _emRenderSimcards();
 };
 
 // ══════════════════════════════════════════════════════════════════
@@ -956,6 +1219,7 @@ async function renderEstadoMateriales() {
   }
   Object.keys(EM_CHARTS).forEach(id=>{try{EM_CHARTS[id].destroy();}catch(e){}});
   EM_CHARTS={};
+  EM_F_NEGOCIO=''; EM_F_UBICV3=''; EM_F_BODEGA=''; EM_F_SERIAL=''; EM_F_REF='';
   _emBuildHTML();
   _emProcesar();
   requestAnimationFrame(()=>{ _emRenderDatafonos(); _emRenderSimcards(); });
@@ -964,3 +1228,4 @@ async function renderEstadoMateriales() {
 window.renderEstadoMateriales=renderEstadoMateriales;
 window._emApplyDfSearch=_emApplyDfSearch;
 window._emApplySimSearch=_emApplySimSearch;
+window._emRenderFilterTags=_emRenderFilterTags;
