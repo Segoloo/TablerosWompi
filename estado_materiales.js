@@ -640,7 +640,7 @@ function _emRenderDatafonos() {
       const _p=(n,c)=>`<span style="background:${c}22;color:${c};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;display:inline-block;min-width:28px;text-align:center;">${n}</span>`;
       bodEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead><tr style="background:rgba(0,0,0,.3);position:sticky;top:0;z-index:2;">
-          ${['Bodega','Disponible','Asociado','En Daño','Des. Cierre','Des. Incidente','Bajas Wompi - Almacen Ingenico','Total'].map((h,hi)=>`<th style="padding:10px 14px;text-align:${hi===0?'left':'center'};font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:#B0F2AE;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;">${h}</th>`).join('')}
+          ${['Bodega','Disponible','Asociado','En Daño','Des. Cierre','Des. Incidente','Bajas Wompi - Ingenico','Total'].map((h,hi)=>`<th style="padding:10px 14px;text-align:${hi===0?'left':'center'};font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:#B0F2AE;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;">${h}</th>`).join('')}
         </tr></thead>
         <tbody>${bodRows.map((b,i)=>{const bg=i%2===0?'rgba(176,242,174,.012)':'transparent';return `<tr style="background:${bg}" onmouseover="this.style.background='rgba(176,242,174,.04)'" onmouseout="this.style.background='${bg}'">
           <td style="padding:9px 14px;color:#e2e8f0;font-size:11px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${b.nombre}">${b.nombre}</td>
