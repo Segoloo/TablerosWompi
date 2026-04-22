@@ -1492,19 +1492,21 @@ function _selectBoardTab(board, tab) {
 
 function _showAllPanels(activeTab) {
   const panelMap = {
-    'tracking':        'panel-tracking',
-    'detalle':         'panel-detalle',
-    'tabla':           'panel-tabla',
-    'incumplimientos': 'panel-incump',
-    'rollos-main':     'panel-rollos',
-    'rollos-detalle':  'panel-rollos-detalle',
-    'rollos-comercio': 'panel-rollos-comercio',
-    'inv-principal':   'panel-inv-principal',
-    'inv-detalles':    'panel-inv-detalles',
+    'tracking':          'panel-tracking',
+    'detalle':           'panel-detalle',
+    'tabla':             'panel-tabla',
+    'incumplimientos':   'panel-incump',
+    'rollos-main':       'panel-rollos',
+    'rollos-detalle':    'panel-rollos-detalle',
+    'rollos-comercio':   'panel-rollos-comercio',
+    'inv-principal':     'panel-inv-principal',
+    'inv-detalles':      'panel-inv-detalles',
+    'estado-materiales': 'panel-estado-materiales',
   };
   // Hide all
   ['panel-home','panel-tracking','panel-detalle','panel-tabla','panel-incump',
-   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio','panel-inv-principal','panel-inv-detalles'].forEach(id => {
+   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio','panel-inv-principal','panel-inv-detalles',
+   'panel-estado-materiales'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
