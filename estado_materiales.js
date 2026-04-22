@@ -95,8 +95,8 @@ function _emEstadoDatafono(row) {
   const ubi = (row['Nombre de la ubicación'] || '').trim().toUpperCase();
   const com = (row['Comentarios'] || '').trim();
 
-  // Datáfonos en ALMACEN BAJAS WOMPI → estado BAJAS WOMPI (no suman en disponible)
-  if (ubi.includes('ALMACEN BAJAS WOMPI') || ubi.includes('ALMACÉN BAJAS WOMPI')) return 'BAJAS WOMPI';
+  // Datáfonos en ALMACEN BAJAS WOMPI o ALMACEN INGENICO - PROVEEDOR WOMPI → estado BAJAS WOMPI (no suman en disponible)
+  if (ubi.includes('ALMACEN BAJAS WOMPI') || ubi.includes('ALMACÉN BAJAS WOMPI') || ubi.includes('ALMACEN INGENICO - PROVEEDOR WOMPI')) return 'BAJAS WOMPI';
 
   // EN DAÑO viene directamente de la columna Posición en depósito
   if (pos === 'EN DAÑO') return 'DAÑADO';
@@ -135,10 +135,11 @@ function _emTipoDanio(row) {
 
 // SIMCard helpers
 function _emSimActivada(row) {
-  return /FA:\d{2}\/\d{2}\/\d{4}/i.test(row['Atributos'] || '');
+  // Acepta FA:DD/MM/AAAA (completo) o FA:DD/MM/ (año ausente) o FA:DD/MM (sin barra final)
+  return /FA:\d{2}\/\d{2}(\/\d{0,4})?/i.test(row['Atributos'] || '');
 }
 function _emSimFechaActivacion(row) {
-  const m = (row['Atributos'] || '').match(/FA:(\d{2}\/\d{2}\/\d{4})/i);
+  const m = (row['Atributos'] || '').match(/FA:(\d{2}\/\d{2}(?:\/\d{0,4})?)/i);
   return m ? m[1] : '—';
 }
 
@@ -904,6 +905,28 @@ function _emBuildHTML() {
   const panel=document.getElementById('panel-estado-materiales');
   if(!panel) return;
 
+  // Inyectar CSS para forzar modo oscuro en los <select> al desplegar opciones
+  if (!document.getElementById('em-select-dark-style')) {
+    const st = document.createElement('style');
+    st.id = 'em-select-dark-style';
+    st.textContent = `
+      #em-f-negocio, #em-f-ubicv3 {
+        background-color: #1a1f2e !important;
+        color: #e2e8f0 !important;
+        color-scheme: dark;
+      }
+      #em-f-negocio option, #em-f-ubicv3 option {
+        background-color: #1a1f2e !important;
+        color: #e2e8f0 !important;
+      }
+      #em-f-negocio:focus, #em-f-ubicv3:focus {
+        background-color: #1a1f2e !important;
+        color: #e2e8f0 !important;
+      }
+    `;
+    document.head.appendChild(st);
+  }
+
   const _cc=(title,sub,cid,h='260px',extra='')=>`
     <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));border:1px solid rgba(223,255,97,.1);border-radius:18px;padding:22px 24px 18px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.4);${extra}">
       <div style="position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,#DFFF61,#B0F2AE,#99D1FC);opacity:.5;"></div>
@@ -927,7 +950,7 @@ function _emBuildHTML() {
         <!-- Tipo de Negocio -->
         <div style="display:flex;flex-direction:column;gap:5px;min-width:140px;">
           <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Tipo Negocio</label>
-          <select id="em-f-negocio" onchange="emApplyGlobalFilters()" style="background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;">
+          <select id="em-f-negocio" onchange="emApplyGlobalFilters()" style="background:#1a1f2e;border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;color-scheme:dark;">
             <option value="">Todos</option>
             <option value="CB">CB</option>
             <option value="VP">VP</option>
@@ -937,7 +960,7 @@ function _emBuildHTML() {
         <!-- Ubicación V3 -->
         <div style="display:flex;flex-direction:column;gap:5px;min-width:180px;">
           <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Ubicación (V3)</label>
-          <select id="em-f-ubicv3" onchange="emApplyGlobalFilters()" style="background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;">
+          <select id="em-f-ubicv3" onchange="emApplyGlobalFilters()" style="background:#1a1f2e;border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;color-scheme:dark;">
             <option value="">Todas</option>
             <option value="En bodega">En bodega</option>
             <option value="En corresponsal">En corresponsal</option>
