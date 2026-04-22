@@ -135,11 +135,11 @@ function _emTipoDanio(row) {
 
 // SIMCard helpers
 function _emSimActivada(row) {
-  // Acepta FA:DD/MM/AAAA (completo) o FA:DD/MM/ (año ausente) o FA:DD/MM (sin barra final)
-  return /FA:\d{2}\/\d{2}(\/\d{0,4})?/i.test(row['Atributos'] || '');
+  // Acepta FA:DD/MM/AAAA o FA: DD/MM/AAAA (con espacio tras los dos puntos), año parcial o ausente
+  return /FA:\s*\d{2}\/\d{2}(\/\d{0,4})?/i.test(row['Atributos'] || '');
 }
 function _emSimFechaActivacion(row) {
-  const m = (row['Atributos'] || '').match(/FA:(\d{2}\/\d{2}(?:\/\d{0,4})?)/i);
+  const m = (row['Atributos'] || '').match(/FA:\s*(\d{2}\/\d{2}(?:\/\d{0,4})?)/i);
   return m ? m[1] : '—';
 }
 
