@@ -166,6 +166,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         <div class="sidebar-tabs">
           <div class="sidebar-tab" id="sb-tab-inv-principal" onclick="selectBoardTab('inventario','inv-principal')"><span class="sidebar-tab-icon">📊</span> Principal</div>
           <div class="sidebar-tab" id="sb-tab-inv-detalles" onclick="selectBoardTab('inventario','inv-detalles')"><span class="sidebar-tab-icon">🔍</span> Detalles</div>
+          <div class="sidebar-tab" id="sb-tab-estado-materiales" onclick="selectBoardTab('inventario','estado-materiales')"><span class="sidebar-tab-icon">🧩</span> Estado Materiales</div>
         </div>
       </div>
     </div>
@@ -752,6 +753,10 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
           </div><!-- /det-content -->
         </div><!-- /panel-inv-detalles -->
 
+        <!-- ════ PANEL: ESTADO DE MATERIALES ════ -->
+        <div id="panel-estado-materiales" style="display:none;padding:4px 0 40px;">
+        </div>
+
       </div><!-- /main -->
     </div><!-- /content-area -->
   </div><!-- /app-body -->
@@ -780,5 +785,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="dashboard.js"></script>
 <script src="inventario.js"></script>
 <script src="inventario_detalles.js"></script>
+<script src="estado_materiales.js"></script>
 </body>
 </html>

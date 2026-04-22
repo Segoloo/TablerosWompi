@@ -1487,6 +1487,7 @@ function _selectBoardTab(board, tab) {
   if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
   if (tab === 'inv-principal')   renderInventarioPrincipal();
   if (tab === 'inv-detalles')    renderInventarioDetalles();
+  if (tab === 'estado-materiales' && typeof window.renderEstadoMateriales === 'function') window.renderEstadoMateriales();
 }
 
 function _showAllPanels(activeTab) {
