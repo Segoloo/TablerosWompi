@@ -157,18 +157,18 @@ window.renderPuntosReorden = function() {
   // ── HTML ──────────────────────────────────────────────────────
   var html = '<div class="pr-wrap">';
 
-  // Encabezado de página
-  html += '<div class="pr-page-header">';
-  html += '  <div class="pr-page-title"><span>🎯</span> Puntos de Reorden</div>';
-  html += '  <div class="pr-page-sub">Stock LineaCom vs. umbral de reabastecimiento · Ubicaciones: En bodega · En distribución · Gestor LineaCom</div>';
+  // Encabezado de página — mismo patrón que las otras tabs
+  html += '<div style="margin-bottom:20px;">';
+  html += '  <div class="section-label fade-up" style="color:#DFFF61;font-size:16px;margin-bottom:4px;">🎯 Puntos de Reorden</div>';
+  html += '  <div style="font-size:12px;color:#64748b;margin-bottom:0;">Stock LineaCom vs. umbral de reabastecimiento&nbsp;&nbsp;·&nbsp;&nbsp;Ubicaciones:&nbsp;<span style="color:#94a3b8;">En bodega</span>&nbsp;·&nbsp;<span style="color:#94a3b8;">En distribución</span>&nbsp;·&nbsp;<span style="color:#94a3b8;">Gestor LineaCom</span></div>';
   html += '</div>';
 
-  // Banner resumen global
-  html += '<div class="pr-banner" style="border-color:' + resumenColor + '33;background:' + resumenColor + '0f;">';
-  html += '  <div class="pr-banner-icon">' + resumenEmoji + '</div>';
-  html += '  <div class="pr-banner-text">';
-  html += '    <span class="pr-banner-strong" style="color:' + resumenColor + '">' + resumenTexto + '</span>';
-  html += '    <span class="pr-banner-chips">';
+  // Banner resumen global — patrón filters-bar del sistema
+  html += '<div class="filters-bar fade-up" style="margin-bottom:24px;border-color:' + resumenColor + '33;background:' + resumenColor + '08;display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:14px;border:1px solid;">';
+  html += '  <div style="font-size:26px;flex-shrink:0;">' + resumenEmoji + '</div>';
+  html += '  <div style="display:flex;flex-direction:column;gap:8px;flex:1;">';
+  html += '    <span style="font-family:\'Syne\',sans-serif;font-size:13px;font-weight:700;color:' + resumenColor + ';">' + resumenTexto + '</span>';
+  html += '    <span style="display:flex;flex-wrap:wrap;gap:8px;">';
   html += '      <span class="pr-chip pr-chip-verde">🟢 OK: ' + ok + '</span>';
   html += '      <span class="pr-chip pr-chip-amarillo">🟡 Precaución: ' + precaucion + '</span>';
   html += '      <span class="pr-chip pr-chip-rojo">🔴 Crítico / ⚫ Desabast.: ' + criticos + '</span>';
@@ -193,60 +193,67 @@ window.renderPuntosReorden = function() {
     var marker100 = 50;   // 100% del punto = mitad de la barra (que va hasta 200%)
     var marker130 = 65;   // 130%
 
-    html += '<div class="pr-card pr-card-' + estado.cls.replace('pr-estado-','') + '" style="--acento:' + cfg.acento + '">';
+    html += '<div class="pr-card pr-card-' + estado.cls.replace('pr-estado-','') + '" style="--acento:' + cfg.acento + ';--bar-color:' + barColor + ';">';
 
-    // Cabecera de tarjeta
+    // ── Cabecera con fondo glassmorphism del color acento ──────────
     html += '  <div class="pr-card-header">';
-    html += '    <div class="pr-card-icon">' + cfg.icono + '</div>';
-    html += '    <div class="pr-card-title">' + cfg.titulo + '</div>';
-    html += '    <div class="pr-estado-badge ' + estado.cls + '">' + estado.emoji + ' ' + estado.label + '</div>';
+    html += '    <div class="pr-card-header-left">';
+    html += '      <div class="pr-card-icon-wrap"><span class="pr-card-icon">' + cfg.icono + '</span></div>';
+    html += '      <div>';
+    html += '        <div class="pr-card-title">' + cfg.titulo + '</div>';
+    html += '        <div class="pr-card-subtitle">Umbral de reabastecimiento</div>';
+    html += '      </div>';
+    html += '    </div>';
+    html += '    <div class="pr-estado-badge ' + estado.cls + '">' + estado.emoji + '&nbsp;' + estado.label + '</div>';
     html += '  </div>';
 
-    // KPIs
+    // ── KPIs con glow ──────────────────────────────────────────────
     html += '  <div class="pr-kpi-row">';
+    // KPI grande: Stock LineaCom (protagonista)
+    html += '    <div class="pr-kpi pr-kpi-hero">';
+    html += '      <div class="pr-kpi-label">STOCK LINEACOM</div>';
+    html += '      <div class="pr-kpi-value pr-kpi-hero-val" style="color:' + barColor + ';text-shadow:0 0 20px ' + barColor + '55;">' + _prFmt(s.stock) + '</div>';
+    html += '      <div class="pr-kpi-sub">unidades en inventario</div>';
+    html += '    </div>';
+    // KPI: Punto de reorden
     html += '    <div class="pr-kpi">';
     html += '      <div class="pr-kpi-label">PUNTO REORDEN</div>';
-    html += '      <div class="pr-kpi-value" style="color:' + cfg.acento + '">' + _prFmt(cfg.punto) + '</div>';
+    html += '      <div class="pr-kpi-value" style="color:' + cfg.acento + ';text-shadow:0 0 16px ' + cfg.acento + '44;">' + _prFmt(cfg.punto) + '</div>';
+    html += '      <div class="pr-kpi-sub">umbral mínimo</div>';
     html += '    </div>';
+    // KPI: % cubierto
     html += '    <div class="pr-kpi">';
-    html += '      <div class="pr-kpi-label">STOCK LINEACOM</div>';
-    html += '      <div class="pr-kpi-value">' + _prFmt(s.stock) + '</div>';
-    html += '    </div>';
-    html += '    <div class="pr-kpi">';
-    html += '      <div class="pr-kpi-label">% DE ORDEN</div>';
-    html += '      <div class="pr-kpi-value" style="color:' + barColor + '">' + _prPct(s.ratio) + '</div>';
-    html += '    </div>';
-    html += '    <div class="pr-kpi">';
-    html += '      <div class="pr-kpi-label">ALERTA</div>';
-    html += '      <div class="pr-kpi-value pr-kpi-alerta" style="font-size:22px;">' + estado.emoji + '</div>';
+    html += '      <div class="pr-kpi-label">COBERTURA</div>';
+    html += '      <div class="pr-kpi-value" style="color:' + barColor + ';">' + _prPct(s.ratio) + '</div>';
+    html += '      <div class="pr-kpi-sub">vs. punto de reorden</div>';
     html += '    </div>';
     html += '  </div>';
 
-    // Barra de progreso
+    // ── Barra de progreso mejorada ─────────────────────────────────
     html += '  <div class="pr-bar-wrap">';
+    html += '    <div class="pr-bar-header">';
+    html += '      <span class="pr-bar-header-label">Stock vs. umbral</span>';
+    html += '      <span class="pr-bar-header-pct" style="color:' + barColor + ';">' + _prPct(s.ratio) + '</span>';
+    html += '    </div>';
     html += '    <div class="pr-bar-track">';
-    html += '      <div class="pr-bar-fill" style="width:' + barW + '%;background:' + barColor + ';"></div>';
+    html += '      <div class="pr-bar-fill" style="width:' + barW + '%;background:linear-gradient(90deg,' + barColor + 'bb,' + barColor + ');box-shadow:0 0 12px ' + barColor + '44;"></div>';
     // Marcador 100%
-    html += '      <div class="pr-bar-marker pr-bar-marker-100" style="left:' + marker100 + '%;" title="Punto de Reorden (100%)">';
+    html += '      <div class="pr-bar-marker" style="left:' + marker100 + '%;" title="Punto de Reorden (100%)">';
     html += '        <div class="pr-bar-marker-line"></div>';
     html += '        <div class="pr-bar-marker-label">Reorden</div>';
     html += '      </div>';
     // Marcador 130%
-    html += '      <div class="pr-bar-marker pr-bar-marker-130" style="left:' + marker130 + '%;" title="Zona OK (130%)">';
+    html += '      <div class="pr-bar-marker" style="left:' + marker130 + '%;" title="Zona OK (130%)">';
     html += '        <div class="pr-bar-marker-line pr-bar-marker-line-ok"></div>';
     html += '        <div class="pr-bar-marker-label pr-bar-marker-label-ok">OK</div>';
     html += '      </div>';
     html += '    </div>';
     html += '    <div class="pr-bar-labels">';
-    html += '      <span>0%</span>';
-    html += '      <span>50%</span>';
-    html += '      <span>100% <em>(reorden)</em></span>';
-    html += '      <span>150%</span>';
-    html += '      <span>200%</span>';
+    html += '      <span>0%</span><span>50%</span><span>100%</span><span>150%</span><span>200%</span>';
     html += '    </div>';
     html += '  </div>';
 
-    // Mensaje de alerta
+    // ── Mensaje de alerta ──────────────────────────────────────────
     html += '  <div class="pr-mensaje ' + estado.cls + '">';
     html += '    <span class="pr-mensaje-emoji">' + estado.emoji + '</span>';
     html += '    <span>' + s.mensaje + '</span>';
@@ -274,40 +281,9 @@ window.renderPuntosReorden = function() {
       max-width: 1400px;
     }
 
-    /* ── Encabezado página ── */
-    .pr-page-header {
-      margin-bottom: 20px;
-    }
-    .pr-page-title {
-      font-family: 'Syne', sans-serif;
-      font-size: 22px;
-      font-weight: 800;
-      color: #f1f5f9;
-      letter-spacing: -0.4px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 4px;
-    }
-    .pr-page-sub {
-      font-size: 12px;
-      color: #64748b;
-    }
+    /* ── Encabezado página — estilos delegados a .section-label (dashboard global) ── */
 
-    /* ── Banner global ── */
-    .pr-banner {
-      display: flex;
-      align-items: flex-start;
-      gap: 14px;
-      padding: 14px 18px;
-      border-radius: 14px;
-      border: 1px solid;
-      margin-bottom: 24px;
-    }
-    .pr-banner-icon { font-size: 26px; flex-shrink: 0; margin-top: 2px; }
-    .pr-banner-text { display: flex; flex-direction: column; gap: 8px; }
-    .pr-banner-strong { font-size: 14px; font-weight: 600; }
-    .pr-banner-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    /* ── Banner global — usa .filters-bar del sistema ── */
     .pr-chip {
       font-size: 11px;
       font-weight: 600;
