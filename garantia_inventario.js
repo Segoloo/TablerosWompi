@@ -69,6 +69,9 @@ const GI_PAGE_SIZE  = 50;
 let GIF_SERIAL  = '';
 let GIF_REUSO   = '';
 let GIF_ESTADO  = '';
+// Filtros tabla 1 (búsqueda adicional + sort)
+let GIT1_SEARCH = '';
+let GIT1_SORT   = '';
 // Filtros rollos
 let GIR_BODEGA  = '';
 let GIR_ESTADO  = '';
@@ -306,20 +309,17 @@ function _giLayoutHTML() {
   <div class="section-label fade-up" style="color:#B0F2AE;font-size:16px;margin-bottom:4px;">🔒 Estado de Garantía en Datáfonos</div>
   <div style="font-size:12px;color:#64748b;margin-bottom:24px;">Datáfonos en inventario · Garantía calculada a partir de FG en atributos</div>
 
-  <!-- KPI Strip -->
-  <div id="gi-kpi-strip" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
-
-  <!-- Filtros datáfonos -->
-  <div class="filters-bar" style="margin-bottom:24px;">
-    <div class="filters-title">Filtros — Datáfonos</div>
+  <!-- ── FILTROS GLOBALES ── -->
+  <div class="filters-bar" style="margin-bottom:24px;border-color:rgba(176,242,174,.25);background:rgba(176,242,174,.03);">
+    <div class="filters-title" style="color:#B0F2AE;">⚙️ Filtros Globales — Afectan KPIs, Gráficas y Tabla</div>
     <div class="filters-row" style="flex-wrap:wrap;gap:12px;align-items:flex-end;">
       <div class="filter-group" style="min-width:200px;">
         <label>Número de Serie</label>
-        <input type="text" id="gi-f-serial" placeholder="🔍 Buscar serial..." style="width:100%;box-sizing:border-box;" oninput="giFilterSerial(this.value)">
+        <input type="text" id="gi-f-serial" placeholder="🔍 Buscar serial..." style="width:100%;box-sizing:border-box;">
       </div>
       <div class="filter-group">
         <label>Condición</label>
-        <select id="gi-f-reuso" onchange="giFilterReuso(this.value)">
+        <select id="gi-f-reuso">
           <option value="">Todos</option>
           <option value="nuevo">🆕 Nuevo</option>
           <option value="usado">♻️ Usado (Return)</option>
@@ -327,7 +327,7 @@ function _giLayoutHTML() {
       </div>
       <div class="filter-group">
         <label>Estado Garantía</label>
-        <select id="gi-f-estado" onchange="giFilterEstado(this.value)">
+        <select id="gi-f-estado">
           <option value="">Todos</option>
           <option value="Vigente">✅ Vigente</option>
           <option value="Por vencer (≤ 60 días)">⚠️ Por vencer (≤ 60 días)</option>
@@ -342,11 +342,14 @@ function _giLayoutHTML() {
     </div>
   </div>
 
+  <!-- KPI Strip — clicables -->
+  <div id="gi-kpi-strip" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
+
   <!-- Gráficas datáfonos -->
-  <div id="gi-charts-df" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
-    <div class="chart-card"><div class="chart-header"><div class="chart-title">Estado de Garantía</div><div class="chart-sub">Distribución por estado</div></div><div class="chart-wrap"><canvas id="gi-chart-estado"></canvas></div></div>
-    <div class="chart-card"><div class="chart-header"><div class="chart-title">Garantía por Referencia</div><div class="chart-sub">Unidades por referencia y estado</div></div><div class="chart-wrap"><canvas id="gi-chart-ref-estado"></canvas></div></div>
-    <div class="chart-card"><div class="chart-header"><div class="chart-title">Nuevo vs Usado</div><div class="chart-sub">Condición del equipo</div></div><div class="chart-wrap"><canvas id="gi-chart-reuso"></canvas></div></div>
+  <div id="gi-charts-df" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:32px;">
+    <div class="chart-card" style="display:flex;flex-direction:column;"><div class="chart-header"><div class="chart-title">Estado de Garantía</div><div class="chart-sub">Distribución por estado</div></div><div style="flex:1;display:flex;align-items:center;justify-content:center;padding:12px;"><div style="width:220px;height:220px;position:relative;flex-shrink:0;"><canvas id="gi-chart-estado"></canvas></div></div></div>
+    <div class="chart-card"><div class="chart-header"><div class="chart-title">Garantía por Referencia</div><div class="chart-sub">Unidades por referencia y estado</div></div><div class="chart-wrap" style="height:220px;position:relative;"><canvas id="gi-chart-ref-estado"></canvas></div></div>
+    <div class="chart-card" style="display:flex;flex-direction:column;"><div class="chart-header"><div class="chart-title">Nuevo vs Usado</div><div class="chart-sub">Condición del equipo</div></div><div style="flex:1;display:flex;align-items:center;justify-content:center;padding:12px;"><div style="width:220px;height:220px;position:relative;flex-shrink:0;"><canvas id="gi-chart-reuso"></canvas></div></div></div>
   </div>
 
   <!-- Tabla 1: Detalle por serial -->
@@ -358,6 +361,19 @@ function _giLayoutHTML() {
         <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="gi-t1-count">0 registros</div>
       </div>
       <button onclick="giExportT1()" style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;">⬇ Excel</button>
+    </div>
+    <!-- Filtros tabla -->
+    <div style="display:flex;flex-wrap:wrap;gap:10px;padding:12px 20px;border-bottom:1px solid rgba(176,242,174,.06);background:rgba(0,0,0,.15);">
+      <input type="text" id="gi-t1-search" placeholder="🔍 Buscar por serial o referencia..." oninput="giT1Search(this.value)"
+        style="padding:6px 12px;border-radius:8px;border:1px solid rgba(176,242,174,.15);background:rgba(255,255,255,.05);color:#f1f5f9;font-size:12px;font-family:'Outfit',sans-serif;min-width:240px;outline:none;">
+      <select id="gi-t1-sort" onchange="giT1Sort(this.value)"
+        style="padding:6px 10px;border-radius:8px;border:1px solid rgba(176,242,174,.15);background:rgba(10,26,18,.9);color:#94a3b8;font-size:12px;font-family:'Outfit',sans-serif;">
+        <option value="">Ordenar por...</option>
+        <option value="diasGarantia_asc">Días Garantía ↑</option>
+        <option value="diasGarantia_desc">Días Garantía ↓</option>
+        <option value="diasInventario_desc">Más tiempo en inv.</option>
+        <option value="pu_desc">Precio Unit. ↓</option>
+      </select>
     </div>
     <div id="gi-t1-wrap" style="overflow-x:auto;max-height:480px;"></div>
     <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(176,242,174,.07);">
@@ -379,7 +395,7 @@ function _giLayoutHTML() {
     <!-- Gráfica precio acumulado -->
     <div style="padding:20px;border-top:1px solid rgba(223,255,97,.07);">
       <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:600;color:#DFFF61;margin-bottom:12px;">💰 Precio Acumulado por Referencia (COP)</div>
-      <div style="max-height:220px;"><canvas id="gi-chart-acumulado"></canvas></div>
+      <div style="height:240px;position:relative;"><canvas id="gi-chart-acumulado"></canvas></div>
     </div>
   </div>
 
@@ -418,10 +434,10 @@ function _giLayoutHTML() {
   </div>
 
   <!-- Gráficas rollos -->
-  <div id="gi-charts-ro" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
-    <div class="chart-card"><div class="chart-header"><div class="chart-title">Estado de Rollos</div><div class="chart-sub">Distribución por estado de vencimiento</div></div><div class="chart-wrap"><canvas id="gi-chart-ro-estado"></canvas></div></div>
-    <div class="chart-card"><div class="chart-header"><div class="chart-title">Rollos por Bodega</div><div class="chart-sub">Top bodegas con más stock</div></div><div class="chart-wrap"><canvas id="gi-chart-ro-bodega"></canvas></div></div>
-    <div class="chart-card"><div class="chart-header"><div class="chart-title">Días Restantes</div><div class="chart-sub">Distribución de días para vencimiento</div></div><div class="chart-wrap"><canvas id="gi-chart-ro-dias"></canvas></div></div>
+  <div id="gi-charts-ro" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:32px;">
+    <div class="chart-card" style="display:flex;flex-direction:column;"><div class="chart-header"><div class="chart-title">Estado de Rollos</div><div class="chart-sub">Distribución por estado de vencimiento</div></div><div style="flex:1;display:flex;align-items:center;justify-content:center;padding:12px;"><div style="width:210px;height:210px;position:relative;flex-shrink:0;"><canvas id="gi-chart-ro-estado"></canvas></div></div></div>
+    <div class="chart-card"><div class="chart-header"><div class="chart-title">Rollos por Bodega</div><div class="chart-sub">Top bodegas con más stock</div></div><div class="chart-wrap" style="height:220px;position:relative;"><canvas id="gi-chart-ro-bodega"></canvas></div></div>
+    <div class="chart-card"><div class="chart-header"><div class="chart-title">Días Restantes</div><div class="chart-sub">Distribución de días para vencimiento</div></div><div class="chart-wrap" style="height:220px;position:relative;"><canvas id="gi-chart-ro-dias"></canvas></div></div>
   </div>
 
   <!-- Tabla rollos -->
@@ -456,24 +472,57 @@ window.giFilterSerial  = v => { GIF_SERIAL = v; };
 window.giFilterReuso   = v => { GIF_REUSO  = v; };
 window.giFilterEstado  = v => { GIF_ESTADO = v; };
 
+// ── Búsqueda y sort en tabla 1 ──────────────────────────────────────
+window.giT1Search = v => {
+  GIT1_SEARCH = v.trim();
+  GI_DF_PAGE = 1;
+  _giRenderT1();
+};
+
+window.giT1Sort = v => {
+  GIT1_SORT = v;
+  GI_DF_PAGE = 1;
+  _giRenderT1();
+};
+
+// Obtener filas de tabla 1 con búsqueda + sort aplicado
+function _giGetT1Rows() {
+  let rows = [...GI_DF_FILTERED];
+  if (GIT1_SEARCH) {
+    const q = GIT1_SEARCH.toLowerCase();
+    rows = rows.filter(r => r.serial.toLowerCase().includes(q) || r.referencia.toLowerCase().includes(q));
+  }
+  switch(GIT1_SORT) {
+    case 'diasGarantia_asc':  rows.sort((a,b) => (a.diasGarantia??99999) - (b.diasGarantia??99999)); break;
+    case 'diasGarantia_desc': rows.sort((a,b) => (b.diasGarantia??-99999) - (a.diasGarantia??-99999)); break;
+    case 'diasInventario_desc': rows.sort((a,b) => (b.diasInventario??0) - (a.diasInventario??0)); break;
+    case 'pu_desc': rows.sort((a,b) => (b.pu||0) - (a.pu||0)); break;
+  }
+  return rows;
+}
+
 window.giApplyAndRender = () => {
   GIF_SERIAL = (document.getElementById('gi-f-serial')?.value || '').trim();
   GIF_REUSO  =  document.getElementById('gi-f-reuso')?.value  || '';
   GIF_ESTADO =  document.getElementById('gi-f-estado')?.value || '';
+  GIT1_SEARCH = ''; GIT1_SORT = '';
   _giApplyFiltersDF();
   _giApplyFiltersACC();
-  _giRenderDFSection();
+  _giRenderAll();
 };
 
 window.giResetFilters = () => {
   GIF_SERIAL = ''; GIF_REUSO = ''; GIF_ESTADO = '';
+  GIT1_SEARCH = ''; GIT1_SORT = '';
   ['gi-f-serial','gi-f-reuso','gi-f-estado'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  const s = document.getElementById('gi-t1-search'); if (s) s.value = '';
+  const so = document.getElementById('gi-t1-sort'); if (so) so.value = '';
   _giApplyFiltersDF();
   _giApplyFiltersACC();
-  _giRenderDFSection();
+  _giRenderAll();
 };
 
 window.giFilterRolloBodega = v => { GIR_BODEGA = v; };
@@ -509,7 +558,7 @@ function _giRenderAll() {
 
 // ── KPIs datáfonos ─────────────────────────────────────────────────
 function _giRenderKPIs() {
-  const rows = GI_DF_ALL;
+  const rows = GI_DF_FILTERED;
   const total     = rows.length;
   const vigente   = rows.filter(r => r.estadoGarantia === 'Vigente').length;
   const porVencer = rows.filter(r => r.estadoGarantia === 'Por vencer (≤ 60 días)').length;
@@ -517,50 +566,64 @@ function _giRenderKPIs() {
   const sinFecha  = rows.filter(r => r.estadoGarantia === 'Sin fecha').length;
   const reusados  = rows.filter(r => r.reusado).length;
   const kpis = [
-    { label:'Total Datáfonos', val: total,     color:'#DFFF61', icon:'📱' },
-    { label:'Garantía Vigente', val: vigente,   color:'#B0F2AE', icon:'✅' },
-    { label:'Por Vencer ≤60d', val: porVencer,  color:'#FFC04D', icon:'⚠️' },
-    { label:'Garantía Vencida', val: vencida,   color:'#FF5C5C', icon:'❌' },
-    { label:'Sin Fecha Garantía',val: sinFecha,  color:'#94a3b8', icon:'—'  },
-    { label:'Equipos Reusados',  val: reusados,  color:'#C084FC', icon:'♻️' },
+    { label:'Total Datáfonos',   val: total,     color:'#DFFF61', icon:'📱', filter:'' },
+    { label:'Garantía Vigente',  val: vigente,   color:'#B0F2AE', icon:'✅', filter:'Vigente' },
+    { label:'Por Vencer ≤60d',   val: porVencer, color:'#FFC04D', icon:'⚠️', filter:'Por vencer (≤ 60 días)' },
+    { label:'Garantía Vencida',  val: vencida,   color:'#FF5C5C', icon:'❌', filter:'Vencida' },
+    { label:'Sin Fecha Garantía',val: sinFecha,  color:'#94a3b8', icon:'—',  filter:'Sin fecha' },
+    { label:'Equipos Reusados',  val: reusados,  color:'#C084FC', icon:'♻️', filter:'__reusados__' },
   ];
   const strip = document.getElementById('gi-kpi-strip');
   if (!strip) return;
-  strip.innerHTML = kpis.map(k => `
-    <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
-      border:1px solid rgba(${k.color === '#DFFF61' ? '223,255,97' : k.color === '#B0F2AE' ? '176,242,174' : k.color === '#FFC04D' ? '255,192,77' : k.color === '#FF5C5C' ? '255,92,92' : k.color === '#C084FC' ? '192,132,252' : '148,163,184'},.2);
-      border-radius:14px;padding:16px 20px;min-width:140px;flex:1;">
+  strip.innerHTML = kpis.map((k,i) => {
+    const rgb = k.color === '#DFFF61' ? '223,255,97' : k.color === '#B0F2AE' ? '176,242,174' : k.color === '#FFC04D' ? '255,192,77' : k.color === '#FF5C5C' ? '255,92,92' : k.color === '#C084FC' ? '192,132,252' : '148,163,184';
+    return `<div onclick="giOpenKpiModal(${i})" style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
+      border:1px solid rgba(${rgb},.2);border-radius:14px;padding:16px 20px;min-width:140px;flex:1;
+      cursor:pointer;transition:all 0.2s;user-select:none;"
+      onmouseover="this.style.borderColor='rgba(${rgb},.55)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(${rgb},.15)'"
+      onmouseout="this.style.borderColor='rgba(${rgb},.2)';this.style.transform='';this.style.boxShadow=''">
       <div style="font-size:20px;margin-bottom:6px;">${k.icon}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${k.color};">${k.val.toLocaleString('es-CO')}</div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;">${k.label}</div>
-    </div>`).join('');
+      <div style="font-size:10px;color:rgba(${rgb},.5);margin-top:4px;">Ver listado →</div>
+    </div>`;
+  }).join('');
+
+  // Store kpis data for modal use
+  window._giKpiDefs = kpis;
 }
 
 // ── KPIs rollos ─────────────────────────────────────────────────────
 function _giRenderKPIsRollos() {
-  const rows = GI_RO_ALL;
+  const rows = GI_RO_FILTERED;
   const totalLotes  = rows.length;
   const totalUnids  = rows.reduce((s,r) => s + r.cantidad, 0);
   const vigente     = rows.filter(r => r.estadoRollo === 'Vigente').length;
   const porVencer   = rows.filter(r => r.estadoRollo === 'Por vencer (≤ 30 días)').length;
   const vencido     = rows.filter(r => r.estadoRollo === 'Vencido').length;
   const kpis = [
-    { label:'Lotes en Bodegas',    val: totalLotes,  color:'#99D1FC', icon:'📦' },
-    { label:'Rollos Totales',      val: totalUnids,  color:'#DFFF61', icon:'🎞️' },
-    { label:'Lotes Vigentes',      val: vigente,     color:'#B0F2AE', icon:'✅' },
-    { label:'Lotes Por Vencer',    val: porVencer,   color:'#FFC04D', icon:'⚠️' },
-    { label:'Lotes Vencidos',      val: vencido,     color:'#FF5C5C', icon:'❌' },
+    { label:'Lotes en Bodegas',    val: totalLotes,  color:'#99D1FC', icon:'📦', filter:'' },
+    { label:'Rollos Totales',      val: totalUnids,  color:'#DFFF61', icon:'🎞️', filter:'__total__' },
+    { label:'Lotes Vigentes',      val: vigente,     color:'#B0F2AE', icon:'✅', filter:'Vigente' },
+    { label:'Lotes Por Vencer',    val: porVencer,   color:'#FFC04D', icon:'⚠️', filter:'Por vencer (≤ 30 días)' },
+    { label:'Lotes Vencidos',      val: vencido,     color:'#FF5C5C', icon:'❌', filter:'Vencido' },
   ];
   const strip = document.getElementById('gi-kpi-rollos');
   if (!strip) return;
-  strip.innerHTML = kpis.map(k => `
-    <div style="background:linear-gradient(145deg,rgba(8,18,28,.95),rgba(6,14,22,.9));
-      border:1px solid rgba(153,209,252,.2);
-      border-radius:14px;padding:16px 20px;min-width:140px;flex:1;">
+  strip.innerHTML = kpis.map((k,i) => {
+    const rgb = k.color === '#99D1FC' ? '153,209,252' : k.color === '#DFFF61' ? '223,255,97' : k.color === '#B0F2AE' ? '176,242,174' : k.color === '#FFC04D' ? '255,192,77' : '255,92,92';
+    return `<div onclick="giOpenRolloKpiModal(${i})" style="background:linear-gradient(145deg,rgba(8,18,28,.95),rgba(6,14,22,.9));
+      border:1px solid rgba(${rgb},.2);border-radius:14px;padding:16px 20px;min-width:140px;flex:1;
+      cursor:pointer;transition:all 0.2s;user-select:none;"
+      onmouseover="this.style.borderColor='rgba(${rgb},.55)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(${rgb},.15)'"
+      onmouseout="this.style.borderColor='rgba(${rgb},.2)';this.style.transform='';this.style.boxShadow=''">
       <div style="font-size:20px;margin-bottom:6px;">${k.icon}</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:${k.color};">${k.val.toLocaleString('es-CO')}</div>
       <div style="font-size:11px;color:#64748b;margin-top:4px;">${k.label}</div>
-    </div>`).join('');
+      <div style="font-size:10px;color:rgba(${rgb},.5);margin-top:4px;">Ver listado →</div>
+    </div>`;
+  }).join('');
+  window._giRolloKpiDefs = kpis;
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -587,7 +650,7 @@ function _giRenderChartsDF() {
         backgroundColor:[GI_COLORS.vigente, GI_COLORS.porVencer, GI_COLORS.vencida, GI_COLORS.sinFecha],
         borderWidth:0, hoverOffset:8 }]
     },
-    options: { plugins:{ legend:{ labels:{ color:'#94a3b8', font:{ family:"'Outfit'" } } } }, cutout:'65%' }
+    options: { responsive:true, maintainAspectRatio:true, plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{ family:"'Outfit'", size:11 }, padding:12 } } }, cutout:'65%' }
   });
 
   // Chart 2: Garantía por referencia (bar apilada)
@@ -618,12 +681,12 @@ function _giRenderChartsDF() {
   _giMkChart('gi-chart-reuso', {
     type:'doughnut',
     data:{ labels:['Nuevo','Usado (Return)'], datasets:[{ data:[nuevo,usado], backgroundColor:[GI_COLORS.nuevo, GI_COLORS.usado], borderWidth:0, hoverOffset:8 }] },
-    options:{ plugins:{ legend:{ labels:{ color:'#94a3b8' } } }, cutout:'60%' }
+    options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{ size:11 }, padding:12 } } }, cutout:'60%' }
   });
 }
 
 function _giRenderT1() {
-  const rows = GI_DF_FILTERED;
+  const rows = _giGetT1Rows();
   const total = rows.length;
   const start = (GI_DF_PAGE - 1) * GI_PAGE_SIZE;
   const page  = rows.slice(start, start + GI_PAGE_SIZE);
@@ -693,20 +756,43 @@ function _giRenderT2() {
     <tbody>${body}</tbody>
   </table>`;
 
-  // Gráfica acumulado
+  // Gráfica acumulado — mejorada
+  _giDestroyChart('gi-chart-acumulado');
+  const chartContainer = document.getElementById('gi-chart-acumulado')?.parentElement;
+  if (chartContainer) chartContainer.style.height = Math.max(200, rows.length * 52) + 'px';
   _giMkChart('gi-chart-acumulado', {
     type: 'bar',
     data: {
-      labels: rows.map(r => r.referencia.replace(' - INGENICO','').substring(0,22)),
+      labels: rows.map(r => r.referencia.replace(' - INGENICO','')),
       datasets: [{ label:'Precio Acumulado COP', data: rows.map(r => r.acumulado),
-        backgroundColor: GI_COLORS.palette.slice(0, rows.length), borderWidth:0, borderRadius:6 }]
+        backgroundColor: ctx => {
+          const colors = ['#B0F2AE','#99D1FC','#DFFF61','#C084FC','#FFC04D','#FF5C5C','#F49D6E','#7B8CDE'];
+          return colors[ctx.dataIndex % colors.length];
+        },
+        borderWidth:0, borderRadius:{ topRight:8, bottomRight:8 },
+        borderSkipped: false }]
     },
     options: {
+      responsive: true, maintainAspectRatio: false,
       indexAxis:'y',
-      plugins:{ legend:{ display:false },
-        tooltip:{ callbacks:{ label: ctx => ' ' + _giFmtCOP(ctx.raw) } } },
-      scales:{ x:{ ticks:{ color:'#64748b', callback: v => _giFmtCOP(v) }, grid:{ color:'rgba(255,255,255,.05)' } },
-               y:{ ticks:{ color:'#94a3b8', font:{ size:11 } }, grid:{ display:false } } }
+      plugins:{
+        legend:{ display:false },
+        tooltip:{
+          callbacks:{
+            label: ctx => '  ' + _giFmtCOP(ctx.raw),
+            afterLabel: ctx => `  ${rows[ctx.dataIndex].unidades.toLocaleString('es-CO')} unidades`
+          },
+          backgroundColor:'rgba(10,18,10,.97)', borderColor:'rgba(223,255,97,.25)', borderWidth:1,
+          titleColor:'#f1f5f9', bodyColor:'#DFFF61', padding:12, cornerRadius:10,
+          titleFont:{ family:"'Syne',sans-serif", size:12 }
+        },
+        datalabels: null
+      },
+      scales:{
+        x:{ ticks:{ color:'#64748b', callback: v => { if(v >= 1e9) return '$'+Math.round(v/1e9)+'B'; if(v>=1e6) return '$'+Math.round(v/1e6)+'M'; return _giFmtCOP(v); }, font:{ size:10 } }, grid:{ color:'rgba(255,255,255,.04)' }, border:{ display:false } },
+        y:{ ticks:{ color:'#e2e8f0', font:{ size:11, family:"'Outfit',sans-serif" } }, grid:{ display:false }, border:{ display:false } }
+      },
+      animation:{ duration:600, easing:'easeOutQuart' }
     }
   });
 }
@@ -730,7 +816,7 @@ function _giRenderChartsRollos() {
     type:'doughnut',
     data:{ labels:Object.keys(estadoMap), datasets:[{ data:Object.values(estadoMap),
       backgroundColor:['#B0F2AE','#FFC04D','#FF5C5C'], borderWidth:0, hoverOffset:8 }] },
-    options:{ plugins:{ legend:{ labels:{ color:'#94a3b8' } } }, cutout:'60%' }
+    options:{ responsive:true, maintainAspectRatio:true, plugins:{ legend:{ position:'bottom', labels:{ color:'#94a3b8', font:{ size:11 }, padding:12 } } }, cutout:'60%' }
   });
 
   // Chart: Top bodegas (bar)
@@ -838,6 +924,195 @@ function _giRenderPag(containerId, total, current, pageSize, onPage, accentColor
   if (current < pages) html += `<button ${btnStyle(false)} onclick="(${onPage.toString()})(${current+1})">›</button>`;
   el.innerHTML = html;
 }
+
+// ══════════════════════════════════════════════════════════════════
+//  MODALES KPI — listado de registros al hacer click en KPI
+// ══════════════════════════════════════════════════════════════════
+
+window.giOpenKpiModal = function(idx) {
+  const kpis = window._giKpiDefs;
+  if (!kpis || !kpis[idx]) return;
+  const k = kpis[idx];
+  let rows;
+  if (k.filter === '') {
+    rows = GI_DF_FILTERED;
+  } else if (k.filter === '__reusados__') {
+    rows = GI_DF_FILTERED.filter(r => r.reusado);
+  } else {
+    rows = GI_DF_FILTERED.filter(r => r.estadoGarantia === k.filter);
+  }
+  _giShowModal({
+    title: `${k.icon} ${k.label}`,
+    subtitle: `${rows.length.toLocaleString('es-CO')} registros`,
+    color: k.color,
+    rows,
+    type: 'df'
+  });
+};
+
+window.giOpenRolloKpiModal = function(idx) {
+  const kpis = window._giRolloKpiDefs;
+  if (!kpis || !kpis[idx]) return;
+  const k = kpis[idx];
+  let rows;
+  if (k.filter === '' || k.filter === '__total__') {
+    rows = GI_RO_FILTERED;
+  } else {
+    rows = GI_RO_FILTERED.filter(r => r.estadoRollo === k.filter);
+  }
+  _giShowModal({
+    title: `${k.icon} ${k.label}`,
+    subtitle: `${rows.length.toLocaleString('es-CO')} lotes`,
+    color: k.color,
+    rows,
+    type: 'ro'
+  });
+};
+
+function _giShowModal({ title, subtitle, color, rows, type }) {
+  // Remove existing modal
+  const existing = document.getElementById('gi-kpi-modal');
+  if (existing) existing.remove();
+
+  const TH = (t, align='left') =>
+    `<th style="padding:10px 14px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:#94a3b8;white-space:nowrap;text-align:${align};border-bottom:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.5);position:sticky;top:0;z-index:2;">${t}</th>`;
+
+  let thead = '', tbodyRows = '';
+
+  if (type === 'df') {
+    thead = `<tr>${TH('Referencia')}${TH('Serial')}${TH('F. Garantía')}${TH('Días Restantes','right')}${TH('Precio Unit.','right')}${TH('Estado')}${TH('Condición')}</tr>`;
+    tbodyRows = rows.map(r => {
+      const diasG = r.diasGarantia !== null
+        ? `<span style="color:${r.diasGarantia<0?'#FF5C5C':r.diasGarantia<=60?'#FFC04D':'#B0F2AE'};font-family:'JetBrains Mono',monospace;font-weight:700;">${r.diasGarantia}d</span>` : '—';
+      const cond = r.reusado ? `<span style="color:#C084FC;font-size:11px;">♻️ Usado</span>` : `<span style="color:#99D1FC;font-size:11px;">🆕 Nuevo</span>`;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 14px;font-size:12px;color:#f1f5f9;">${r.referencia.replace(' - INGENICO','')}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#B0F2AE;">${r.serial||'—'}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#94a3b8;">${_giFmtDate(r.fg)}</td>
+        <td style="padding:8px 14px;text-align:right;">${diasG}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#DFFF61;text-align:right;">${r.pu?_giFmtCOP(r.pu):'—'}</td>
+        <td style="padding:8px 14px;">${_giEstadoBadge(r.estadoGarantia)}</td>
+        <td style="padding:8px 14px;">${cond}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    const estadoBadge = e => {
+      const map = { 'Vigente':{ bg:'rgba(176,242,174,.15)',color:'#B0F2AE',icon:'✅' }, 'Por vencer (≤ 30 días)':{ bg:'rgba(255,192,77,.15)',color:'#FFC04D',icon:'⚠️' }, 'Vencido':{ bg:'rgba(255,92,92,.15)',color:'#FF5C5C',icon:'❌' } };
+      const s = map[e] || { bg:'rgba(100,116,139,.15)',color:'#94a3b8',icon:'—' };
+      return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:${s.bg};color:${s.color};font-size:11px;font-weight:600;">${s.icon} ${e}</span>`;
+    };
+    thead = `<tr>${TH('Bodega')}${TH('Lote')}${TH('Cantidad','right')}${TH('F. Ingreso')}${TH('F. Vencimiento')}${TH('Días Restantes','right')}${TH('Estado')}</tr>`;
+    tbodyRows = rows.map(r => {
+      const dc = r.diasRestantes < 0 ? '#FF5C5C' : r.diasRestantes <= 30 ? '#FFC04D' : '#B0F2AE';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 14px;font-size:12px;color:#f1f5f9;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.ubicacion}">${r.ubicacion.replace('ALMACEN WOMPI ','').replace('ALMACEN ','')}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#99D1FC;">${r.nombre}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#DFFF61;text-align:right;">${r.cantidad.toLocaleString('es-CO')}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#94a3b8;">${_giFmtDate(r.fechaIngreso)}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#f1f5f9;">${_giFmtDate(r.fechaVence)}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${dc};text-align:right;">${r.diasRestantes!==null?r.diasRestantes+'d':'—'}</td>
+        <td style="padding:8px 14px;">${estadoBadge(r.estadoRollo)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Search bar state
+  let _modalSearch = '';
+  let _modalRows = rows;
+
+  const modal = document.createElement('div');
+  modal.id = 'gi-kpi-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);padding:20px;';
+  modal.innerHTML = `
+    <div style="background:linear-gradient(145deg,#0d1b12,#0a1520);border:1px solid ${color}33;border-radius:20px;width:min(900px,100%);max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.7);">
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid ${color}1a;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#f1f5f9;">${title}</div>
+          <div id="gi-modal-subtitle" style="font-size:12px;color:#64748b;margin-top:3px;">${subtitle}</div>
+        </div>
+        <button onclick="document.getElementById('gi-kpi-modal').remove()" style="background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#94a3b8;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">✕</button>
+      </div>
+      <!-- Search -->
+      <div style="padding:12px 24px;border-bottom:1px solid rgba(255,255,255,.05);">
+        <input id="gi-modal-search" type="text" placeholder="🔍 Buscar en este listado..." oninput="giModalSearch(this.value,'${type}')"
+          style="width:100%;box-sizing:border-box;padding:8px 14px;border-radius:10px;border:1px solid ${color}22;background:rgba(255,255,255,.05);color:#f1f5f9;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
+      </div>
+      <!-- Table -->
+      <div style="flex:1;overflow:auto;">
+        <table id="gi-modal-table" style="width:100%;border-collapse:collapse;">
+          <thead>${thead}</thead>
+          <tbody id="gi-modal-body">${tbodyRows}</tbody>
+        </table>
+        ${!rows.length ? '<div style="padding:40px;text-align:center;color:#64748b;">Sin registros para este KPI</div>' : ''}
+      </div>
+    </div>`;
+
+  // Store rows for modal search
+  modal._allRows = rows;
+  modal._type = type;
+  modal._thead = thead;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window.giModalSearch = function(q, type) {
+  const modal = document.getElementById('gi-kpi-modal');
+  if (!modal) return;
+  const allRows = modal._allRows;
+  const filtered = q.trim()
+    ? allRows.filter(r => {
+        const s = q.toLowerCase();
+        if (type === 'df') return (r.serial||'').toLowerCase().includes(s) || r.referencia.toLowerCase().includes(s) || r.estadoGarantia.toLowerCase().includes(s);
+        return r.ubicacion.toLowerCase().includes(s) || r.nombre.toLowerCase().includes(s) || r.estadoRollo.toLowerCase().includes(s);
+      })
+    : allRows;
+
+  const sub = document.getElementById('gi-modal-subtitle');
+  if (sub) sub.textContent = `${filtered.length.toLocaleString('es-CO')} registros${q?' (filtrados)':''}`;
+
+  const TH = (t, align='left') =>
+    `<th style="padding:10px 14px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:#94a3b8;white-space:nowrap;text-align:${align};border-bottom:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.5);position:sticky;top:0;z-index:2;">${t}</th>`;
+
+  let tbodyRows = '';
+  if (type === 'df') {
+    tbodyRows = filtered.map(r => {
+      const diasG = r.diasGarantia !== null ? `<span style="color:${r.diasGarantia<0?'#FF5C5C':r.diasGarantia<=60?'#FFC04D':'#B0F2AE'};font-family:'JetBrains Mono',monospace;font-weight:700;">${r.diasGarantia}d</span>` : '—';
+      const cond = r.reusado ? `<span style="color:#C084FC;font-size:11px;">♻️ Usado</span>` : `<span style="color:#99D1FC;font-size:11px;">🆕 Nuevo</span>`;
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 14px;font-size:12px;color:#f1f5f9;">${r.referencia.replace(' - INGENICO','')}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#B0F2AE;">${r.serial||'—'}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#94a3b8;">${_giFmtDate(r.fg)}</td>
+        <td style="padding:8px 14px;text-align:right;">${diasG}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#DFFF61;text-align:right;">${r.pu?_giFmtCOP(r.pu):'—'}</td>
+        <td style="padding:8px 14px;">${_giEstadoBadge(r.estadoGarantia)}</td>
+        <td style="padding:8px 14px;">${cond}</td>
+      </tr>`;
+    }).join('');
+  } else {
+    const estadoBadge = e => {
+      const map = { 'Vigente':{ bg:'rgba(176,242,174,.15)',color:'#B0F2AE',icon:'✅' }, 'Por vencer (≤ 30 días)':{ bg:'rgba(255,192,77,.15)',color:'#FFC04D',icon:'⚠️' }, 'Vencido':{ bg:'rgba(255,92,92,.15)',color:'#FF5C5C',icon:'❌' } };
+      const s = map[e] || { bg:'rgba(100,116,139,.15)',color:'#94a3b8',icon:'—' };
+      return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;background:${s.bg};color:${s.color};font-size:11px;font-weight:600;">${s.icon} ${e}</span>`;
+    };
+    tbodyRows = filtered.map(r => {
+      const dc = r.diasRestantes < 0 ? '#FF5C5C' : r.diasRestantes <= 30 ? '#FFC04D' : '#B0F2AE';
+      return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);" onmouseover="this.style.background='rgba(255,255,255,.04)'" onmouseout="this.style.background=''">
+        <td style="padding:8px 14px;font-size:12px;color:#f1f5f9;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${r.ubicacion}">${r.ubicacion.replace('ALMACEN WOMPI ','').replace('ALMACEN ','')}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#99D1FC;">${r.nombre}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#DFFF61;text-align:right;">${r.cantidad.toLocaleString('es-CO')}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#94a3b8;">${_giFmtDate(r.fechaIngreso)}</td>
+        <td style="padding:8px 14px;font-size:12px;color:#f1f5f9;">${_giFmtDate(r.fechaVence)}</td>
+        <td style="padding:8px 14px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${dc};text-align:right;">${r.diasRestantes!==null?r.diasRestantes+'d':'—'}</td>
+        <td style="padding:8px 14px;">${estadoBadge(r.estadoRollo)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  const body = document.getElementById('gi-modal-body');
+  if (body) body.innerHTML = tbodyRows || '<tr><td colspan="7" style="padding:40px;text-align:center;color:#64748b;">Sin coincidencias</td></tr>';
+};
 
 // ══════════════════════════════════════════════════════════════════
 //  EXPORTAR EXCEL
