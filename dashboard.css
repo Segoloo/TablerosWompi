@@ -230,8 +230,8 @@ body::after {
 .sidebar-board-section.open .sidebar-board-chevron { transform:rotate(90deg); opacity:.8; }
 .sidebar-divider { height:1px; background:rgba(176,242,174,.06); margin:12px 20px; transition:opacity .2s,visibility .2s; }
 
-.sidebar-tabs { display:flex; flex-direction:column; gap:2px; padding:0; max-height:0; overflow:hidden; transition:max-height .25s cubic-bezier(.4,0,.2,1),padding .2s; }
-.sidebar-board-section.open .sidebar-tabs { max-height:200px; padding:4px 0 12px 0; }
+.sidebar-tabs { display:flex; flex-direction:column; gap:2px; padding:0; max-height:0; overflow:hidden; transition:max-height .35s cubic-bezier(.4,0,.2,1),padding .2s; }
+.sidebar-board-section.open .sidebar-tabs { max-height:400px; padding:4px 0 12px 0; }
 .sidebar-tab { display:flex; align-items:center; gap:9px; padding:9px 20px 9px 32px; cursor:pointer; color:var(--muted); font-size:11.5px; font-weight:500; transition:var(--transition); border-left:2px solid transparent; position:relative; white-space:nowrap; }
 .sidebar-tab:hover { color:var(--blanco); background:rgba(176,242,174,.03); }
 .sidebar-tab.active { color:var(--verde-menta); background:rgba(176,242,174,.05); border-left-color:var(--verde-menta); }
