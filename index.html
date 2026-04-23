@@ -168,6 +168,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
           <div class="sidebar-tab" id="sb-tab-inv-detalles" onclick="selectBoardTab('inventario','inv-detalles')"><span class="sidebar-tab-icon">🔍</span> Detalles</div>
           <div class="sidebar-tab" id="sb-tab-estado-materiales" onclick="selectBoardTab('inventario','estado-materiales')"><span class="sidebar-tab-icon">🧩</span> Estado Materiales</div>
           <div class="sidebar-tab" id="sb-tab-garantia-inventario" onclick="selectBoardTab('inventario','garantia-inventario')"><span class="sidebar-tab-icon">🔒</span> Garantía & Rollos</div>
+          <div class="sidebar-tab" id="sb-tab-puntos-reorden" onclick="selectBoardTab('inventario','puntos-reorden')"><span class="sidebar-tab-icon">🎯</span> Puntos de Reorden</div>
         </div>
       </div>
     </div>
@@ -758,6 +759,10 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         <div id="panel-garantia-inventario" style="display:none;padding:4px 0 40px;">
         </div>
 
+        <!-- ════ PANEL: PUNTOS DE REORDEN ════ -->
+        <div id="panel-puntos-reorden" style="display:none;padding:4px 0 40px;">
+        </div>
+
       </div><!-- /main -->
     </div><!-- /content-area -->
   </div><!-- /app-body -->
@@ -788,5 +793,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="inventario_detalles.js"></script>
 <script src="estado_materiales.js"></script>
 <script src="garantia_inventario.js"></script>
+<script src="puntos_reorden.js"></script>
 </body>
 </html>
