@@ -306,7 +306,7 @@ function _giLayoutHTML() {
 <div style="padding:4px 0 60px;">
 
   <!-- ════ SECCIÓN 1: GARANTÍA DATÁFONOS ════ -->
-  <div class="section-label fade-up" style="color:#B0F2AE;font-size:16px;margin-bottom:4px;">🔒 Estado de Garantía en Datáfonos</div>
+  <div class="section-label fade-up" style="color:#B0F2AE;font-size:16px;margin-bottom:4px;">🔒 Estado de Garantía en Datáfonos y Pinpad</div>
   <div style="font-size:12px;color:#64748b;margin-bottom:24px;">Datáfonos en inventario · Garantía calculada a partir de FG en atributos</div>
 
   <!-- ── FILTROS GLOBALES ── -->
@@ -566,7 +566,7 @@ function _giRenderKPIs() {
   const sinFecha  = rows.filter(r => r.estadoGarantia === 'Sin fecha').length;
   const reusados  = rows.filter(r => r.reusado).length;
   const kpis = [
-    { label:'Total Datáfonos',   val: total,     color:'#DFFF61', icon:'📱', filter:'' },
+    { label:'Total Datáfonos + Pinpad',   val: total,     color:'#DFFF61', icon:'📱', filter:'' },
     { label:'Garantía Vigente',  val: vigente,   color:'#B0F2AE', icon:'✅', filter:'Vigente' },
     { label:'Por Vencer ≤60d',   val: porVencer, color:'#FFC04D', icon:'⚠️', filter:'Por vencer (≤ 60 días)' },
     { label:'Garantía Vencida',  val: vencida,   color:'#FF5C5C', icon:'❌', filter:'Vencida' },
