@@ -1488,6 +1488,7 @@ function _selectBoardTab(board, tab) {
   if (tab === 'inv-principal')   renderInventarioPrincipal();
   if (tab === 'inv-detalles')    renderInventarioDetalles();
   if (tab === 'estado-materiales' && typeof window.renderEstadoMateriales === 'function') window.renderEstadoMateriales();
+  if (tab === 'garantia-inventario' && typeof window.renderGarantiaInventario === 'function') window.renderGarantiaInventario();
 }
 
 function _showAllPanels(activeTab) {
@@ -1502,11 +1503,12 @@ function _showAllPanels(activeTab) {
     'inv-principal':     'panel-inv-principal',
     'inv-detalles':      'panel-inv-detalles',
     'estado-materiales': 'panel-estado-materiales',
+    'garantia-inventario': 'panel-garantia-inventario',
   };
   // Hide all
   ['panel-home','panel-tracking','panel-detalle','panel-tabla','panel-incump',
    'panel-rollos','panel-rollos-detalle','panel-rollos-comercio','panel-inv-principal','panel-inv-detalles',
-   'panel-estado-materiales'].forEach(id => {
+   'panel-estado-materiales','panel-garantia-inventario'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
