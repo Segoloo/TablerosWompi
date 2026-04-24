@@ -37,18 +37,22 @@ let riCharts = {};
 // ──────────────────────────────────────────────────────────────────
 window.initRollosInventario = function () {
     console.log('[Rollos-Inv] Iniciando módulo...');
-    // ROLLOS_RAW se declara con 'let', por lo que no está en ROLLOS_RAW
-    if (typeof ROLLOS_RAW === 'undefined' || !ROLLOS_RAW) {
+    
+    // Ahora que usamos 'var' en dashboard.js, debería estar disponible globalmente
+    const raw = window.ROLLOS_RAW || (typeof ROLLOS_RAW !== 'undefined' ? ROLLOS_RAW : null);
+
+    if (!raw) {
         console.warn('[Rollos-Inv] ROLLOS_RAW no disponible todavía.');
         return;
     }
 
-    // The calculos data lives at ROLLOS_RAW.calculos (array)
+
+    // The calculos data lives at raw.calculos (array)
     // Fallback to comercio if calculos is empty
-    let calc = ROLLOS_RAW.calculos || [];
-    if (!calc.length && ROLLOS_RAW.comercio) {
+    let calc = raw.calculos || [];
+    if (!calc.length && raw.comercio) {
         console.log('[Rollos-Inv] Usando fallback: comercio');
-        calc = ROLLOS_RAW.comercio;
+        calc = raw.comercio;
     }
     console.log('[Rollos-Inv] Filas a procesar:', calc.length);
 

@@ -1725,7 +1725,7 @@ function getDemoData() {
 //  Carga data_rollos.json.gz (gzip → JSON), sin tocar nada de lo anterior
 // ══════════════════════════════════════════════════════════════════
 
-let ROLLOS_RAW       = null;   // payload completo del .json.gz
+var ROLLOS_RAW       = null;   // payload completo del .json.gz
 let ROLLOS_FILTERED  = [];     // detalle filtrado por filtros globales
 let ROLLOS_DETALLE   = [];     // detalle filtrado por búsqueda de tabla
 let ROLLOS_COMERCIO  = [];     // comercio filtrado
