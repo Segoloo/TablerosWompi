@@ -1747,11 +1747,15 @@ async function loadRollosData() {
 
     // ── EXCLUSIÓN PERMANENTE REDEBAN (Requerimiento) ──────────────
     if (ROLLOS_RAW.detalle) {
+      // Exclusión Redeban
       ROLLOS_RAW.detalle = ROLLOS_RAW.detalle.filter(r => 
         !(r.proyecto || '').toUpperCase().includes('REDEBAN')
-      ).map(r => {
-        if (r.tipo_flujo) r.tipo_flujo = r.tipo_flujo.replace('P-TA-', '');
-        return r;
+      );
+      // Transformación Tipo Flujo
+      ROLLOS_RAW.detalle.forEach(r => {
+        if (r.tipo_flujo) {
+          r.tipo_flujo = String(r.tipo_flujo).replace(/P-TA-/gi, '').trim();
+        }
       });
     }
     if (ROLLOS_RAW.comercio) {
