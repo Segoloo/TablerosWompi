@@ -1749,7 +1749,10 @@ async function loadRollosData() {
     if (ROLLOS_RAW.detalle) {
       ROLLOS_RAW.detalle = ROLLOS_RAW.detalle.filter(r => 
         !(r.proyecto || '').toUpperCase().includes('REDEBAN')
-      );
+      ).map(r => {
+        if (r.tipo_flujo) r.tipo_flujo = r.tipo_flujo.replace('P-TA-', '');
+        return r;
+      });
     }
     if (ROLLOS_RAW.comercio) {
       ROLLOS_RAW.comercio = ROLLOS_RAW.comercio.filter(r => 
