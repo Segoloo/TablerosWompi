@@ -22,7 +22,7 @@ const GI_REFS_DATAFONO = new Set([
   'DATAFONO DX4000 ESCRITORIO - INGENICO',
 ]);
 
-// 26 bodegas canónicas (fusionadas por ciudad)
+// Bodegas canónicas (fusionadas por ciudad)
 const GI_BODEGAS = new Set([
   "ALMACEN WOMPI MEDELLIN","ALMACEN WOMPI BOGOTA","ALMACEN WOMPI BUCARAMANGA",
   "ALMACEN WOMPI CALI","ALMACEN WOMPI VILLAVICENCIO","ALMACEN WOMPI CUCUTA",
@@ -393,7 +393,7 @@ function _giLayoutHTML() {
 
   <!-- ════ SECCIÓN 2: ROLLOS EN ALMACÉN ════ -->
   <div class="section-label fade-up" style="color:#99D1FC;font-size:16px;margin-bottom:4px;">🎞️ Días de Inventario de Rollos en Almacén</div>
-  <div style="font-size:12px;color:#64748b;margin-bottom:24px;">Rollos WOMPI en las 26 bodegas · Vida útil máxima: 6 meses desde ingreso</div>
+  <div style="font-size:12px;color:#64748b;margin-bottom:24px;">Rollos WOMPI en las ${GI_BODEGAS.size} bodegas · Vida útil máxima: 6 meses desde ingreso</div>
 
   <!-- KPI Strip rollos -->
   <div id="gi-kpi-rollos" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>

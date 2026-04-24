@@ -259,14 +259,14 @@ function _invRenderKPIs() {
   const unOPL      = sumCantidad(rows.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
 
   const kpis = [
-    { label:'TOTAL INVENTARIO', value:fmtN(total),      sub1:'100% del stock',               sub2:'42 bodegas Wompi',       color:INV_PALETTE.total,    icon:'📦', wide:true,  drillRows: rows,                                                                                                                                     drillTitle:'Total Inventario' },
+    { label:'TOTAL INVENTARIO', value:fmtN(total),      sub1:'100% del stock',               sub2:INV_BODEGAS.size + ' bodegas Wompi',       color:INV_PALETTE.total,    icon:'📦', wide:true,  drillRows: rows,                                                                                                                                     drillTitle:'Total Inventario' },
     { label:'EN BODEGA',        value:fmtN(unBodega),   sub1:fmtPct(unBodega,total),         sub2:fmtN(unBodega)+' uds',   color:INV_PALETTE.bodega,   icon:'🏪', drillRows: rows.filter(function(r){ return INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim()); }),                                                     drillTitle:'Stock en Bodega' },
     { label:'EN COMERCIO',      value:fmtN(unComercio), sub1:fmtPct(unComercio,total),       sub2:fmtN(unComercio)+' uds', color:INV_PALETTE.comercio, icon:'🏬', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Site'; }),                                                                  drillTitle:'Stock en Comercio (Site)' },
     { label:'TÉC. LINEACOM',    value:fmtN(unTecnico),  sub1:fmtPct(unTecnico,total),        sub2:fmtN(unTecnico)+' uds',  color:INV_PALETTE.tecnico,  icon:'🔧', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Staff'; }),                                                                 drillTitle:'Stock Técnicos Lineacom (Staff)' },
     { label:'GEST. & EMPL. WOMPI',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤', drillRows: rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }),                                                              drillTitle:'Stock Gestores & Empleados (GW)' },
     { label:'INGENICO',         value:fmtN(unIngenico), sub1:fmtPct(unIngenico,total),       sub2:fmtN(unIngenico)+' uds', color:INV_PALETTE.ingenico, icon:'🔌', drillRows: rows.filter(function(r){ return (r['Nombre de la ubicación']||'').trim() === 'ALMACEN INGENICO - PROVEEDOR WOMPI'; }),                             drillTitle:'Stock Ingenico (Proveedor)' },
     { label:'OPL',              value:fmtN(unOPL),      sub1:fmtPct(unOPL,total),            sub2:fmtN(unOPL)+' uds',      color:INV_PALETTE.opl,      icon:'🚚', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Supplier'; }),                                                             drillTitle:'Stock OPL (Supplier)' },
-    { label:'26 BODEGAS',       value:'26',             sub1:'Bodegas Wompi',                sub2:'Ver distribución',       color:'#67e8f9',             icon:'🗺️', drillRows: null, drillTitle:'Bodegas', special:'bodegas' },
+    { label:INV_BODEGAS.size + ' BODEGAS',       value:INV_BODEGAS.size.toString(),      sub1:'Bodegas Wompi',                sub2:'Ver distribución',       color:'#67e8f9',             icon:'🗺️', drillRows: null, drillTitle:'Bodegas', special:'bodegas' },
   ];
 
   const grid = document.getElementById('inv-kpi-grid');
@@ -958,7 +958,7 @@ function _invRenderTable() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  MODAL BODEGAS — muestra las 42 bodegas hardcodeadas con su stock
+//  MODAL BODEGAS — muestra las bodegas con su stock
 // ══════════════════════════════════════════════════════════════════
 function invOpenBodegasModal() {
   var prev = document.getElementById('inv-bodegas-modal');
@@ -971,7 +971,7 @@ function invOpenBodegasModal() {
     if (bod) stockMap[bod] = (stockMap[bod] || 0) + (parseInt(r['Cantidad']) || 0);
   });
 
-  // Construir lista de las 42 bodegas con stock (0 si no hay datos)
+  // Construir lista de las bodegas con stock (0 si no hay datos)
   var bodegaList = [...INV_BODEGAS].map(function(b) {
     return { nombre: b, stock: stockMap[b] || 0 };
   }).sort(function(a, b) { return b.stock - a.stock; });
@@ -1020,9 +1020,9 @@ function invOpenBodegasModal() {
   // Header
   var header = el('div', 'display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid rgba(103,232,249,.12);flex-shrink:0;gap:16px;');
   var hLeft  = el('div', '');
-  var hTitle = el('div', 'font-family:\'Syne\',sans-serif;font-size:17px;font-weight:800;color:#67e8f9;letter-spacing:-.2px;', '🗺️  42 Bodegas Wompi');
+  var hTitle = el('div', 'font-family:\'Syne\',sans-serif;font-size:17px;font-weight:800;color:#67e8f9;letter-spacing:-.2px;', '🗺️  ' + INV_BODEGAS.size + ' Bodegas Wompi');
   var hSub   = el('div', 'font-size:12px;color:#7A7674;margin-top:4px;font-family:\'Outfit\',sans-serif;',
-    'Stock total en bodegas: ' + totalBodStock.toLocaleString('es-CO') + ' uds  ·  42 ubicaciones');
+    'Stock total en bodegas: ' + totalBodStock.toLocaleString('es-CO') + ' uds  ·  ' + bodegaList.length + ' ubicaciones');
   hLeft.appendChild(hTitle);
   hLeft.appendChild(hSub);
 
