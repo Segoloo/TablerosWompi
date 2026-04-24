@@ -151,6 +151,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
           <div class="sidebar-tab" id="sb-tab-rollos-main"     onclick="selectBoardTab('rollos','rollos-main')"><span class="sidebar-tab-icon">📊</span> Rollos Wompi</div>
           <div class="sidebar-tab" id="sb-tab-rollos-detalle"  onclick="selectBoardTab('rollos','rollos-detalle')"><span class="sidebar-tab-icon">📋</span> Tabla Detalles de Tareas</div>
           <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')"><span class="sidebar-tab-icon">🏪</span> Tabla Detalle por Comercio</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-inventario" onclick="selectBoardTab('rollos','rollos-inventario')"><span class="sidebar-tab-icon">📦</span> Inventario & Cobertura</div>
         </div>
       </div>
 
@@ -543,6 +544,69 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         </div>
 
 
+        <!-- PANEL: ROLLOS INVENTARIO -->
+        <div id="panel-rollos-inventario" style="display:none; padding: 20px 0;">
+          <div class="section-label" style="font-size:22px; margin-bottom:8px;">📦 Cobertura e Inventario de Rollos</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:28px;">Análisis detallado de stock, consumo y alertas de quiebre por corresponsal</div>
+          
+          <!-- KPIs Inventario -->
+          <div id="ri-kpi-strip" style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:32px;"></div>
+
+          <!-- Alertas -->
+          <div id="ri-alerts-container" style="margin-bottom:32px;"></div>
+
+          <!-- Gráficas Principales -->
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:24px;">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Distribución de Cobertura</div><div class="chart-sub">Corresponsales por rango de meses</div></div>
+              <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-cobertura-buckets"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Consumo Real vs Proyectado</div><div class="chart-sub">Top corresponsales (rollos/mes)</div></div>
+              <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-consumo-vs-proy"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Rotación de Inventario</div><div class="chart-sub">Índice de rotación</div></div>
+              <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-rotacion"></canvas></div>
+            </div>
+          </div>
+
+          <div class="charts-grid" style="grid-template-columns:1.5fr 1fr 1fr; gap:20px; margin-bottom:32px;">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Top 15 Saldos de Inventario</div><div class="chart-sub">Corresponsales con mayor stock disponible</div></div>
+              <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-top-saldos"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Cumplimiento SLA</div><div class="chart-sub">Cobertura ≥ 3 meses</div></div>
+              <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-sla"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Histograma de Cobertura</div><div class="chart-sub">Densidad de corresponsales vs tiempo</div></div>
+              <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-cobertura-hist"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Tabla Detalle por Corresponsal -->
+          <div class="table-section">
+            <div class="table-header">
+              <h3 style="color:var(--verde-menta)">Detalle de Inventario por Corresponsal</h3>
+              <div style="display:flex;gap:12px;align-items:center;">
+                <input type="text" id="ri-search" placeholder="🔍 Buscar corresponsal, depto, ciudad..." oninput="riApplySearch(this.value)" 
+                  style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);border-radius:8px;padding:8px 16px;color:#fff;font-size:13px;width:300px;outline:none;">
+                <button class="btn-export" onclick="exportRIExcel()">⬇ Excel</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="ri-table-wrap" style="max-height:600px; min-height:200px;">
+              <div class="loading"><div class="spinner"></div><span>Procesando datos de inventario...</span></div>
+            </div>
+            <div class="table-footer">
+              <span class="table-count" id="ri-table-count">0 corresponsales</span>
+              <div class="table-pagination" id="ri-table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+
         <!-- PANEL: INVENTARIO PRINCIPAL -->
         <div id="panel-inv-principal" style="display:none">
 
@@ -794,5 +858,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="estado_materiales.js"></script>
 <script src="garantia_inventario.js"></script>
 <script src="puntos_reorden.js"></script>
+<script src="rollos_inventario.js"></script>
 </body>
 </html>

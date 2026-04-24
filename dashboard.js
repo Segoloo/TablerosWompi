@@ -1557,6 +1557,7 @@ function _selectBoardTab(board, tab) {
   if (tab === 'rollos-main')     renderRollosTab();
   if (tab === 'rollos-detalle')  { if (ROLLOS_RAW) renderRollosDetalleTable(); }
   if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
+  if (tab === 'rollos-inventario') { if (typeof window.renderRollosInventario === 'function') window.renderRollosInventario(); }
   if (tab === 'inv-principal')   renderInventarioPrincipal();
   if (tab === 'inv-detalles')    renderInventarioDetalles();
   if (tab === 'estado-materiales' && typeof window.renderEstadoMateriales === 'function') window.renderEstadoMateriales();
@@ -1573,6 +1574,7 @@ function _showAllPanels(activeTab) {
     'rollos-main':       'panel-rollos',
     'rollos-detalle':    'panel-rollos-detalle',
     'rollos-comercio':   'panel-rollos-comercio',
+    'rollos-inventario': 'panel-rollos-inventario',
     'inv-principal':     'panel-inv-principal',
     'inv-detalles':      'panel-inv-detalles',
     'estado-materiales': 'panel-estado-materiales',
@@ -1581,7 +1583,7 @@ function _showAllPanels(activeTab) {
   };
   // Hide all
   ['panel-home','panel-tracking','panel-detalle','panel-tabla','panel-incump',
-   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio','panel-inv-principal','panel-inv-detalles',
+   'panel-rollos','panel-rollos-detalle','panel-rollos-comercio','panel-rollos-inventario','panel-inv-principal','panel-inv-detalles',
    'panel-estado-materiales','panel-garantia-inventario','panel-puntos-reorden'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = 'none';
@@ -1763,6 +1765,11 @@ async function loadRollosData() {
         !(r.proyecto || '').toUpperCase().includes('REDEBAN')
       );
     }
+    if (ROLLOS_RAW.calculos) {
+      ROLLOS_RAW.calculos = ROLLOS_RAW.calculos.filter(r => 
+        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
+      );
+    }
     // ──────────────────────────────────────────────────────────────
 
     console.log('[Rollos] Cargado OK — detalle filtrado:', ROLLOS_RAW.detalle?.length, 'filas');
@@ -1770,6 +1777,7 @@ async function loadRollosData() {
     applyRollosGlobalFilters();
     if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
     _rollosLoaded = true;
+    if (typeof window.initRollosInventario === 'function') window.initRollosInventario();
     _updateLoadingUI();
   } catch(e) {
     console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
