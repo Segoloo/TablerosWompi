@@ -39,7 +39,13 @@ window.initRollosInventario = function () {
     if (!window.ROLLOS_RAW) return;
 
     // The calculos data lives at ROLLOS_RAW.calculos (array)
-    const calc = window.ROLLOS_RAW.calculos || [];
+    // Fallback to comercio if calculos is empty
+    let calc = window.ROLLOS_RAW.calculos || [];
+    if (!calc.length && window.ROLLOS_RAW.comercio) {
+        console.log('[Rollos-Inv] Usando fallback: comercio');
+        calc = window.ROLLOS_RAW.comercio;
+    }
+    console.log('[Rollos-Inv] Filas a procesar:', calc.length);
 
     // Merge with sitio metadata from detalle if needed
     const detBySitio = new Map();
@@ -55,7 +61,8 @@ window.initRollosInventario = function () {
     });
 
     RI_DATA = calc.map(r => {
-        const meta = detBySitio.get(r.codigo_sitio || r.cod_sitio) || {};
+        const sitId = r.codigo_sitio || r.cod_sitio || r.cod_comercio || '';
+        const meta = detBySitio.get(sitId) || {};
         const saldoDias = parseFloat(r.saldo_dias || r.cal_saldo_dias || 0);
         const saldoMeses = saldoDias / 30;
         const promMes = parseFloat(r.promedio_mensual || r.cal_promedio_mensual || 0);
@@ -141,6 +148,7 @@ window.initRollosInventario = function () {
             bajo_reorden: bajoPuntoReorden,
         };
     }).filter(r => r.saldo_rollos > 0 || r.prom_mensual > 0); // skip ghost rows
+    console.log('[Rollos-Inv] Corresponsales procesados:', RI_DATA.length);
 
     RI_FILTERED = RI_DATA.slice();
 };
