@@ -1828,10 +1828,18 @@ function computeRollosKPIs() {
     total_rollos += qty;
     if (tarea && !tareasSet.has(tarea)) { tareasSet.add(tarea); total_tareas++; }
 
-    if (est.includes('ALISTAMIENTO'))          { rollos_alistamiento += qty; tareas_alistamiento++; }
-    else if (est.includes('TRANSITO') || est.includes('TRÁNSITO')) { rollos_transito += qty; tareas_transito++; }
-    else if (est === 'ENTREGADO')               { rollos_entregados += qty; tareas_entregados++; }
-    else if (est.includes('DEVOLUC'))           { rollos_devueltos += qty; tareas_devueltos++; }
+    // Mapeo de estados reales del campo `estado` en data_rollos.json:
+    //   "Abierta"                   → En Alistamiento (pendiente de despacho)
+    //   "En proceso"                → En Tránsito (en camino)
+    //   "Completada"                → Entregado
+    //   "Completada con pendientes" → Entregado (con observaciones)
+    // Las devoluciones se detectan via estado_transportadora
+    const estTransp = (r.estado_transportadora||'').toUpperCase();
+    const esDev = estTransp.includes('DEVOLUC') || estTransp.includes('DEVUELTO') || estTransp.includes('REMITENTE');
+    if (esDev)                                   { rollos_devueltos += qty; tareas_devueltos++; }
+    else if (est === 'ABIERTA')                  { rollos_alistamiento += qty; tareas_alistamiento++; }
+    else if (est === 'EN PROCESO')               { rollos_transito += qty; tareas_transito++; }
+    else if (est === 'COMPLETADA' || est === 'COMPLETADA CON PENDIENTES') { rollos_entregados += qty; tareas_entregados++; }
   });
 
   const pct = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
@@ -1858,14 +1866,15 @@ function computeRollosKPIs() {
   const tareasEstadoMap = new Map();
   det.forEach(r => {
     const tarea = r.codigo_tarea; if (!tarea) return;
-    if (!tareasEstadoMap.has(tarea)) tareasEstadoMap.set(tarea, (r.estado||'').toUpperCase());
+    if (!tareasEstadoMap.has(tarea)) tareasEstadoMap.set(tarea, { est: (r.estado||'').toUpperCase(), transp: (r.estado_transportadora||'').toUpperCase() });
   });
   let t_alistamiento = 0, t_transito = 0, t_entregados = 0, t_devueltos = 0;
-  tareasEstadoMap.forEach(est => {
-    if (est.includes('ALISTAMIENTO'))               t_alistamiento++;
-    else if (est.includes('TRANSITO') || est.includes('TRÁNSITO')) t_transito++;
-    else if (est === 'ENTREGADO')                   t_entregados++;
-    else if (est.includes('DEVOLUC'))               t_devueltos++;
+  tareasEstadoMap.forEach(({est, transp}) => {
+    const esDev = transp.includes('DEVOLUC') || transp.includes('DEVUELTO') || transp.includes('REMITENTE');
+    if (esDev)                                                         t_devueltos++;
+    else if (est === 'ABIERTA')                                        t_alistamiento++;
+    else if (est === 'EN PROCESO')                                     t_transito++;
+    else if (est === 'COMPLETADA' || est === 'COMPLETADA CON PENDIENTES') t_entregados++;
   });
   const t_total = tareasEstadoMap.size;
   const pct_t_entrega    = pct(t_entregados, t_total);
