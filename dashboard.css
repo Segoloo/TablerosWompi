@@ -246,7 +246,7 @@ body::after {
 .filters-bar {
   background:linear-gradient(135deg, rgba(10,26,18,.98) 0%, rgba(5,16,9,.95) 100%);
   border:1px solid rgba(176,242,174,.15); border-radius:var(--radius); padding:20px 24px; margin-bottom:28px;
-  position:relative; overflow:visible; z-index:100;
+  position:relative; overflow:visible !important; z-index:1100 !important;
   box-shadow:0 4px 24px rgba(0,0,0,.3), inset 0 1px 0 rgba(176,242,174,.08);
 }
 .filters-bar::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,var(--verde-selva),var(--verde-menta),var(--azul-cielo),var(--verde-lima)); opacity:.7; }
@@ -580,9 +580,9 @@ tbody td { padding:10px 16px; color:var(--blanco); white-space:nowrap; }
 .ms-container.open .ms-trigger { border-color: var(--verde-menta); box-shadow: 0 0 0 2px rgba(176,242,174,.1); }
 
 .ms-dropdown {
-  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 9999;
+  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 99999 !important;
   background: var(--surface2); border: 1px solid var(--border-glow); border-radius: var(--radius-sm);
-  box-shadow: 0 8px 32px rgba(0,0,0,.8); max-height: 250px; overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,.8); max-height: 250px; overflow-y: auto !important;
   opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all .2s;
   scrollbar-width: thin; scrollbar-color: var(--verde-menta) transparent;
 }

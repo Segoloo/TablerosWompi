@@ -109,6 +109,16 @@ function _updateMSLabel(container) {
   else if (vals.length === 1) trigger.textContent = vals[0];
   else trigger.textContent = `${vals.length} seleccionados`;
 }
+window._msAction = function(id, action) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  if (action === 'clear') {
+    container._selectedValues = [];
+    container.querySelectorAll('.ms-item').forEach(i => { i.classList.remove('selected'); i.querySelector('input').checked = false; });
+    _updateMSLabel(container);
+  } else if (action === 'apply') {
+    container.classList.remove('open');
+  }
 };
 window._msGetSels = function(id) {
   const el = document.getElementById(id);
@@ -1800,15 +1810,6 @@ function initRollosGlobalFilters() {
   populate('rf-proyecto-det',     proyectos);
   populate('rf-anio',             anios.map(String));
   populate('rf-mes',              meses.map(m => String(m).padStart(2,'0')));
-
-  // Filtros tabla comercio
-  const comercio = ROLLOS_RAW.comercio || [];
-  const comEst   = [...new Set(comercio.map(r=>r.estado).filter(Boolean))].sort();
-  const comTipo  = [...new Set(comercio.map(r=>r.tipo_envio).filter(Boolean))].sort();
-  const comDeptos= [...new Set(comercio.map(r=>r.departamento).filter(Boolean))].sort();
-  populate('rf-com-estado',       comEst);
-  populate('rf-com-tipo',         comTipo);
-  populate('rf-com-departamento', comDeptos);
 
   // Filtros tabla comercio
   const comercio = ROLLOS_RAW.comercio || [];
