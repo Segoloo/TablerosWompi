@@ -56,6 +56,72 @@ const CHART_OPTS = {
   },
 };
 
+// ── MULTI-SELECT HELPER ───────────────────────────────────────────
+window._setupMS = function(id, vals) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const placeholder = container.dataset.placeholder || 'Todos';
+  container.innerHTML = `
+    <div class="ms-trigger">${placeholder}</div>
+    <div class="ms-dropdown">
+      <div class="ms-items-wrap">
+        ${vals.map(v => `
+          <div class="ms-item" data-val="${String(v).toUpperCase()}">
+            <input type="checkbox">
+            <span class="ms-item-label">${v}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="ms-actions">
+        <button class="ms-btn" onclick="event.stopPropagation(); window._msAction('${id}', 'clear')">Limpiar</button>
+        <button class="ms-btn ms-btn-apply" onclick="event.stopPropagation(); window._msAction('${id}', 'apply')">Hecho</button>
+      </div>
+    </div>
+  `;
+  const trigger = container.querySelector('.ms-trigger');
+  container._selectedValues = [];
+  trigger.onclick = (e) => {
+    e.stopPropagation();
+    const isOpen = container.classList.contains('open');
+    document.querySelectorAll('.ms-container').forEach(c => c.classList.remove('open'));
+    if (!isOpen) container.classList.add('open');
+  };
+  container.querySelectorAll('.ms-item').forEach(item => {
+    item.onclick = (e) => {
+      e.stopPropagation();
+      item.classList.toggle('selected');
+      const cb = item.querySelector('input');
+      cb.checked = !cb.checked;
+      const val = item.dataset.val;
+      if (cb.checked) {
+        if (!container._selectedValues.includes(val)) container._selectedValues.push(val);
+      } else {
+        container._selectedValues = container._selectedValues.filter(v => v !== val);
+      }
+      _updateMSLabel(container);
+    };
+  });
+};
+function _updateMSLabel(container) {
+  const trigger = container.querySelector('.ms-trigger');
+  const vals = container._selectedValues;
+  if (vals.length === 0) trigger.textContent = container.dataset.placeholder || 'Todos';
+  else if (vals.length === 1) trigger.textContent = vals[0];
+  else trigger.textContent = `${vals.length} seleccionados`;
+}
+window._msAction = function(id, action) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  if (action === 'clear') {
+    container._selectedValues = [];
+    container.querySelectorAll('.ms-item').forEach(i => { i.classList.remove('selected'); i.querySelector('input').checked = false; });
+    _updateMSLabel(container);
+  } else if (action === 'apply') {
+    container.classList.remove('open');
+  }
+};
+document.addEventListener('click', () => document.querySelectorAll('.ms-container').forEach(c => c.classList.remove('open')));
+
 // ══════════════════════════════════════════════════════════════════
 //  AUTENTICACIÓN
 // ══════════════════════════════════════════════════════════════════
@@ -1695,7 +1761,11 @@ function initRollosGlobalFilters() {
   const populate = (id, vals) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+    if (el.classList.contains('ms-container')) {
+      window._setupMS(id, vals);
+    } else {
+      el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+    }
   };
 
   populate('rg-estado',      uniq('estado'));
@@ -1744,18 +1814,27 @@ function applyRollosGlobalFilters() {
 
   const desde   = document.getElementById('rg-fecha-desde')?.value;
   const hasta   = document.getElementById('rg-fecha-hasta')?.value;
-  const estado  = document.getElementById('rg-estado')?.value || '';
-  const depto   = document.getElementById('rg-departamento')?.value || '';
-  const flujo   = document.getElementById('rg-tipo-flujo')?.value || '';
-  const material= document.getElementById('rg-material')?.value || '';
-  const proyecto= document.getElementById('rg-proyecto')?.value || '';
+
+  const getSels = (id) => {
+    const el = document.getElementById(id);
+    if (el && el._selectedValues && el._selectedValues.length > 0) return el._selectedValues;
+    const val = el?.value;
+    return val ? [val.toUpperCase()] : null;
+  };
+
+  const selEstado   = getSels('rg-estado');
+  const selDepto    = getSels('rg-departamento');
+  const selFlujo    = getSels('rg-tipo-flujo');
+  const selMaterial = getSels('rg-material');
+  const selProyecto = getSels('rg-proyecto');
 
   ROLLOS_FILTERED = det.filter(r => {
-    if (estado   && (r.estado||'').toUpperCase() !== estado.toUpperCase())       return false;
-    if (depto    && (r.departamento||'').toUpperCase() !== depto.toUpperCase())   return false;
-    if (flujo    && (r.tipo_flujo||'').toUpperCase() !== flujo.toUpperCase())     return false;
-    if (material && (r.material||'').toUpperCase() !== material.toUpperCase())    return false;
-    if (proyecto && (r.proyecto||'').toUpperCase() !== proyecto.toUpperCase())    return false;
+    if (selEstado   && !selEstado.includes((r.estado||'').toUpperCase()))       return false;
+    if (selDepto    && !selDepto.includes((r.departamento||'').toUpperCase()))   return false;
+    if (selFlujo    && !selFlujo.includes((r.tipo_flujo||'').toUpperCase()))     return false;
+    if (selMaterial && !selMaterial.includes((r.material||'').toUpperCase()))    return false;
+    if (selProyecto && !selProyecto.includes((r.proyecto||'').toUpperCase()))    return false;
+
     if (desde || hasta) {
       const fp = r.fecha_plan_fin ? new Date(r.fecha_plan_fin.substring(0,10)) : null;
       if (!fp) return !(desde || hasta);
@@ -1768,11 +1847,12 @@ function applyRollosGlobalFilters() {
   // Actualizar sumario de filtros
   const activos = [];
   if (desde || hasta) activos.push(`Fecha: ${desde||'…'} → ${hasta||'…'}`);
-  if (estado)   activos.push(`Estado: ${estado}`);
-  if (depto)    activos.push(`Depto: ${depto}`);
-  if (flujo)    activos.push(`Flujo: ${flujo}`);
-  if (material) activos.push(`Material: ${material}`);
-  if (proyecto) activos.push(`Proyecto: ${proyecto}`);
+  if (selEstado)   activos.push(`Estado: ${selEstado.length > 1 ? selEstado.length+' items' : selEstado[0]}`);
+  if (selDepto)    activos.push(`Depto: ${selDepto.length > 1 ? selDepto.length+' items' : selDepto[0]}`);
+  if (selFlujo)    activos.push(`Flujo: ${selFlujo.length > 1 ? selFlujo.length+' items' : selFlujo[0]}`);
+  if (selMaterial) activos.push(`Material: ${selMaterial.length > 1 ? selMaterial.length+' items' : selMaterial[0]}`);
+  if (selProyecto) activos.push(`Proyecto: ${selProyecto.length > 1 ? selProyecto.length+' items' : selProyecto[0]}`);
+  
   const summary = document.getElementById('rg-filter-summary');
   if (summary) {
     summary.textContent = activos.length
@@ -1783,7 +1863,7 @@ function applyRollosGlobalFilters() {
   // También filtrar comercio por estados que coincidan con detalle filtrado
   const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
   ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
-    if (!estado && !depto && !flujo && !material && !proyecto && !desde && !hasta) return true;
+    if (!selEstado && !selDepto && !selFlujo && !selMaterial && !selProyecto && !desde && !hasta) return true;
     return sitiosFiltrados.has(r.cod_comercio);
   });
 
@@ -1804,7 +1884,11 @@ function applyRollosGlobalFilters() {
 
 function resetRollosGlobalFilters() {
   ['rg-fecha-desde','rg-fecha-hasta'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rg-estado','rg-departamento','rg-tipo-flujo','rg-material','rg-proyecto'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rg-estado','rg-departamento','rg-tipo-flujo','rg-material','rg-proyecto'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
+    else if (el) el.value = '';
+  });
   applyRollosGlobalFilters();
 }
 
