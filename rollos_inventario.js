@@ -36,7 +36,11 @@ let riCharts = {};
 //  BOOTSTRAP — called once ROLLOS_RAW is ready
 // ──────────────────────────────────────────────────────────────────
 window.initRollosInventario = function () {
-    if (!window.ROLLOS_RAW) return;
+    console.log('[Rollos-Inv] Iniciando módulo...');
+    if (!window.ROLLOS_RAW) {
+        console.warn('[Rollos-Inv] ROLLOS_RAW no disponible todavía.');
+        return;
+    }
 
     // The calculos data lives at ROLLOS_RAW.calculos (array)
     // Fallback to comercio if calculos is empty

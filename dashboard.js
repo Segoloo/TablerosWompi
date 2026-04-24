@@ -1777,7 +1777,9 @@ async function loadRollosData() {
     applyRollosGlobalFilters();
     if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
     _rollosLoaded = true;
+    console.log('[Rollos] Llamando a initRollosInventario...');
     if (typeof window.initRollosInventario === 'function') window.initRollosInventario();
+    else console.warn('[Rollos] window.initRollosInventario no es una función!');
     _updateLoadingUI();
   } catch(e) {
     console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
