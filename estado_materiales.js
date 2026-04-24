@@ -95,8 +95,10 @@ function _emEstadoDatafono(row) {
   const ubi = (row['Nombre de la ubicación'] || '').trim().toUpperCase();
   const com = (row['Comentarios'] || '').trim();
 
-  // Datáfonos en ALMACEN BAJAS WOMPI o ALMACEN INGENICO - PROVEEDOR WOMPI → estado BAJAS WOMPI (no suman en disponible)
-  if (ubi.includes('ALMACEN BAJAS WOMPI') || ubi.includes('ALMACÉN BAJAS WOMPI') || ubi.includes('ALMACEN INGENICO - PROVEEDOR WOMPI')) return 'BAJAS WOMPI';
+  // Datáfonos en ALMACEN BAJAS WOMPI → estado BAJAS WOMPI
+  if (ubi.includes('ALMACEN BAJAS WOMPI') || ubi.includes('ALMACÉN BAJAS WOMPI')) return 'BAJAS WOMPI';
+  // Datáfonos en ALMACEN INGENICO - PROVEEDOR WOMPI → estado ALMACEN INGENICO
+  if (ubi.includes('ALMACEN INGENICO - PROVEEDOR WOMPI')) return 'ALMACEN INGENICO';
 
   // EN DAÑO viene directamente de la columna Posición en depósito
   if (pos === 'EN DAÑO') return 'DAÑADO';
@@ -506,7 +508,7 @@ function _emRenderDatafonos() {
   const data = EM_DF_ALL;
 
   // Segmentar
-  const seg = { DISPONIBLE:[], ASOCIADO:[], DAÑADO:[], 'DES. INCIDENTE':[], 'DES. CIERRE':[], 'BAJAS WOMPI':[] };
+  const seg = { DISPONIBLE:[], ASOCIADO:[], DAÑADO:[], 'DES. INCIDENTE':[], 'DES. CIERRE':[], 'BAJAS WOMPI':[], 'ALMACEN INGENICO':[] };
   data.forEach(r => { const e=_emEstadoDatafono(r); if(!seg[e]) seg[e]=[]; seg[e].push(r); });
   const total = data.length;
 
@@ -526,7 +528,8 @@ function _emRenderDatafonos() {
     { title:'En Daño',           rows:seg['DAÑADO']||[],       color:'#FF5C5C', icon:'🔴' },
     { title:'Des. Incidente',    rows:seg['DES. INCIDENTE']||[], color:'#FFC04D', icon:'⚠️' },
     { title:'Des. Cierre',       rows:seg['DES. CIERRE']||[],  color:'#99D1FC', icon:'🔵' },
-    { title:'Bajas Wompi',       rows:seg['BAJAS WOMPI']||[],  color:'#F49D6E', icon:'⬇️' },
+    { title:'Bajas Wompi',       rows:seg['BAJAS WOMPI']||[],     color:'#F49D6E', icon:'⬇️' },
+    { title:'Almacen Ingenico',  rows:seg['ALMACEN INGENICO']||[], color:'#F87171', icon:'🔌' },
   ];
   window._EM_KPI_ROWS = _EM_KPI_ROWS;
 
@@ -628,11 +631,11 @@ function _emRenderDatafonos() {
 
   // Tabla bodegas — usa _emEstadoDatafono (lógica correcta), incluye BAJAS WOMPI
   const bodMap={};
-  data.forEach(r=>{const b=(r['Nombre de la ubicación']||'Sin bodega').trim();const e=_emEstadoDatafono(r);if(!bodMap[b])bodMap[b]={DISPONIBLE:0,ASOCIADO:0,DAÑADO:0,'DES. CIERRE':0,'DES. INCIDENTE':0,'BAJAS WOMPI':0};if(bodMap[b][e]!==undefined)bodMap[b][e]++;else bodMap[b][e]=1;});
+  data.forEach(r=>{const b=(r['Nombre de la ubicación']||'Sin bodega').trim();const e=_emEstadoDatafono(r);if(!bodMap[b])bodMap[b]={DISPONIBLE:0,ASOCIADO:0,DAÑADO:0,'DES. CIERRE':0,'DES. INCIDENTE':0,'BAJAS WOMPI':0,'ALMACEN INGENICO':0};if(bodMap[b][e]!==undefined)bodMap[b][e]++;else bodMap[b][e]=1;});
   const bodRows=Object.entries(bodMap).map(([nombre,c])=>({nombre,...c,total:Object.values(c).reduce((a,b)=>a+b,0)})).sort((a,b)=>b.total-a.total);
   // Totales globales
-  const bodTotales={DISPONIBLE:0,ASOCIADO:0,DAÑADO:0,'DES. CIERRE':0,'DES. INCIDENTE':0,'BAJAS WOMPI':0,total:0};
-  bodRows.forEach(b=>{bodTotales.DISPONIBLE+=b['DISPONIBLE']||0;bodTotales.ASOCIADO+=b['ASOCIADO']||0;bodTotales.DAÑADO+=b['DAÑADO']||0;bodTotales['DES. CIERRE']+=b['DES. CIERRE']||0;bodTotales['DES. INCIDENTE']+=b['DES. INCIDENTE']||0;bodTotales['BAJAS WOMPI']+=b['BAJAS WOMPI']||0;bodTotales.total+=b.total;});
+  const bodTotales={DISPONIBLE:0,ASOCIADO:0,DAÑADO:0,'DES. CIERRE':0,'DES. INCIDENTE':0,'BAJAS WOMPI':0,'ALMACEN INGENICO':0,total:0};
+  bodRows.forEach(b=>{bodTotales.DISPONIBLE+=b['DISPONIBLE']||0;bodTotales.ASOCIADO+=b['ASOCIADO']||0;bodTotales.DAÑADO+=b['DAÑADO']||0;bodTotales['DES. CIERRE']+=b['DES. CIERRE']||0;bodTotales['DES. INCIDENTE']+=b['DES. INCIDENTE']||0;bodTotales['BAJAS WOMPI']+=b['BAJAS WOMPI']||0;bodTotales['ALMACEN INGENICO']+=b['ALMACEN INGENICO']||0;bodTotales.total+=b.total;});
   const bodEl=document.getElementById('em-tabla-bodegas-wrap');
   if(bodEl){
     if(!bodRows.length){bodEl.innerHTML='<div style="text-align:center;padding:32px;color:#7A7674;font-family:\'Outfit\',sans-serif;">Sin datos</div>';}
@@ -640,7 +643,7 @@ function _emRenderDatafonos() {
       const _p=(n,c)=>`<span style="background:${c}22;color:${c};font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;padding:3px 10px;border-radius:10px;display:inline-block;min-width:28px;text-align:center;">${n}</span>`;
       bodEl.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;">
         <thead><tr style="background:rgba(0,0,0,.3);position:sticky;top:0;z-index:2;">
-          ${['Bodega','Disponible','Asociado','En Daño','Des. Cierre','Des. Incidente','Bajas Wompi - Ingenico','Total'].map((h,hi)=>`<th style="padding:10px 14px;text-align:${hi===0?'left':'center'};font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:#B0F2AE;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;">${h}</th>`).join('')}
+          ${['Bodega','Disponible','Asociado','En Daño','Des. Cierre','Des. Incidente','Bajas Wompi','Alm. Ingenico','Total'].map((h,hi)=>`<th style="padding:10px 14px;text-align:${hi===0?'left':'center'};font-family:'Syne',sans-serif;font-size:9px;font-weight:700;color:#B0F2AE;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid rgba(176,242,174,.15);white-space:nowrap;">${h}</th>`).join('')}
         </tr></thead>
         <tbody>${bodRows.map((b,i)=>{const bg=i%2===0?'rgba(176,242,174,.012)':'transparent';return `<tr style="background:${bg}" onmouseover="this.style.background='rgba(176,242,174,.04)'" onmouseout="this.style.background='${bg}'">
           <td style="padding:9px 14px;color:#e2e8f0;font-size:11px;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${b.nombre}">${b.nombre}</td>
@@ -650,6 +653,7 @@ function _emRenderDatafonos() {
           <td style="padding:9px 14px;text-align:center;">${_p(b['DES. CIERRE']||0,'#99D1FC')}</td>
           <td style="padding:9px 14px;text-align:center;">${_p(b['DES. INCIDENTE']||0,'#FFC04D')}</td>
           <td style="padding:9px 14px;text-align:center;">${_p(b['BAJAS WOMPI']||0,'#F49D6E')}</td>
+          <td style="padding:9px 14px;text-align:center;">${_p(b['ALMACEN INGENICO']||0,'#F87171')}</td>
           <td style="padding:9px 14px;text-align:center;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#DFFF61;font-size:13px;">${b.total}</span></td>
         </tr>`;}).join('')}
         <tr style="background:rgba(223,255,97,.05);border-top:2px solid rgba(223,255,97,.2);">
@@ -660,6 +664,7 @@ function _emRenderDatafonos() {
           <td style="padding:10px 14px;text-align:center;">${_p(bodTotales['DES. CIERRE'],'#99D1FC')}</td>
           <td style="padding:10px 14px;text-align:center;">${_p(bodTotales['DES. INCIDENTE'],'#FFC04D')}</td>
           <td style="padding:10px 14px;text-align:center;">${_p(bodTotales['BAJAS WOMPI'],'#F49D6E')}</td>
+          <td style="padding:10px 14px;text-align:center;">${_p(bodTotales['ALMACEN INGENICO'],'#F87171')}</td>
           <td style="padding:10px 14px;text-align:center;"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:#DFFF61;font-size:14px;">${bodTotales.total}</span></td>
         </tr>
         </tbody></table>`;

@@ -12,7 +12,7 @@ let INV_RAW      = null;
 let INV_FILTERED = [];
 let INV_CHARTS   = {};   // instancias Chart.js activas
 
-// ── 42 Bodegas Wompi ─────────────────────────────────────────────
+// ── Bodegas Wompi (nombres canónicos tras fusión por ciudad) ──────
 const INV_BODEGAS = new Set([
   "ALMACEN WOMPI MEDELLIN","ALMACEN WOMPI BOGOTA","ALMACEN WOMPI BUCARAMANGA",
   "ALMACEN WOMPI CALI","ALMACEN WOMPI VILLAVICENCIO","ALMACEN WOMPI CUCUTA",
@@ -22,15 +22,7 @@ const INV_BODEGAS = new Set([
   "ALMACEN WOMPI POPAYAN","ALMACEN WOMPI MANIZALES","ALMACEN WOMPI YOPAL",
   "ALMACEN WOMPI APARTADO","ALMACEN WOMPI QUIBDO","ALMACEN WOMPI PASTO",
   "ALMACEN WOMPI SINCELEJO","ALMACEN WOMPI BARRANQUILLA","ALMACEN WOMPI ARMENIA",
-  "ALMACEN BAJAS WOMPI","ALMACEN WOMPI ALISTAMIENTO MEDELLIN",
-  "ALMACEN WOMPI VP MEDELLIN | ALQUILER","ALMACEN WOMPI VP BOGOTA | ALQUILER",
-  "ALMACEN WOMPI VP CALI | ALQUILER","ALMACEN WOMPI VP BUCARAMANGA | ALQUILER",
-  "ALMACEN WOMPI VP PEREIRA | ALQUILER","ALMACEN WOMPI VP BARRANQUILLA | ALQUILER",
-  "ALMACEN WOMPI VP MONTERIA | ALQUILER","ALMACEN WOMPI VP MEDELLIN | VENTA",
-  "ALMACEN WOMPI VP BOGOTA | VENTA","ALMACEN WOMPI VP CALI | VENTA",
-  "ALMACEN WOMPI VP BUCARAMANGA | VENTA","ALMACEN WOMPI VP PEREIRA | VENTA",
-  "ALMACEN WOMPI VP BARRANQUILLA | VENTA","ALMACEN WOMPI VP MONTERIA | VENTA",
-  "ALMACEN WOMPI VP ALISTAMIENTO MEDELLIN","ALMACEN INGENICO - PROVEEDOR WOMPI",
+  "ALMACEN BAJAS WOMPI","ALMACEN INGENICO - PROVEEDOR WOMPI",
 ]);
 
 // ── Categorización ────────────────────────────────────────────────
@@ -274,7 +266,7 @@ function _invRenderKPIs() {
     { label:'GEST. & EMPL. WOMPI',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤', drillRows: rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }),                                                              drillTitle:'Stock Gestores & Empleados (GW)' },
     { label:'INGENICO',         value:fmtN(unIngenico), sub1:fmtPct(unIngenico,total),       sub2:fmtN(unIngenico)+' uds', color:INV_PALETTE.ingenico, icon:'🔌', drillRows: rows.filter(function(r){ return (r['Nombre de la ubicación']||'').trim() === 'ALMACEN INGENICO - PROVEEDOR WOMPI'; }),                             drillTitle:'Stock Ingenico (Proveedor)' },
     { label:'OPL',              value:fmtN(unOPL),      sub1:fmtPct(unOPL,total),            sub2:fmtN(unOPL)+' uds',      color:INV_PALETTE.opl,      icon:'🚚', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Supplier'; }),                                                             drillTitle:'Stock OPL (Supplier)' },
-    { label:'42 BODEGAS',       value:'42',             sub1:'Bodegas Wompi',                sub2:'Ver distribución',       color:'#67e8f9',             icon:'🗺️', drillRows: null, drillTitle:'Bodegas', special:'bodegas' },
+    { label:'26 BODEGAS',       value:'26',             sub1:'Bodegas Wompi',                sub2:'Ver distribución',       color:'#67e8f9',             icon:'🗺️', drillRows: null, drillTitle:'Bodegas', special:'bodegas' },
   ];
 
   const grid = document.getElementById('inv-kpi-grid');

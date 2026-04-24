@@ -22,7 +22,7 @@ const GI_REFS_DATAFONO = new Set([
   'DATAFONO DX4000 ESCRITORIO - INGENICO',
 ]);
 
-// 42 bodegas hardcodeadas
+// 26 bodegas canónicas (fusionadas por ciudad)
 const GI_BODEGAS = new Set([
   "ALMACEN WOMPI MEDELLIN","ALMACEN WOMPI BOGOTA","ALMACEN WOMPI BUCARAMANGA",
   "ALMACEN WOMPI CALI","ALMACEN WOMPI VILLAVICENCIO","ALMACEN WOMPI CUCUTA",
@@ -32,15 +32,7 @@ const GI_BODEGAS = new Set([
   "ALMACEN WOMPI POPAYAN","ALMACEN WOMPI MANIZALES","ALMACEN WOMPI YOPAL",
   "ALMACEN WOMPI APARTADO","ALMACEN WOMPI QUIBDO","ALMACEN WOMPI PASTO",
   "ALMACEN WOMPI SINCELEJO","ALMACEN WOMPI BARRANQUILLA","ALMACEN WOMPI ARMENIA",
-  "ALMACEN BAJAS WOMPI","ALMACEN WOMPI ALISTAMIENTO MEDELLIN",
-  "ALMACEN WOMPI VP MEDELLIN | ALQUILER","ALMACEN WOMPI VP BOGOTA | ALQUILER",
-  "ALMACEN WOMPI VP CALI | ALQUILER","ALMACEN WOMPI VP BUCARAMANGA | ALQUILER",
-  "ALMACEN WOMPI VP PEREIRA | ALQUILER","ALMACEN WOMPI VP BARRANQUILLA | ALQUILER",
-  "ALMACEN WOMPI VP MONTERIA | ALQUILER","ALMACEN WOMPI VP MEDELLIN | VENTA",
-  "ALMACEN WOMPI VP BOGOTA | VENTA","ALMACEN WOMPI VP CALI | VENTA",
-  "ALMACEN WOMPI VP BUCARAMANGA | VENTA","ALMACEN WOMPI VP PEREIRA | VENTA",
-  "ALMACEN WOMPI VP BARRANQUILLA | VENTA","ALMACEN WOMPI VP MONTERIA | VENTA",
-  "ALMACEN WOMPI VP ALISTAMIENTO MEDELLIN","ALMACEN INGENICO - PROVEEDOR WOMPI",
+  "ALMACEN BAJAS WOMPI","ALMACEN INGENICO - PROVEEDOR WOMPI",
 ]);
 
 const GI_COLORS = {
@@ -401,7 +393,7 @@ function _giLayoutHTML() {
 
   <!-- ════ SECCIÓN 2: ROLLOS EN ALMACÉN ════ -->
   <div class="section-label fade-up" style="color:#99D1FC;font-size:16px;margin-bottom:4px;">🎞️ Días de Inventario de Rollos en Almacén</div>
-  <div style="font-size:12px;color:#64748b;margin-bottom:24px;">Rollos WOMPI en las 42 bodegas · Vida útil máxima: 6 meses desde ingreso</div>
+  <div style="font-size:12px;color:#64748b;margin-bottom:24px;">Rollos WOMPI en las 26 bodegas · Vida útil máxima: 6 meses desde ingreso</div>
 
   <!-- KPI Strip rollos -->
   <div id="gi-kpi-rollos" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
