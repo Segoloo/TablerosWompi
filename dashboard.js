@@ -109,16 +109,12 @@ function _updateMSLabel(container) {
   else if (vals.length === 1) trigger.textContent = vals[0];
   else trigger.textContent = `${vals.length} seleccionados`;
 }
-window._msAction = function(id, action) {
-  const container = document.getElementById(id);
-  if (!container) return;
-  if (action === 'clear') {
-    container._selectedValues = [];
-    container.querySelectorAll('.ms-item').forEach(i => { i.classList.remove('selected'); i.querySelector('input').checked = false; });
-    _updateMSLabel(container);
-  } else if (action === 'apply') {
-    container.classList.remove('open');
-  }
+};
+window._msGetSels = function(id) {
+  const el = document.getElementById(id);
+  if (el && el._selectedValues && el._selectedValues.length > 0) return el._selectedValues;
+  const val = el?.value;
+  return (val && val !== '') ? [val.toUpperCase()] : null;
 };
 document.addEventListener('click', () => document.querySelectorAll('.ms-container').forEach(c => c.classList.remove('open')));
 
@@ -1738,7 +1734,21 @@ async function loadRollosData() {
     const out  = await new Response(ds.readable).arrayBuffer();
     const text = new TextDecoder().decode(out);
     ROLLOS_RAW = JSON.parse(text);
-    console.log('[Rollos] Cargado OK — detalle:', ROLLOS_RAW.detalle?.length, 'filas');
+
+    // ── EXCLUSIÓN PERMANENTE REDEBAN (Requerimiento) ──────────────
+    if (ROLLOS_RAW.detalle) {
+      ROLLOS_RAW.detalle = ROLLOS_RAW.detalle.filter(r => 
+        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
+      );
+    }
+    if (ROLLOS_RAW.comercio) {
+      ROLLOS_RAW.comercio = ROLLOS_RAW.comercio.filter(r => 
+        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
+      );
+    }
+    // ──────────────────────────────────────────────────────────────
+
+    console.log('[Rollos] Cargado OK — detalle filtrado:', ROLLOS_RAW.detalle?.length, 'filas');
     initRollosGlobalFilters();
     applyRollosGlobalFilters();
     if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
@@ -1788,11 +1798,17 @@ function initRollosGlobalFilters() {
   populate('rf-departamento-det', deptos);
   populate('rf-ciudad-det',       ciudades);
   populate('rf-proyecto-det',     proyectos);
+  populate('rf-anio',             anios.map(String));
+  populate('rf-mes',              meses.map(m => String(m).padStart(2,'0')));
 
-  const fAnio = document.getElementById('rf-anio');
-  if (fAnio) fAnio.innerHTML = '<option value="">Todos</option>' + anios.map(a=>`<option value="${a}">${a}</option>`).join('');
-  const fMes = document.getElementById('rf-mes');
-  if (fMes) fMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${String(m).padStart(2,'0')}</option>`).join('');
+  // Filtros tabla comercio
+  const comercio = ROLLOS_RAW.comercio || [];
+  const comEst   = [...new Set(comercio.map(r=>r.estado).filter(Boolean))].sort();
+  const comTipo  = [...new Set(comercio.map(r=>r.tipo_envio).filter(Boolean))].sort();
+  const comDeptos= [...new Set(comercio.map(r=>r.departamento).filter(Boolean))].sort();
+  populate('rf-com-estado',       comEst);
+  populate('rf-com-tipo',         comTipo);
+  populate('rf-com-departamento', comDeptos);
 
   // Filtros tabla comercio
   const comercio = ROLLOS_RAW.comercio || [];
@@ -1815,18 +1831,11 @@ function applyRollosGlobalFilters() {
   const desde   = document.getElementById('rg-fecha-desde')?.value;
   const hasta   = document.getElementById('rg-fecha-hasta')?.value;
 
-  const getSels = (id) => {
-    const el = document.getElementById(id);
-    if (el && el._selectedValues && el._selectedValues.length > 0) return el._selectedValues;
-    const val = el?.value;
-    return val ? [val.toUpperCase()] : null;
-  };
-
-  const selEstado   = getSels('rg-estado');
-  const selDepto    = getSels('rg-departamento');
-  const selFlujo    = getSels('rg-tipo-flujo');
-  const selMaterial = getSels('rg-material');
-  const selProyecto = getSels('rg-proyecto');
+  const selEstado   = window._msGetSels('rg-estado');
+  const selDepto    = window._msGetSels('rg-departamento');
+  const selFlujo    = window._msGetSels('rg-tipo-flujo');
+  const selMaterial = window._msGetSels('rg-material');
+  const selProyecto = window._msGetSels('rg-proyecto');
 
   ROLLOS_FILTERED = det.filter(r => {
     if (selEstado   && !selEstado.includes((r.estado||'').toUpperCase()))       return false;
@@ -2610,25 +2619,28 @@ function applyRollosDetalleSearch() {
   const codigo  = (document.getElementById('rf-codigo-tarea')?.value||'').trim().toUpperCase();
   const codSitio= (document.getElementById('rf-cod-sitio')?.value||'').trim().toUpperCase();
   const guia    = (document.getElementById('rf-guia')?.value||'').trim().toUpperCase();
-  const estado  = (document.getElementById('rf-estado')?.value||'').toUpperCase();
-  const flujo   = (document.getElementById('rf-tipo-flujo-det')?.value||'').toUpperCase();
-  const depto   = (document.getElementById('rf-departamento-det')?.value||'').toUpperCase();
-  const ciudad  = (document.getElementById('rf-ciudad-det')?.value||'').toUpperCase();
-  const proyecto= (document.getElementById('rf-proyecto-det')?.value||'').toUpperCase();
-  const anio    = document.getElementById('rf-anio')?.value;
-  const mes     = document.getElementById('rf-mes')?.value;
+  
+  const selEstado   = window._msGetSels('rf-estado');
+  const selFlujo    = window._msGetSels('rf-tipo-flujo-det');
+  const selDepto    = window._msGetSels('rf-departamento-det');
+  const selCiudad   = window._msGetSels('rf-ciudad-det');
+  const selProyecto = window._msGetSels('rf-proyecto-det');
+  const selAnio     = window._msGetSels('rf-anio');
+  const selMes      = window._msGetSels('rf-mes');
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.filter(r => {
     if (codigo   && !(r.codigo_tarea||'').toUpperCase().includes(codigo))    return false;
     if (codSitio && !(r.cod_sitio||'').toUpperCase().includes(codSitio))     return false;
     if (guia     && !(r.guia||'').toUpperCase().includes(guia))              return false;
-    if (estado   && (r.estado||'').toUpperCase() !== estado)                 return false;
-    if (flujo    && (r.tipo_flujo||'').toUpperCase() !== flujo)              return false;
-    if (depto    && (r.departamento||'').toUpperCase() !== depto)            return false;
-    if (ciudad   && (r.ciudad||'').toUpperCase() !== ciudad)                 return false;
-    if (proyecto && (r.proyecto||'').toUpperCase() !== proyecto)             return false;
-    if (anio     && String(r.anio) !== anio)                                 return false;
-    if (mes      && String(r.mes).padStart(2,'0') !== mes.padStart(2,'0'))   return false;
+    
+    if (selEstado   && !selEstado.includes((r.estado||'').toUpperCase()))              return false;
+    if (selFlujo    && !selFlujo.includes((r.tipo_flujo||'').toUpperCase()))           return false;
+    if (selDepto    && !selDepto.includes((r.departamento||'').toUpperCase()))         return false;
+    if (selCiudad   && !selCiudad.includes((r.ciudad||'').toUpperCase()))             return false;
+    if (selProyecto && !selProyecto.includes((r.proyecto||'').toUpperCase()))          return false;
+    if (selAnio     && !selAnio.includes(String(r.anio)))                             return false;
+    if (selMes      && !selMes.includes(String(r.mes).padStart(2,'0')))               return false;
+    
     return true;
   });
   rollosDetallePage = 1;
@@ -2637,7 +2649,11 @@ function applyRollosDetalleSearch() {
 
 function resetRollosDetalleSearch() {
   ['rf-codigo-tarea','rf-guia','rf-cod-sitio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
+    else if (el) el.value = '';
+  });
   ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
   rollosDetallePage = 1;
   renderRollosDetalleTable();
@@ -2693,18 +2709,22 @@ function applyComercioFilters() {
   const cod    = (document.getElementById('rf-cod-comercio')?.value||'').trim().toUpperCase();
   const nombre = (document.getElementById('rf-nombre-sitio')?.value||'').trim().toUpperCase();
   const ciudad = (document.getElementById('rf-com-ciudad')?.value||'').trim().toUpperCase();
-  const depto  = (document.getElementById('rf-com-departamento')?.value||'').toUpperCase();
-  const est    = (document.getElementById('rf-com-estado')?.value||'').toUpperCase();
-  const tipo   = (document.getElementById('rf-com-tipo')?.value||'').toUpperCase();
+  
+  const selDepto = window._msGetSels('rf-com-departamento');
+  const selEst   = window._msGetSels('rf-com-estado');
+  const selTipo  = window._msGetSels('rf-com-tipo');
+
   const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
 
   ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
     if (cod    && !(r.cod_comercio||'').toUpperCase().includes(cod))    return false;
     if (nombre && !(r.nombre_sitio||'').toUpperCase().includes(nombre)) return false;
     if (ciudad && !(r.ciudad||'').toUpperCase().includes(ciudad))       return false;
-    if (depto  && (r.departamento||'').toUpperCase() !== depto)         return false;
-    if (est    && (r.estado||'').toUpperCase() !== est)                 return false;
-    if (tipo   && (r.tipo_envio||'').toUpperCase() !== tipo)            return false;
+    
+    if (selDepto && !selDepto.includes((r.departamento||'').toUpperCase())) return false;
+    if (selEst   && !selEst.includes((r.estado||'').toUpperCase()))       return false;
+    if (selTipo  && !selTipo.includes((r.tipo_envio||'').toUpperCase()))    return false;
+
     const hayFiltros = ROLLOS_FILTERED.length < (ROLLOS_RAW.detalle||[]).length;
     if (hayFiltros && !sitiosFiltrados.has(r.cod_comercio)) return false;
     return true;
@@ -2715,7 +2735,11 @@ function applyComercioFilters() {
 
 function resetComercioFilters() {
   ['rf-cod-comercio','rf-nombre-sitio','rf-com-ciudad'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-com-estado','rf-com-tipo','rf-com-departamento'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['rf-com-estado','rf-com-tipo','rf-com-departamento'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
+    else if (el) el.value = '';
+  });
   const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
   ROLLOS_COMERCIO = (ROLLOS_RAW?.comercio||[]).filter(r =>
     ROLLOS_FILTERED.length === (ROLLOS_RAW.detalle||[]).length || sitiosFiltrados.has(r.cod_comercio)

@@ -485,13 +485,13 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
               <div class="filter-group"><label>Código Tarea</label><input type="text" id="rf-codigo-tarea" placeholder="Código de tarea..."></div>
               <div class="filter-group"><label>Cód. Sitio</label><input type="text" id="rf-cod-sitio" placeholder="Cód. Sitio..."></div>
               <div class="filter-group"><label>Guía</label><input type="text" id="rf-guia" placeholder="Número de guía..."></div>
-              <div class="filter-group"><label>Estado Lógico Final</label><select id="rf-estado"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Tipo Flujo</label><select id="rf-tipo-flujo-det"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Departamento</label><select id="rf-departamento-det"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Ciudad</label><select id="rf-ciudad-det"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Proyecto</label><select id="rf-proyecto-det"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Año</label><select id="rf-anio"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Mes</label><select id="rf-mes"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Estado Lógico Final</label><div id="rf-estado" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Tipo Flujo</label><div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Departamento</label><div id="rf-departamento-det" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Ciudad</label><div id="rf-ciudad-det" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Proyecto</label><div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Año</label><div id="rf-anio" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Mes</label><div id="rf-mes" class="ms-container" data-placeholder="Todos"></div></div>
               <div class="filters-actions">
                 <button class="btn-apply" onclick="applyRollosDetalleSearch()">✦ Filtrar</button>
                 <button class="btn-reset" onclick="resetRollosDetalleSearch()">↺ Reset</button>
@@ -520,9 +520,9 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
               <div class="filter-group"><label>Cod. Comercio</label><input type="text" id="rf-cod-comercio" placeholder="Código..."></div>
               <div class="filter-group"><label>Nombre Sitio</label><input type="text" id="rf-nombre-sitio" placeholder="Nombre..."></div>
               <div class="filter-group"><label>Ciudad</label><input type="text" id="rf-com-ciudad" placeholder="Ciudad..."></div>
-              <div class="filter-group"><label>Departamento</label><select id="rf-com-departamento"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Estado</label><select id="rf-com-estado"><option value="">Todos</option></select></div>
-              <div class="filter-group"><label>Tipo Envío</label><select id="rf-com-tipo"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Departamento</label><div id="rf-com-departamento" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Estado</label><div id="rf-com-estado" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Tipo Envío</label><div id="rf-com-tipo" class="ms-container" data-placeholder="Todos"></div></div>
               <div class="filters-actions">
                 <button class="btn-apply" onclick="applyComercioFilters()">✦ Aplicar</button>
                 <button class="btn-reset" onclick="resetComercioFilters()">↺ Reset</button>
