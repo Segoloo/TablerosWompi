@@ -37,23 +37,24 @@ let riCharts = {};
 // ──────────────────────────────────────────────────────────────────
 window.initRollosInventario = function () {
     console.log('[Rollos-Inv] Iniciando módulo...');
-    if (!window.ROLLOS_RAW) {
+    // ROLLOS_RAW se declara con 'let', por lo que no está en ROLLOS_RAW
+    if (typeof ROLLOS_RAW === 'undefined' || !ROLLOS_RAW) {
         console.warn('[Rollos-Inv] ROLLOS_RAW no disponible todavía.');
         return;
     }
 
     // The calculos data lives at ROLLOS_RAW.calculos (array)
     // Fallback to comercio if calculos is empty
-    let calc = window.ROLLOS_RAW.calculos || [];
-    if (!calc.length && window.ROLLOS_RAW.comercio) {
+    let calc = ROLLOS_RAW.calculos || [];
+    if (!calc.length && ROLLOS_RAW.comercio) {
         console.log('[Rollos-Inv] Usando fallback: comercio');
-        calc = window.ROLLOS_RAW.comercio;
+        calc = ROLLOS_RAW.comercio;
     }
     console.log('[Rollos-Inv] Filas a procesar:', calc.length);
 
     // Merge with sitio metadata from detalle if needed
     const detBySitio = new Map();
-    (window.ROLLOS_RAW.detalle || []).forEach(r => {
+    (ROLLOS_RAW.detalle || []).forEach(r => {
         if (r.cod_sitio && !detBySitio.has(r.cod_sitio)) {
             detBySitio.set(r.cod_sitio, {
                 nombre_sitio: r.nombre_sitio || '',
@@ -161,7 +162,7 @@ window.initRollosInventario = function () {
 //  RENDER PRINCIPAL
 // ──────────────────────────────────────────────────────────────────
 window.renderRollosInventario = function () {
-    if (!RI_DATA.length && window.ROLLOS_RAW) window.initRollosInventario();
+    if (!RI_DATA.length && ROLLOS_RAW) window.initRollosInventario();
     RI_FILTERED = RI_DATA.slice();
     riApplySearch('');
 
