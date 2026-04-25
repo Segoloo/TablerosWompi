@@ -1556,7 +1556,7 @@ function _selectBoardTab(board, tab) {
   if (tab === 'incumplimientos') renderIncumplimientosTab();
   if (tab === 'rollos-main')     renderRollosTab();
   if (tab === 'rollos-detalle')  { if (ROLLOS_RAW) renderRollosDetalleTable(); }
-  if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); }
+  if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); if (typeof window.renderRollosInvComercio === 'function') window.renderRollosInvComercio(); }
   if (tab === 'rollos-inventario') { if (typeof window.renderRollosInventario === 'function') window.renderRollosInventario(); }
   if (tab === 'inv-principal')   renderInventarioPrincipal();
   if (tab === 'inv-detalles')    renderInventarioDetalles();
