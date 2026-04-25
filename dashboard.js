@@ -2539,6 +2539,7 @@ function renderRollosTab() {
   renderRollosDetalleTable();
   renderRollosComercioTable();
   renderRollosRefTable();
+  if (typeof window.renderRollosInvBodegaKPIs === 'function') window.renderRollosInvBodegaKPIs();
 }
 
 // ── Helpers ────────────────────────────────────────────────────────

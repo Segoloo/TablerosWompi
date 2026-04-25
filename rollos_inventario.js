@@ -727,26 +727,48 @@ window.renderRollosInvComercio = function () {
       <div id="ri-inv-com-table-wrap" style="overflow-x:auto;border-radius:10px;border:1px solid rgba(255,255,255,.06);"></div>
     </div>`;
 
-    // Guardar datos para búsqueda y export
-    window._riInvComData  = sorted;
-    window._riInvComTotal = grandTotal;
+    // Guardar datos para búsqueda, paginación y export
+    window._riInvComData    = sorted;
+    window._riInvComTotal   = grandTotal;
+    window._riInvComPage    = 1;
+    window._riInvComCurrent = sorted; // dataset activo (filtrado o completo)
 
     window._riInvComSearch = function (term) {
         const t        = (term || '').toLowerCase();
         const filtered = t
             ? sorted.filter(r => r.nombre.toLowerCase().includes(t) || r.cod.toLowerCase().includes(t))
             : sorted;
+        window._riInvComCurrent = filtered;
+        window._riInvComPage    = 1;
         const countEl  = document.getElementById('ri-inv-com-count');
         if (countEl) countEl.textContent = filtered.length + ' comercios';
-        _renderRiInvComTable(filtered, grandTotal);
+        _renderRiInvComTable(filtered, grandTotal, 1);
     };
 
-    _renderRiInvComTable(sorted, grandTotal);
+    window.riInvComGoPage = function (p) {
+        window._riInvComPage = p;
+        _renderRiInvComTable(window._riInvComCurrent, window._riInvComTotal, p);
+        // scroll suave al inicio de la tabla
+        const wrap = document.getElementById('ri-inv-com-table-wrap');
+        if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    _renderRiInvComTable(sorted, grandTotal, 1);
 };
 
-function _renderRiInvComTable(data, grandTotal) {
+const RI_INV_COM_PAGE_SIZE = 100;
+
+function _renderRiInvComTable(data, grandTotal, page) {
     const wrap = document.getElementById('ri-inv-com-table-wrap');
     if (!wrap) return;
+
+    page = page || window._riInvComPage || 1;
+    const totalPages = Math.max(1, Math.ceil(data.length / RI_INV_COM_PAGE_SIZE));
+    if (page > totalPages) page = totalPages;
+    window._riInvComPage = page;
+
+    const start  = (page - 1) * RI_INV_COM_PAGE_SIZE;
+    const slice  = data.slice(start, start + RI_INV_COM_PAGE_SIZE);
 
     const fmt    = n => n.toLocaleString('es-CO');
     const maxVal = data.length ? data[0].total : 1;
@@ -768,7 +790,30 @@ function _renderRiInvComTable(data, grandTotal) {
                 return `<span title="${ref}" style="font-size:9px;background:rgba(176,242,174,.07);border:1px solid rgba(176,242,174,.16);border-radius:10px;padding:2px 7px;color:#94a3b8;white-space:nowrap;">${qty}u · ${label}</span>`;
             }).join(' ');
 
+    // ── Paginación ─────────────────────────────────────────────────
+    const pagBtnStyle = active =>
+        `padding:5px 10px;border-radius:6px;border:1px solid ${active ? 'rgba(176,242,174,.5)' : 'rgba(255,255,255,.08)'};background:${active ? 'rgba(176,242,174,.12)' : 'rgba(255,255,255,.03)'};color:${active ? '#B0F2AE' : '#94a3b8'};cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;`;
+
+    function buildPagHtml() {
+        if (totalPages <= 1) return '';
+        let h = `<div style="display:flex;align-items:center;gap:6px;padding:12px 14px;border-top:1px solid rgba(255,255,255,.06);flex-wrap:wrap;">`;
+        h += `<span style="font-size:11px;color:#475569;font-family:'JetBrains Mono',monospace;margin-right:6px;">Pág ${page}/${totalPages} · ${data.length} registros</span>`;
+        if (page > 1) h += `<button onclick="riInvComGoPage(${page-1})" style="${pagBtnStyle(false)}">‹</button>`;
+        // rango visible
+        const half = 3, st = Math.max(1, page-half), en = Math.min(totalPages, page+half);
+        if (st > 1) { h += `<button onclick="riInvComGoPage(1)" style="${pagBtnStyle(false)}">1</button>`; if (st > 2) h += `<span style="color:#475569;padding:0 3px;">…</span>`; }
+        for (let p = st; p <= en; p++) h += `<button onclick="riInvComGoPage(${p})" style="${pagBtnStyle(p===page)}">${p}</button>`;
+        if (en < totalPages) { if (en < totalPages-1) h += `<span style="color:#475569;padding:0 3px;">…</span>`; h += `<button onclick="riInvComGoPage(${totalPages})" style="${pagBtnStyle(false)}">${totalPages}</button>`; }
+        if (page < totalPages) h += `<button onclick="riInvComGoPage(${page+1})" style="${pagBtnStyle(false)}">›</button>`;
+        h += `</div>`;
+        return h;
+    }
+
+    const pagHtml = buildPagHtml();
+
     wrap.innerHTML = `
+    ${pagHtml}
+    <div style="overflow-x:auto;">
     <table style="width:100%;border-collapse:collapse;font-family:'Outfit',sans-serif;font-size:12px;">
       <thead>
         <tr style="background:rgba(0,0,0,.35);border-bottom:1px solid rgba(176,242,174,.15);">
@@ -782,7 +827,8 @@ function _renderRiInvComTable(data, grandTotal) {
         </tr>
       </thead>
       <tbody>
-        ${data.map((r, i) => {
+        ${slice.map((r, i) => {
+            const globalIdx = start + i;
             const pct    = grandTotal > 0 ? (r.total / grandTotal * 100) : 0;
             const barW   = maxVal  > 0 ? (r.total / maxVal  * 100) : 0;
             const col    = barColor(r.total);
@@ -791,7 +837,7 @@ function _renderRiInvComTable(data, grandTotal) {
             <tr style="border-bottom:1px solid rgba(255,255,255,.04);background:${bgBase};transition:background .15s;"
                 onmouseover="this.style.background='rgba(176,242,174,.05)'"
                 onmouseout="this.style.background='${bgBase}'">
-              <td style="padding:9px 14px;color:#334155;font-family:'JetBrains Mono',monospace;font-size:10px;">${i + 1}</td>
+              <td style="padding:9px 14px;color:#334155;font-family:'JetBrains Mono',monospace;font-size:10px;">${globalIdx + 1}</td>
               <td style="padding:9px 14px;color:#f1f5f9;font-weight:600;">${r.nombre}</td>
               <td style="padding:9px 8px;color:#64748b;font-family:'JetBrains Mono',monospace;font-size:10px;">${r.cod || '—'}</td>
               <td style="padding:9px 8px;text-align:right;">
@@ -800,7 +846,7 @@ function _renderRiInvComTable(data, grandTotal) {
               <td style="padding:9px 8px;text-align:right;color:#94a3b8;font-family:'JetBrains Mono',monospace;font-size:11px;">${pct.toFixed(1)}%</td>
               <td style="padding:9px 14px;">
                 <div style="background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden;min-width:100px;">
-                  <div style="width:${barW.toFixed(1)}%;height:100%;background:${col};border-radius:4px;transition:width .5s ease;"></div>
+                  <div style="width:${barW.toFixed(1)}%;height:100%;background:${col};border-radius:4px;"></div>
                 </div>
               </td>
               <td style="padding:9px 8px;">
@@ -821,8 +867,118 @@ function _renderRiInvComTable(data, grandTotal) {
           <td colspan="2"></td>
         </tr>
       </tfoot>
-    </table>`;
+    </table>
+    </div>
+    ${pagHtml}`;
 }
+
+// ──────────────────────────────────────────────────────────────────
+//  KPIs ROLLOS EN BODEGA — se inyectan en el panel "Rollos Wompi"
+//  Misma estructura de cards que renderRollosKPIs pero con datos
+//  de INV_RAW filtrados por categoría Rollos + ubicación Bodega
+// ──────────────────────────────────────────────────────────────────
+window.renderRollosInvBodegaKPIs = function () {
+    const el = document.getElementById('rollos-inv-bodega-kpis');
+    if (!el) return;
+
+    const raw = window.INV_RAW;
+    if (!raw || !raw.length) {
+        el.innerHTML = `<div style="color:#64748b;font-size:12px;padding:8px 0;">⚠ Inventario no disponible aún.</div>`;
+        return;
+    }
+
+    const INV_BODEGAS_SET = window.INV_BODEGAS || new Set();
+    const getCat = window.invCategoria || (n => ((n||'').toUpperCase().includes('ROLLO') ? 'Rollos' : 'Otro'));
+    const sumQty = rows => rows.reduce((s, r) => s + (parseInt(r['Cantidad']) || 0), 0);
+    const pct    = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
+    const fmt    = n => n.toLocaleString('es-CO');
+
+    // Solo rollos
+    const soloRollos  = raw.filter(r => getCat(r['Nombre']) === 'Rollos');
+    const totalRollos = sumQty(soloRollos);
+
+    // Por tipo de ubicación
+    const enBodega   = sumQty(soloRollos.filter(r => INV_BODEGAS_SET.size
+        ? INV_BODEGAS_SET.has((r['Nombre de la ubicación']||'').trim())
+        : (r['Tipo de ubicación']||'').trim() === 'Warehouse'));
+    const enComercio = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'));
+    const enTecnico  = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'));
+    const enOPL      = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
+    const enIngenico = sumQty(soloRollos.filter(r => (r['Nombre de la ubicación']||'').trim() === 'ALMACEN INGENICO - PROVEEDOR WOMPI'));
+
+    // Bodegas únicas con rollos
+    const bodegasConRollos = new Set(
+        soloRollos
+            .filter(r => INV_BODEGAS_SET.size
+                ? INV_BODEGAS_SET.has((r['Nombre de la ubicación']||'').trim())
+                : (r['Tipo de ubicación']||'').trim() === 'Warehouse')
+            .map(r => (r['Nombre de la ubicación']||'').trim())
+            .filter(Boolean)
+    );
+
+    // Referencias únicas
+    const refsUnicas = new Set(soloRollos.map(r => r['Nombre']).filter(Boolean));
+
+    const cards = [
+        {
+            label: 'Total Rollos Inventario', value: fmt(totalRollos), icon: '📦',
+            color: '#B0F2AE', bg: 'rgba(176,242,174,.07)', border: 'rgba(176,242,174,.2)',
+            sub: `${refsUnicas.size} referencia${refsUnicas.size !== 1 ? 's' : ''} distintas`
+        },
+        {
+            label: 'En Bodega Wompi', value: fmt(enBodega), icon: '🏪',
+            color: '#99D1FC', bg: 'rgba(153,209,252,.07)', border: 'rgba(153,209,252,.2)',
+            sub: `${pct(enBodega, totalRollos)}% del total · ${bodegasConRollos.size} bodega${bodegasConRollos.size !== 1 ? 's' : ''}`,
+            pct: pct(enBodega, totalRollos), pctColor: '#99D1FC'
+        },
+        {
+            label: 'En Comercio (Site)', value: fmt(enComercio), icon: '🏬',
+            color: '#DFFF61', bg: 'rgba(223,255,97,.06)', border: 'rgba(223,255,97,.18)',
+            sub: `${pct(enComercio, totalRollos)}% del total`,
+            pct: pct(enComercio, totalRollos), pctColor: '#DFFF61'
+        },
+        {
+            label: 'Tec. Lineacom (Staff)', value: fmt(enTecnico), icon: '🔧',
+            color: '#F49D6E', bg: 'rgba(244,157,110,.07)', border: 'rgba(244,157,110,.2)',
+            sub: `${pct(enTecnico, totalRollos)}% del total`,
+            pct: pct(enTecnico, totalRollos), pctColor: '#F49D6E'
+        },
+        {
+            label: 'OPL (Supplier)', value: fmt(enOPL), icon: '🚚',
+            color: '#C084FC', bg: 'rgba(192,132,252,.07)', border: 'rgba(192,132,252,.18)',
+            sub: `${pct(enOPL, totalRollos)}% del total`,
+            pct: pct(enOPL, totalRollos), pctColor: '#C084FC'
+        },
+        {
+            label: 'Ingenico (Proveedor)', value: fmt(enIngenico), icon: '🔌',
+            color: '#F87171', bg: 'rgba(248,113,113,.06)', border: 'rgba(248,113,113,.15)',
+            sub: `${pct(enIngenico, totalRollos)}% del total`,
+            pct: pct(enIngenico, totalRollos), pctColor: '#F87171'
+        },
+    ];
+
+    el.innerHTML = `
+    <div style="padding-top:22px;border-top:1px solid rgba(176,242,174,.12);margin-bottom:6px;">
+      <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#B0F2AE;letter-spacing:.6px;text-transform:uppercase;margin-bottom:14px;">
+        📦 Stock Actual de Rollos — Inventario Wompi
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;">
+        ${cards.map(c => `
+        <div style="background:${c.bg};border:1px solid ${c.border};border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.35)'"
+             onmouseout="this.style.transform='';this.style.boxShadow=''">
+          <div style="font-size:20px;margin-bottom:6px;">${c.icon}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${c.color};line-height:1;">${c.value}</div>
+          <div style="font-size:10px;color:#7A7674;margin-top:6px;font-family:'Outfit',sans-serif;">${c.label}</div>
+          <div style="font-size:10px;color:#475569;margin-top:3px;">${c.sub}</div>
+          ${c.pct !== undefined ? `
+          <div style="margin-top:8px;background:rgba(255,255,255,.06);border-radius:4px;height:4px;overflow:hidden;">
+            <div style="width:${Math.min(c.pct,100)}%;height:100%;background:${c.pctColor};border-radius:4px;transition:width .6s ease;"></div>
+          </div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>`;
+};
 
 // Export Excel de la sección de inventario por comercio
 window.exportRollosInvComercioExcel = function () {
