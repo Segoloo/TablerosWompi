@@ -483,22 +483,112 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
             <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.2px;margin-bottom:4px;">📋 Tabla Detalles de Tareas</div>
             <div style="font-size:12px;color:#475569;">Todas las columnas de cada tarea con su MO, stock y datos logísticos — fuente: <span style="font-family:'JetBrains Mono',monospace;color:#64748b;">data_tablero_rollos.json.gz</span></div>
           </div>
-          <div class="filters-bar" style="margin-bottom:16px">
-            <div class="filters-title">Filtros de búsqueda</div>
-            <div class="filters-row">
-              <div class="filter-group"><label>Código Tarea / MO</label><input type="text" id="rf-codigo-tarea" placeholder="Código de tarea..."></div>
-              <div class="filter-group"><label>Cód. Sitio</label><input type="text" id="rf-cod-sitio" placeholder="Cód. Sitio..."></div>
-              <div class="filter-group"><label>Guía</label><input type="text" id="rf-guia" placeholder="Número de guía..."></div>
-              <div class="filter-group"><label>Estado Lógico Final</label><div id="rf-estado" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Tipo Flujo</label><div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Departamento</label><div id="rf-departamento-det" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Ciudad</label><div id="rf-ciudad-det" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Proyecto</label><div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Año</label><div id="rf-anio" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Mes</label><div id="rf-mes" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filters-actions">
-                <button class="btn-apply" onclick="applyRollosDetalleSearch()">✦ Filtrar</button>
-                <button class="btn-reset" onclick="resetRollosDetalleSearch()">↺ Reset</button>
+
+          <!-- ══ FILTROS POR GRUPOS DE COLUMNAS ══ -->
+          <div class="filters-bar" style="margin-bottom:16px;padding:16px 20px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+              <div class="filters-title" style="margin-bottom:0;">Filtros por columnas</div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-apply" onclick="applyRollosDetalleSearch()" style="padding:6px 16px;font-size:12px;">✦ Aplicar filtros</button>
+                <button class="btn-reset" onclick="resetRollosDetalleSearch()" style="padding:6px 14px;font-size:12px;">↺ Limpiar todo</button>
+              </div>
+            </div>
+
+            <!-- Grupo: 🔖 TAREA -->
+            <div style="margin-bottom:10px;">
+              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#99D1FC;background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">🔖 TAREA</div>
+              <div style="background:rgba(153,209,252,.04);border:1px solid rgba(153,209,252,.12);border-radius:0 8px 8px 8px;padding:10px 14px;">
+                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
+                  <div class="filter-group" style="min-width:170px;flex:1;">
+                    <label>Código Tarea / MO</label>
+                    <input type="text" id="rf-codigo-tarea" placeholder="Ej: MO-12345...">
+                  </div>
+                  <div class="filter-group" style="min-width:160px;flex:1;">
+                    <label>Estado Tarea</label>
+                    <div id="rf-estado" class="ms-container" data-placeholder="Todos los estados"></div>
+                  </div>
+                  <div class="filter-group" style="min-width:140px;flex:1;">
+                    <label>Tipo Flujo</label>
+                    <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos"></div>
+                  </div>
+                  <div class="filter-group" style="min-width:110px;flex:0 0 120px;">
+                    <label>Año</label>
+                    <div id="rf-anio" class="ms-container" data-placeholder="Todos"></div>
+                  </div>
+                  <div class="filter-group" style="min-width:110px;flex:0 0 120px;">
+                    <label>Mes</label>
+                    <div id="rf-mes" class="ms-container" data-placeholder="Todos"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupo: 🏪 SITIO / CORRESPONSAL -->
+            <div style="margin-bottom:10px;">
+              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#B0F2AE;background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">🏪 SITIO / CORRESPONSAL</div>
+              <div style="background:rgba(176,242,174,.03);border:1px solid rgba(176,242,174,.1);border-radius:0 8px 8px 8px;padding:10px 14px;">
+                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
+                  <div class="filter-group" style="min-width:150px;flex:1;">
+                    <label>Cód. Sitio</label>
+                    <input type="text" id="rf-cod-sitio" placeholder="Ej: BOG-001...">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupo: 📍 UBICACIÓN -->
+            <div style="margin-bottom:10px;">
+              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#94a3b8;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">📍 UBICACIÓN</div>
+              <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:0 8px 8px 8px;padding:10px 14px;">
+                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
+                  <div class="filter-group" style="min-width:160px;flex:1;">
+                    <label>Departamento</label>
+                    <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos"></div>
+                  </div>
+                  <div class="filter-group" style="min-width:160px;flex:1;">
+                    <label>Ciudad</label>
+                    <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupo: 📁 PROYECTO -->
+            <div style="margin-bottom:10px;">
+              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#DFFF61;background:rgba(223,255,97,.07);border:1px solid rgba(223,255,97,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">📁 PROYECTO</div>
+              <div style="background:rgba(223,255,97,.02);border:1px solid rgba(223,255,97,.08);border-radius:0 8px 8px 8px;padding:10px 14px;">
+                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
+                  <div class="filter-group" style="min-width:180px;flex:1;">
+                    <label>Proyecto</label>
+                    <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupo: 📦 MATERIAL -->
+            <div style="margin-bottom:10px;">
+              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#F49D6E;background:rgba(244,157,110,.08);border:1px solid rgba(244,157,110,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">📦 MATERIAL</div>
+              <div style="background:rgba(244,157,110,.02);border:1px solid rgba(244,157,110,.08);border-radius:0 8px 8px 8px;padding:10px 14px;">
+                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
+                  <div class="filter-group" style="min-width:180px;flex:2;">
+                    <label>Nombre Material</label>
+                    <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Grupo: 🚚 LOGÍSTICA -->
+            <div>
+              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#FFC04D;background:rgba(255,192,77,.07);border:1px solid rgba(255,192,77,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">🚚 LOGÍSTICA</div>
+              <div style="background:rgba(255,192,77,.02);border:1px solid rgba(255,192,77,.08);border-radius:0 8px 8px 8px;padding:10px 14px;">
+                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
+                  <div class="filter-group" style="min-width:160px;flex:1;">
+                    <label>Guía</label>
+                    <input type="text" id="rf-guia" placeholder="Número de guía...">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -531,7 +621,62 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
               <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,192,77,.07);color:#FFC04D;border:1px solid rgba(255,192,77,.2);">🚚 LOGÍSTICA</span>
               <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,92,92,.07);color:#FF5C5C;border:1px solid rgba(255,92,92,.2);">📊 STOCK MO</span>
             </div>
-            <div id="rollos-detalle-wrap" style="overflow-x:auto;max-height:560px;"><div class="loading"><div class="spinner"></div></div></div>
+            <!-- Indicador de scroll horizontal -->
+            <div id="rdt-scroll-hint" style="display:none;align-items:center;justify-content:center;gap:6px;padding:6px 20px;background:rgba(153,209,252,.06);border-bottom:1px solid rgba(153,209,252,.1);font-size:10px;color:#99D1FC;letter-spacing:.3px;">
+              <span style="animation:rdt-pulse 1.5s ease-in-out infinite;">◀</span>
+              <span style="font-weight:600;">Desplaza horizontalmente para ver todas las columnas</span>
+              <span style="animation:rdt-pulse 1.5s ease-in-out infinite 0.75s;">▶</span>
+            </div>
+            <style>
+              @keyframes rdt-pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
+              #rollos-detalle-wrap { scrollbar-width: thin; scrollbar-color: rgba(153,209,252,.3) rgba(255,255,255,.04); }
+              #rollos-detalle-wrap::-webkit-scrollbar { height: 8px; width: 8px; }
+              #rollos-detalle-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,.04); border-radius: 4px; }
+              #rollos-detalle-wrap::-webkit-scrollbar-thumb { background: rgba(153,209,252,.3); border-radius: 4px; }
+              #rollos-detalle-wrap::-webkit-scrollbar-thumb:hover { background: rgba(153,209,252,.5); }
+              /* Sombra derecha que indica más contenido */
+              .rdt-scroll-container { position: relative; }
+              .rdt-scroll-container::after {
+                content: '';
+                position: absolute;
+                top: 0; right: 0;
+                width: 40px; height: 100%;
+                background: linear-gradient(to right, transparent, rgba(6,18,14,.9));
+                pointer-events: none;
+                transition: opacity .3s;
+                border-radius: 0 0 0 0;
+                z-index: 3;
+              }
+              .rdt-scroll-container.at-end::after { opacity: 0; }
+            </style>
+            <div class="rdt-scroll-container" id="rdt-scroll-container">
+              <div id="rollos-detalle-wrap" style="overflow-x:auto;overflow-y:auto;max-height:580px;"><div class="loading"><div class="spinner"></div></div></div>
+            </div>
+            <script>
+              (function() {
+                function setupRdtScroll() {
+                  const wrap = document.getElementById('rollos-detalle-wrap');
+                  const hint = document.getElementById('rdt-scroll-hint');
+                  const container = document.getElementById('rdt-scroll-container');
+                  if (!wrap) return;
+                  function checkScroll() {
+                    const canScrollH = wrap.scrollWidth > wrap.clientWidth + 4;
+                    if (hint) hint.style.display = canScrollH ? 'flex' : 'none';
+                    if (container) {
+                      const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 10;
+                      container.classList.toggle('at-end', atEnd || !canScrollH);
+                    }
+                  }
+                  wrap.addEventListener('scroll', checkScroll);
+                  // Observar cambios en el contenido
+                  const obs = new MutationObserver(() => setTimeout(checkScroll, 50));
+                  obs.observe(wrap, { childList: true, subtree: false });
+                  setTimeout(checkScroll, 500);
+                }
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupRdtScroll);
+                else setupRdtScroll();
+              })();
+            </script>
             <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(153,209,252,.07);">
               <div id="rollos-detalle-pagination" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
             </div>

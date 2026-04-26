@@ -2090,6 +2090,8 @@ function initRollosGlobalFilters() {
   const proyectos = uniq('proyecto');
   const estados   = uniq('estado');
 
+  const materiales= uniq('nombre_material');
+
   populate('rf-estado',           estados);
   populate('rf-tipo-flujo-det',   tiposFlujo);
   populate('rf-departamento-det', deptos);
@@ -2097,6 +2099,7 @@ function initRollosGlobalFilters() {
   populate('rf-proyecto-det',     proyectos);
   populate('rf-anio',             anios.map(String));
   populate('rf-mes',              meses.map(m => String(m).padStart(2,'0')));
+  populate('rf-nombre-material-det', materiales);
 
   // Filtros tabla comercio
   const comercio = ROLLOS_RAW.comercio || [];
@@ -3019,9 +3022,9 @@ function renderRollosDetalleTable() {
   wrap.innerHTML = `
     <div style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;font-family:'Outfit',sans-serif;font-size:12px;min-width:1800px;">
-        <thead>
-          <tr style="background:rgba(0,0,0,.5);">${groupHeaderCells}</tr>
-          <tr style="background:rgba(0,0,0,.35);position:sticky;top:0;z-index:2;">${colHeaderCells}</tr>
+        <thead style="position:sticky;top:0;z-index:4;">
+          <tr style="background:rgba(6,12,20,.98);">${groupHeaderCells}</tr>
+          <tr style="background:rgba(6,12,20,.95);">${colHeaderCells}</tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -3052,6 +3055,7 @@ function applyRollosDetalleSearch() {
   const selProyecto = window._msGetSels('rf-proyecto-det');
   const selAnio     = window._msGetSels('rf-anio');
   const selMes      = window._msGetSels('rf-mes');
+  const selMaterial = window._msGetSels('rf-nombre-material-det');
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.filter(r => {
     if (codigo   && !(r.codigo_tarea||'').toUpperCase().includes(codigo))    return false;
@@ -3065,6 +3069,7 @@ function applyRollosDetalleSearch() {
     if (selProyecto && !selProyecto.includes((r.proyecto||'').toUpperCase()))          return false;
     if (selAnio     && !selAnio.includes(String(r.anio)))                             return false;
     if (selMes      && !selMes.includes(String(r.mes).padStart(2,'0')))               return false;
+    if (selMaterial && !selMaterial.includes((r.nombre_material||'').toUpperCase()))   return false;
     
     return true;
   });
@@ -3074,7 +3079,7 @@ function applyRollosDetalleSearch() {
 
 function resetRollosDetalleSearch() {
   ['rf-codigo-tarea','rf-guia','rf-cod-sitio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det'].forEach(id => {
+  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det','rf-nombre-material-det'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
     else if (el) el.value = '';
