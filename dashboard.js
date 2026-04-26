@@ -3065,21 +3065,23 @@ function applyRollosDetalleSearch() {
   const selMes        = window._msGetSels('rf-mes');
   const selMaterial   = window._msGetSels('rf-nombre-material-det');
   const selPlantilla  = window._msGetSels('rf-plantilla-tarea-det');
+  const selEstadoPunto= window._msGetSels('rf-estado-punto-det');
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.filter(r => {
     if (codigo   && !(r.codigo_tarea||'').toUpperCase().includes(codigo))    return false;
     if (codSitio && !(r.cod_sitio||'').toUpperCase().includes(codSitio))     return false;
     if (guia     && !(r.guia||'').toUpperCase().includes(guia))              return false;
     
-    if (selEstado    && !selEstado.includes((r.estado||'').toUpperCase()))                                 return false;
-    if (selFlujo     && !selFlujo.includes((r.tipo_flujo||'').toUpperCase()))                             return false;
-    if (selDepto     && !selDepto.includes((r.departamento||'').toUpperCase()))                           return false;
-    if (selCiudad    && !selCiudad.includes((r.ciudad||'').toUpperCase()))                                return false;
-    if (selProyecto  && !selProyecto.includes((r.proyecto||'').toUpperCase()))                            return false;
-    if (selAnio      && !selAnio.includes(String(r.anio)))                                                return false;
-    if (selMes       && !selMes.includes(String(r.mes).padStart(2,'0')))                                  return false;
-    if (selMaterial  && !selMaterial.includes((r.nombre_material||'').toUpperCase()))                     return false;
-    if (selPlantilla && !selPlantilla.includes((r.nombre_plantilla_tarea||'').toUpperCase()))             return false;
+    if (selEstado     && !selEstado.includes((r.estado||'').toUpperCase()))                                return false;
+    if (selFlujo      && !selFlujo.includes((r.tipo_flujo||'').toUpperCase()))                            return false;
+    if (selDepto      && !selDepto.includes((r.departamento||'').toUpperCase()))                          return false;
+    if (selCiudad     && !selCiudad.includes((r.ciudad||'').toUpperCase()))                               return false;
+    if (selProyecto   && !selProyecto.includes((r.proyecto||'').toUpperCase()))                           return false;
+    if (selAnio       && !selAnio.includes(String(r.anio)))                                               return false;
+    if (selMes        && !selMes.includes(String(r.mes).padStart(2,'0')))                                 return false;
+    if (selMaterial   && !selMaterial.includes((r.nombre_material||'').toUpperCase()))                    return false;
+    if (selPlantilla  && !selPlantilla.includes((r.nombre_plantilla_tarea||'').toUpperCase()))            return false;
+    if (selEstadoPunto && !selEstadoPunto.includes((r.cal_estado_punto||'').toUpperCase()))               return false;
     
     return true;
   });
@@ -3089,7 +3091,7 @@ function applyRollosDetalleSearch() {
 
 function resetRollosDetalleSearch() {
   ['rf-codigo-tarea','rf-guia','rf-cod-sitio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det','rf-nombre-material-det','rf-plantilla-tarea-det'].forEach(id => {
+  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det','rf-nombre-material-det','rf-plantilla-tarea-det','rf-estado-punto-det'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
     else if (el) el.value = '';

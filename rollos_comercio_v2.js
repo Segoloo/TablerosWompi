@@ -51,6 +51,21 @@ function rcv2BuildIndex() {
   const filas = window.TABLERO_ROLLOS_FILAS || [];
   RCV2_SITIOS.clear();
 
+  // Mapa auxiliar: codigo_sitio → cal_codigo_mo, para resolver alias entre claves.
+  // Cuando una fila tiene ambos campos, registramos que codigo_sitio es alias de cal_codigo_mo.
+  // Así evitamos crear entradas duplicadas (una por codigo_sitio, otra por cal_codigo_mo)
+  // para el mismo corresponsal físico, lo que inflaba los conteos de KPIs.
+  const aliasMap = new Map(); // codigo_sitio → cal_codigo_mo (clave canónica)
+  filas.forEach(f => {
+    const codSitio = (f.codigo_sitio || f.cal_codigo_sitio || '').trim();
+    const codMO    = (f.cal_codigo_mo || '').trim();
+    if (codSitio && codMO && codSitio !== codMO && !aliasMap.has(codSitio)) {
+      aliasMap.set(codSitio, codMO);
+    }
+  });
+  // Resuelve cualquier clave a su forma canónica (cal_codigo_mo tiene prioridad)
+  const canonical = k => aliasMap.get(k) || k;
+
   // IMPORTANTE: se itera todo el array.
   // Los cal_* solo se asignan desde filas con join_nivel > 0 Y cal_saldo_dias != 0,
   // para evitar que sitios queden con saldo=0 por tomar una fila sin join match.
@@ -59,7 +74,8 @@ function rcv2BuildIndex() {
   filas.forEach(f => {
     const codSitio = (f.codigo_sitio || f.cal_codigo_sitio || '').trim();
     const codMO    = (f.cal_codigo_mo || '').trim();
-    const key      = codSitio || codMO;
+    // Usar siempre la clave canónica: prioriza cal_codigo_mo para evitar duplicados
+    const key      = canonical(codMO || codSitio);
     if (!key) return;
 
     if (!RCV2_SITIOS.has(key)) {
@@ -565,12 +581,14 @@ function rcv2RenderGlobalTable(filterTerm) {
     );
   }
 
-  // Stats rápidos
+  // Stats rápidos — cada sitio se cuenta exactamente una vez
+  const total     = rows.length;
   const criticos  = rows.filter(r => r.meses < 1).length;
   const alertas   = rows.filter(r => r.meses >= 1 && r.meses < 2).length;
   const warns     = rows.filter(r => r.meses >= 2 && r.meses < 3).length;
   const oks       = rows.filter(r => r.meses >= 3).length;
-  const slaIncump = rows.filter(r => r.meses < 3).length;
+  // Validación: criticos + alertas + warns + oks debe ser igual a total
+  const slaIncump = criticos + alertas + warns; // = rows con meses < 3
 
   const PAGE_SIZE = 100;
   const maxShown  = Math.min(rows.length, PAGE_SIZE);
@@ -580,6 +598,7 @@ function rcv2RenderGlobalTable(filterTerm) {
   <!-- Stats -->
   <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
     ${[
+      ['📍 Total',           total,     '#99D1FC'],
       ['🔴 Críticos (<1m)',  criticos,  '#FF5C5C'],
       ['🟠 Alerta (<2m)',    alertas,   '#FFC04D'],
       ['🟡 Atención (<3m)', warns,     '#DFFF61'],
