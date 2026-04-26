@@ -2092,6 +2092,7 @@ function initRollosGlobalFilters() {
 
   const materiales    = uniq('nombre_material');
   const plantillas    = uniq('nombre_plantilla_tarea');
+  const estadosPunto  = uniq('cal_estado_punto');
 
   populate('rf-estado',           estados);
   populate('rf-tipo-flujo-det',   tiposFlujo);
@@ -2102,6 +2103,7 @@ function initRollosGlobalFilters() {
   populate('rf-mes',              meses.map(m => String(m).padStart(2,'0')));
   populate('rf-nombre-material-det', materiales);
   populate('rf-plantilla-tarea-det', plantillas);
+  populate('rf-estado-punto-det',    estadosPunto);
 
   // Filtros tabla comercio
   const comercio = ROLLOS_RAW.comercio || [];
@@ -3059,6 +3061,7 @@ function applyRollosDetalleSearch() {
   const selMes        = window._msGetSels('rf-mes');
   const selMaterial   = window._msGetSels('rf-nombre-material-det');
   const selPlantilla  = window._msGetSels('rf-plantilla-tarea-det');
+  const selEstadoPunto= window._msGetSels('rf-estado-punto-det');
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.filter(r => {
     if (codigo   && !(r.codigo_tarea||'').toUpperCase().includes(codigo))    return false;
@@ -3074,6 +3077,7 @@ function applyRollosDetalleSearch() {
     if (selMes       && !selMes.includes(String(r.mes).padStart(2,'0')))                                  return false;
     if (selMaterial  && !selMaterial.includes((r.nombre_material||'').toUpperCase()))                     return false;
     if (selPlantilla && !selPlantilla.includes((r.nombre_plantilla_tarea||'').toUpperCase()))             return false;
+    if (selEstadoPunto && !selEstadoPunto.includes((r.cal_estado_punto||'').toUpperCase()))               return false;
     
     return true;
   });
@@ -3083,7 +3087,7 @@ function applyRollosDetalleSearch() {
 
 function resetRollosDetalleSearch() {
   ['rf-codigo-tarea','rf-guia','rf-cod-sitio'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det','rf-nombre-material-det','rf-plantilla-tarea-det'].forEach(id => {
+  ['rf-estado','rf-anio','rf-mes','rf-tipo-flujo-det','rf-departamento-det','rf-ciudad-det','rf-proyecto-det','rf-nombre-material-det','rf-plantilla-tarea-det','rf-estado-punto-det'].forEach(id => {
     const el = document.getElementById(id);
     if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
     else if (el) el.value = '';
