@@ -1860,21 +1860,27 @@ async function loadRollosData() {
     console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
 
     // ── Fallback: construir ROLLOS_RAW desde data_tablero_rollos.json.gz ──
-    // data_rollos.json.gz fue descontinuado; los mismos datos viven en
-    // TABLERO_ROLLOS_FILAS con columnas cal_* (cargado por rollos_inventario.js).
-    // Esperamos hasta 8 s a que esté disponible.
-    const _waitTablRollos = () => new Promise(resolve => {
-      const t0 = Date.now();
-      const check = () => {
-        const filas = window.TABLERO_ROLLOS_FILAS;
-        if (filas && filas.length > 0) return resolve(filas);
-        if (Date.now() - t0 > 8000) return resolve([]);
-        setTimeout(check, 200);
-      };
-      check();
-    });
+    // data_rollos.json.gz fue descontinuado. Los datos equivalentes están en
+    // TABLERO_ROLLOS_FILAS, cargado por rollos_inventario.js via _loadTablRollos().
+    // Esperamos que esa carga termine (puede estar aún en vuelo) antes de continuar.
+    console.log('[Rollos] Esperando data_tablero_rollos.json.gz...');
+    if (typeof window.loadTablRollos === 'function') {
+      await window.loadTablRollos();   // no-op si ya cargó; espera si está en vuelo
+    } else {
+      // rollos_inventario.js aún no parseado — esperar hasta 30 s
+      await new Promise(resolve => {
+        const t0 = Date.now();
+        const poll = () => {
+          if (typeof window.loadTablRollos === 'function' || Date.now() - t0 > 30000)
+            return resolve();
+          setTimeout(poll, 300);
+        };
+        poll();
+      });
+      if (typeof window.loadTablRollos === 'function') await window.loadTablRollos();
+    }
 
-    const filas = await _waitTablRollos();
+    const filas = window.TABLERO_ROLLOS_FILAS || [];
 
     if (filas.length > 0) {
       // Derivar calculos: una fila por sitio único (tomando la primera con cal_saldo_dias != 0)

@@ -90,10 +90,18 @@ async function _loadTablRollos() {
 }
 
 // Iniciar carga en paralelo tan pronto como se parsee este script
-_loadTablRollos();
+// Guardamos la promesa para que otros módulos puedan hacer await sobre ella
+// sin relanzar la descarga.
+window._tablRollosPromise = _loadTablRollos();
 
 // Exponer para que otros módulos puedan re-intentar o esperar
-window.loadTablRollos = _loadTablRollos;
+// Siempre devuelve la misma promesa (no relanza la descarga si ya está en vuelo)
+window.loadTablRollos = function() {
+  if (!window._tablRollosPromise) {
+    window._tablRollosPromise = _loadTablRollos();
+  }
+  return window._tablRollosPromise;
+};
 
 // ──────────────────────────────────────────────────────────────────
 //  BOOTSTRAP — called once ROLLOS_RAW is ready
