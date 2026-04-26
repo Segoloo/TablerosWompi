@@ -905,6 +905,9 @@ window.renderRollosInvBodegaKPIs = function () {
     const pct    = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
     const fmt    = n => n.toLocaleString('es-CO');
 
+    // Patrón GW — igual que en inventario.js
+    const GW_PATTERN = /^GW\d+$/i;
+
     // Solo rollos
     const soloRollos  = raw.filter(r => getCat(r['Nombre']) === 'Rollos');
     const totalRollos = sumQty(soloRollos);
@@ -916,6 +919,8 @@ window.renderRollosInvBodegaKPIs = function () {
     const enComercio = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'));
     const enTecnico  = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'));
     const enOPL      = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
+    // Gestores & Empleados Wompi — código de ubicación coincide con patrón GWxxx
+    const enGW       = sumQty(soloRollos.filter(r => GW_PATTERN.test((r['Código de ubicación']||'').trim())));
     // Bodegas únicas con rollos
     const bodegasConRollos = new Set(
         soloRollos
@@ -970,10 +975,29 @@ window.renderRollosInvBodegaKPIs = function () {
             drillRows: soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'),
             drillTitle: 'OPL (Supplier)'
         },
+        {
+            label: 'Gest. & Empl. Wompi', value: fmt(enGW), icon: '👤',
+            color: '#C084FC', bg: 'rgba(192,132,252,.07)', border: 'rgba(192,132,252,.18)',
+            sub: `${pct(enGW, totalRollos)}% del total · cód. GW`,
+            pct: pct(enGW, totalRollos), pctColor: '#C084FC',
+            drillRows: soloRollos.filter(r => GW_PATTERN.test((r['Código de ubicación']||'').trim())),
+            drillTitle: 'Gest. & Empl. Wompi (GW)'
+        },
     ];
 
     // Guardar cards para acceso desde el modal
+    // Excluimos el último card (GW) que tiene su propio bloque con filtros
+    const mainCards = cards.slice(0, cards.length - 1);
+    const gwCard    = cards[cards.length - 1];
     window._rollInvBodegaCards = cards;
+
+    // Colecciones para filtros GW
+    const gwAllRows    = soloRollos.filter(r => GW_PATTERN.test((r['Código de ubicación']||'').trim()));
+    const gwRefs       = [...new Set(gwAllRows.map(r => r['Nombre']).filter(Boolean))].sort();
+    const gwBodegas    = [...new Set(gwAllRows.map(r => (r['Nombre de la ubicación']||'').trim()).filter(Boolean))].sort();
+    const gwNegocios   = ['Todos','CB','VP'];
+    const gwCategorias = [...new Set(gwAllRows.map(r => (window.invCategoria ? window.invCategoria(r['Nombre']) : 'Otro')).filter(Boolean))].sort();
+    gwCategorias.unshift('Todas');
 
     el.innerHTML = `
     <div style="padding-top:22px;border-top:1px solid rgba(176,242,174,.12);margin-bottom:6px;">
@@ -982,7 +1006,7 @@ window.renderRollosInvBodegaKPIs = function () {
         <span style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:400;color:#475569;text-transform:none;letter-spacing:0;margin-left:10px;">Haz clic en un KPI para ver el detalle</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;">
-        ${cards.map((c, idx) => `
+        ${mainCards.map((c, idx) => `
         <div data-kpi-idx="${idx}" style="background:${c.bg};border:1px solid ${c.border};border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:pointer;"
              onclick="window._openRollInvBodegaModal(${idx})"
              onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.4)';this.style.borderColor='${c.color}66'"
@@ -998,7 +1022,235 @@ window.renderRollosInvBodegaKPIs = function () {
           </div>` : ''}
         </div>`).join('')}
       </div>
+    </div>
+
+    <!-- ══ KPI Gest. & Empl. Wompi con filtros propios ══ -->
+    <div style="margin-top:24px;padding:20px 22px;background:rgba(192,132,252,.04);border:1px solid rgba(192,132,252,.18);border-left:3px solid #C084FC;border-radius:16px;">
+
+      <!-- Encabezado -->
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#C084FC;letter-spacing:.5px;text-transform:uppercase;">
+            👤 Gest. &amp; Empl. Wompi — Rollos (GW)
+          </div>
+          <div style="font-size:11px;color:#475569;margin-top:3px;font-family:'Outfit',sans-serif;">
+            Stock de rollos en ubicaciones con código GW · Filtra por negocio, categoría, referencia o bodega
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:flex-end;">
+
+        <!-- Negocio -->
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:110px;">
+          <label style="font-size:10px;color:#64748b;font-family:'Outfit',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Negocio</label>
+          <select id="gw-f-negocio"
+            style="background:#1a1916;border:1px solid rgba(192,132,252,.25);border-radius:8px;color:#FAFAFA;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;outline:none;">
+            ${gwNegocios.map(n => `<option value="${n}">${n}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- Categoría -->
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:130px;">
+          <label style="font-size:10px;color:#64748b;font-family:'Outfit',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Categoría</label>
+          <select id="gw-f-categoria"
+            style="background:#1a1916;border:1px solid rgba(192,132,252,.25);border-radius:8px;color:#FAFAFA;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;cursor:pointer;outline:none;">
+            ${gwCategorias.map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+        </div>
+
+        <!-- Referencia -->
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:200px;position:relative;">
+          <label style="font-size:10px;color:#64748b;font-family:'Outfit',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Referencia</label>
+          <input type="text" id="gw-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off"
+            style="background:rgba(255,255,255,.05);border:1px solid rgba(192,132,252,.25);border-radius:8px;color:#FAFAFA;padding:7px 12px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:100%;box-sizing:border-box;">
+          <ul id="gw-f-referencia-list" class="inv-ac-list" style="display:none;border-color:rgba(192,132,252,.35);"></ul>
+        </div>
+
+        <!-- Bodega -->
+        <div style="display:flex;flex-direction:column;gap:4px;min-width:200px;position:relative;">
+          <label style="font-size:10px;color:#64748b;font-family:'Outfit',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.5px;">Bodega / Ubicación</label>
+          <input type="text" id="gw-f-bodega" placeholder="🔍 Escribir bodega..." autocomplete="off"
+            style="background:rgba(255,255,255,.05);border:1px solid rgba(192,132,252,.25);border-radius:8px;color:#FAFAFA;padding:7px 12px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:100%;box-sizing:border-box;">
+          <ul id="gw-f-bodega-list" class="inv-ac-list" style="display:none;border-color:rgba(192,132,252,.35);"></ul>
+        </div>
+
+        <!-- Botones -->
+        <div style="display:flex;gap:8px;align-self:flex-end;">
+          <button onclick="window._gwApplyFilters()"
+            style="background:rgba(192,132,252,.15);border:1px solid rgba(192,132,252,.4);border-radius:8px;color:#C084FC;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:7px 16px;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.background='rgba(192,132,252,.25)'" onmouseout="this.style.background='rgba(192,132,252,.15)'">
+            ✦ Aplicar
+          </button>
+          <button onclick="window._gwResetFilters()"
+            style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#64748b;font-family:'Outfit',sans-serif;font-size:12px;padding:7px 12px;cursor:pointer;transition:all .2s;"
+            onmouseover="this.style.color='#94a3b8'" onmouseout="this.style.color='#64748b'">
+            ↺ Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Card GW -->
+      <div id="gw-kpi-card-wrap" style="display:flex;gap:14px;flex-wrap:wrap;align-items:stretch;">
+        <!-- Se renderiza via JS -->
+      </div>
+
+      <!-- Resumen filtros activos -->
+      <div id="gw-filter-summary" style="margin-top:10px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#475569;">
+        Sin filtros activos — mostrando todas las ubicaciones GW
+      </div>
     </div>`;
+
+    // ── Autocomplete para filtros GW ──────────────────────────────────
+    if (typeof window._invAcSetup === 'function') {
+        window._invAcSetup('gw-f-referencia', gwRefs);
+        window._invAcSetup('gw-f-bodega', gwBodegas);
+    }
+
+    // ── Función render del KPI GW ─────────────────────────────────────
+    function _renderGWKpi(filteredRows) {
+        const wrap    = document.getElementById('gw-kpi-card-wrap');
+        const sumEl   = document.getElementById('gw-filter-summary');
+        if (!wrap) return;
+
+        const gwTotal  = filteredRows.reduce((s, r) => s + (parseInt(r['Cantidad']) || 0), 0);
+        const gwPct    = totalRollos > 0 ? Math.round(gwTotal / totalRollos * 100) : 0;
+        const gwRefs_u = new Set(filteredRows.map(r => r['Nombre']).filter(Boolean));
+        const gwUbics  = new Set(filteredRows.map(r => (r['Nombre de la ubicación']||'').trim()).filter(Boolean));
+
+        // Actualizar card GW en el array global
+        if (window._rollInvBodegaCards && window._rollInvBodegaCards.length) {
+            const idx = window._rollInvBodegaCards.length - 1;
+            window._rollInvBodegaCards[idx].drillRows  = filteredRows;
+            window._rollInvBodegaCards[idx].value      = gwTotal.toLocaleString('es-CO');
+        }
+
+        wrap.innerHTML = `
+        <div style="background:rgba(192,132,252,.07);border:1px solid rgba(192,132,252,.25);border-radius:14px;
+             padding:20px 22px;min-width:200px;flex:0 0 auto;position:relative;overflow:hidden;
+             transition:transform .2s,box-shadow .2s;cursor:pointer;"
+             onclick="window._openGWKpiModal()"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.4)';this.style.borderColor='rgba(192,132,252,.55)'"
+             onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='rgba(192,132,252,.25)'">
+          <div style="position:absolute;top:-18px;right:-18px;width:70px;height:70px;border-radius:50%;background:#C084FC;opacity:.06;filter:blur(10px);pointer-events:none;"></div>
+          <div style="position:absolute;top:10px;right:10px;font-size:9px;color:#C084FC;opacity:.6;font-family:'Outfit',sans-serif;letter-spacing:.3px;">Ver detalle ›</div>
+          <div style="font-size:22px;margin-bottom:8px;">👤</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:#C084FC;line-height:1;
+               letter-spacing:-1px;text-shadow:0 0 20px rgba(192,132,252,.4);">
+            ${gwTotal.toLocaleString('es-CO')}
+          </div>
+          <div style="font-size:11px;color:#7A7674;margin-top:8px;font-family:'Outfit',sans-serif;font-weight:600;">Gest. &amp; Empl. Wompi</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+            <span style="display:inline-block;background:rgba(192,132,252,.2);color:#C084FC;font-size:10px;font-weight:700;
+                 padding:2px 8px;border-radius:20px;font-family:'JetBrains Mono',monospace;">${gwPct}% del total</span>
+            <span style="font-size:10px;color:#475569;font-family:'Outfit',sans-serif;">${gwTotal.toLocaleString('es-CO')} uds</span>
+          </div>
+          <div style="margin-top:10px;background:rgba(255,255,255,.06);border-radius:4px;height:4px;overflow:hidden;">
+            <div style="width:${Math.min(gwPct,100)}%;height:100%;background:#C084FC;border-radius:4px;transition:width .6s ease;"></div>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:#475569;font-family:'Outfit',sans-serif;display:flex;gap:12px;flex-wrap:wrap;">
+            <span>📋 ${gwRefs_u.size} referencia${gwRefs_u.size !== 1 ? 's' : ''}</span>
+            <span>📍 ${gwUbics.size} ubicación${gwUbics.size !== 1 ? 'es' : ''}</span>
+          </div>
+        </div>
+
+        <!-- Mini desglose por referencia (top 5) -->
+        ${(function() {
+            if (!filteredRows.length) return `<div style="color:#475569;font-size:12px;font-family:'Outfit',sans-serif;padding:20px;">Sin resultados para los filtros aplicados.</div>`;
+            const byRef = new Map();
+            filteredRows.forEach(r => {
+                const ref = (r['Nombre'] || 'Sin referencia').trim();
+                byRef.set(ref, (byRef.get(ref) || 0) + (parseInt(r['Cantidad']) || 0));
+            });
+            const sorted = [...byRef.entries()].sort((a,b) => b[1]-a[1]).slice(0, 5);
+            const maxRef = sorted[0] ? sorted[0][1] : 1;
+            return `
+            <div style="flex:1;min-width:260px;background:rgba(0,0,0,.2);border:1px solid rgba(192,132,252,.12);border-radius:14px;padding:16px 18px;">
+              <div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:#C084FC;letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;">
+                Top Referencias GW
+              </div>
+              ${sorted.map(([ref, qty]) => {
+                  const barPct = maxRef ? Math.round(qty / maxRef * 100) : 0;
+                  const shortRef = ref.length > 38 ? ref.substring(0, 36) + '…' : ref;
+                  return `
+                  <div style="margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">
+                      <span style="font-size:11px;color:#e2e8f0;font-family:'Outfit',sans-serif;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${ref.replace(/"/g,'&quot;')}">${shortRef}</span>
+                      <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#C084FC;margin-left:8px;flex-shrink:0;">${qty.toLocaleString('es-CO')}</span>
+                    </div>
+                    <div style="background:rgba(255,255,255,.05);border-radius:3px;height:3px;overflow:hidden;">
+                      <div style="width:${barPct}%;height:100%;background:linear-gradient(90deg,rgba(192,132,252,.5),#C084FC);border-radius:3px;transition:width .5s ease;"></div>
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>`;
+        })()}`;
+
+        // Resumen filtros activos
+        if (sumEl) {
+            const negocio   = (document.getElementById('gw-f-negocio')?.value || 'Todos');
+            const categoria = (document.getElementById('gw-f-categoria')?.value || 'Todas');
+            const refEl     = document.getElementById('gw-f-referencia');
+            const refVal    = refEl?._acValue || refEl?.value || '';
+            const bodEl     = document.getElementById('gw-f-bodega');
+            const bodVal    = bodEl?._acValue || bodEl?.value || '';
+            const activos   = [
+                negocio   !== 'Todos' && negocio   ? `Negocio: ${negocio}`      : '',
+                categoria !== 'Todas' && categoria ? `Categoría: ${categoria}`  : '',
+                refVal                             ? `Referencia: ${refVal}`    : '',
+                bodVal                             ? `Bodega: ${bodVal}`        : '',
+            ].filter(Boolean);
+            sumEl.textContent = activos.length
+                ? '🔍 Filtros activos — ' + activos.join(' · ')
+                : 'Sin filtros activos — mostrando todas las ubicaciones GW';
+        }
+    }
+
+    // ── Aplicar / Reset filtros GW ────────────────────────────────────
+    window._gwApplyFilters = function() {
+        const raw_local    = window.INV_RAW || [];
+        const getCat_local = window.invCategoria || (n => ((n||'').toUpperCase().includes('ROLLO') ? 'Rollos' : 'Otro'));
+        const invNeg       = window.invNegocio || (s => { const u = (s||'').trim().toUpperCase(); return (u==='WOMPI VP'||u==='EQUIPO VP'||u==='VP') ? 'VP' : 'CB'; });
+        const negocio      = (document.getElementById('gw-f-negocio')?.value   || 'Todos');
+        const categoria    = (document.getElementById('gw-f-categoria')?.value || 'Todas');
+        const refEl        = document.getElementById('gw-f-referencia');
+        const refVal       = refEl?._acValue || (refEl?.value?.trim() || '');
+        const bodEl        = document.getElementById('gw-f-bodega');
+        const bodVal       = bodEl?._acValue || (bodEl?.value?.trim() || '');
+
+        const gwFiltered = raw_local.filter(r => {
+            if (!GW_PATTERN.test((r['Código de ubicación']||'').trim())) return false;
+            if (negocio   && negocio   !== 'Todos' && invNeg(r['Subtipo'])                           !== negocio)   return false;
+            if (categoria && categoria !== 'Todas' && getCat_local(r['Nombre'])                       !== categoria) return false;
+            if (refVal    && (r['Nombre']||'').trim()                                                !== refVal)    return false;
+            if (bodVal    && (r['Nombre de la ubicación']||'').trim()                                !== bodVal)    return false;
+            return true;
+        });
+        _renderGWKpi(gwFiltered);
+    };
+
+    window._gwResetFilters = function() {
+        const neg = document.getElementById('gw-f-negocio');
+        const cat = document.getElementById('gw-f-categoria');
+        const ref = document.getElementById('gw-f-referencia');
+        const bod = document.getElementById('gw-f-bodega');
+        if (neg) neg.value = 'Todos';
+        if (cat) cat.value = 'Todas';
+        if (ref) { ref.value = ''; ref._acValue = ''; ref.classList.remove('inv-ac-selected'); }
+        if (bod) { bod.value = ''; bod._acValue = ''; bod.classList.remove('inv-ac-selected'); }
+        _renderGWKpi(gwAllRows);
+    };
+
+    // ── Modal drilldown GW ────────────────────────────────────────────
+    window._openGWKpiModal = function() {
+        const card = window._rollInvBodegaCards && window._rollInvBodegaCards[window._rollInvBodegaCards.length - 1];
+        if (!card) return;
+        window._openRollInvBodegaModal(window._rollInvBodegaCards.length - 1);
+    };
+
+    // Render inicial del KPI GW
+    _renderGWKpi(gwAllRows);
 
     // ── Modal drilldown para KPIs de Rollos Inventario ───────────────
     if (!document.getElementById('roll-inv-modal')) {
