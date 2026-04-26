@@ -50,6 +50,11 @@ function rcv2BuildIndex() {
   const filas = window.TABLERO_ROLLOS_FILAS || [];
   RCV2_SITIOS.clear();
 
+  // IMPORTANTE: se itera todo el array.
+  // Los cal_* solo se asignan desde filas con join_nivel > 0 Y cal_saldo_dias != 0,
+  // para evitar que sitios queden con saldo=0 por tomar una fila sin join match.
+  // La primera fila válida que aparezca por sitio gana; las siguientes se ignoran para cal.
+
   filas.forEach(f => {
     const codSitio = (f.codigo_sitio || f.cal_codigo_sitio || '').trim();
     const codMO    = (f.cal_codigo_mo || '').trim();
@@ -57,10 +62,34 @@ function rcv2BuildIndex() {
     if (!key) return;
 
     if (!RCV2_SITIOS.has(key)) {
-      // Extraer calculos (tomados de la primera fila con datos cal_)
-      const cal = {
+      const meta = {
+        nombre_sitio : f.nombre_sitio || f.nombre_ubicacion_destino || key,
+        departamento : f.departamento || '',
+        ciudad       : f.Ciudad || f.ciudad || '',
+        nit          : f.nit || '',
+        tipologia    : f.tipologia || '',
+        proyecto     : f.proyecto || '',
+        red          : f.red_asociada || '',
+      };
+      // cal vacío por defecto — se llenará cuando haya join_nivel > 0
+      const calVacio = {
+        codigo_sitio: key, codigo_mo: codMO, join_nivel: 0,
+        estado_punto: '', prom_mensual: 0, rollos_prom_mes: 0,
+        periodo_abast: 0, rollos_periodo: 0, punto_reorden: 0,
+        saldo_rollos: 0, saldo_dias: 0, saldo_valor: 0,
+        rollos_entregados: 0, rollos_consumidos: 0, trx_desde: 0,
+        fecha_apertura: '', fecha_abst: '', rollos_anio: 0,
+      };
+      RCV2_SITIOS.set(key, { cal: calVacio, meta, movs: [], _calSet: false });
+    }
+
+    // Intentar actualizar cal si esta fila tiene join real y el sitio aún no lo tiene
+    const sitio = RCV2_SITIOS.get(key);
+    const nivel = parseInt(f.join_nivel) || 0;
+    if (!sitio._calSet && nivel > 0 && rcv2P(f.cal_saldo_dias) !== 0) {
+      sitio.cal = {
         codigo_sitio    : key,
-        codigo_mo       : codMO,
+        codigo_mo       : (f.cal_codigo_mo || '').trim(),
         estado_punto    : f.cal_estado_punto    || '',
         prom_mensual    : rcv2P(f.cal_promedio_mensual),
         rollos_prom_mes : rcv2P(f.cal_rollos_promedio_mes),
@@ -76,18 +105,9 @@ function rcv2BuildIndex() {
         fecha_apertura  : f.cal_fecha_apertura_final || '',
         fecha_abst      : f.cal_fecha_abst_1 || '',
         rollos_anio     : rcv2P(f.cal_rollos_anio_e5),
-        join_nivel      : f.join_nivel || 0,
+        join_nivel      : nivel,
       };
-      const meta = {
-        nombre_sitio : f.nombre_sitio || f.nombre_ubicacion_destino || key,
-        departamento : f.departamento || '',
-        ciudad       : f.Ciudad || f.ciudad || '',
-        nit          : f.nit || '',
-        tipologia    : f.tipologia || '',
-        proyecto     : f.proyecto || '',
-        red          : f.red_asociada || '',
-      };
-      RCV2_SITIOS.set(key, { cal, meta, movs: [] });
+      sitio._calSet = true;
     }
 
     // Agregar movimiento (cada fila del tablero es un movimiento de MO)
@@ -144,7 +164,10 @@ function rcv2BuildIndex() {
   }
 
   RCV2_READY = true;
-  console.log('[RCV2] Índice construido:', RCV2_SITIOS.size, 'sitios');
+  const conCal   = [...RCV2_SITIOS.values()].filter(s => s._calSet).length;
+  const sinCal   = RCV2_SITIOS.size - conCal;
+  console.log('[RCV2] Índice construido:', RCV2_SITIOS.size, 'sitios únicos |',
+    conCal, 'con cálculos reales |', sinCal, 'sin join (excluidos de tabla global)');
 }
 
 // ── Autocompletar búsqueda ─────────────────────────────────────────
@@ -475,7 +498,7 @@ function rcv2RenderSearchUI() {
   <!-- Header del panel -->
   <div style="margin-bottom:24px;">
     <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f1f5f9;letter-spacing:.3px;">🏪 Detalle por Comercio — Análisis Completo</div>
-    <div style="font-size:12px;color:#475569;margin-top:4px;">${RCV2_SITIOS.size.toLocaleString('es-CO')} corresponsales indexados · Fuente: v_rollos_tablero_wompi + calculos</div>
+    <div style="font-size:12px;color:#475569;margin-top:4px;">${[...RCV2_SITIOS.values()].filter(s=>s._calSet).length.toLocaleString('es-CO')} corresponsales con datos de cálculo · ${RCV2_SITIOS.size.toLocaleString('es-CO')} sitios totales indexados</div>
   </div>
 
   <!-- Buscador -->
@@ -521,10 +544,14 @@ function rcv2RenderGlobalTable(filterTerm) {
   const el = document.getElementById('rcv2-global-table');
   if (!el) return;
 
-  let rows = [...RCV2_SITIOS.entries()].map(([key, s]) => ({
-    key, ...s,
-    meses: s.cal.saldo_dias / 30,
-  })).sort((a,b) => a.meses - b.meses); // más críticos primero
+  // Excluir sitios sin datos de cálculos (join_nivel=0 = sin match real)
+  // para no contar como "críticos" filas que simplemente no tienen datos.
+  let rows = [...RCV2_SITIOS.entries()]
+    .filter(([, s]) => s._calSet)   // solo sitios con cal real
+    .map(([key, s]) => ({
+      key, ...s,
+      meses: s.cal.saldo_dias / 30,
+    })).sort((a,b) => a.meses - b.meses); // más críticos primero
 
   if (filterTerm) {
     const t = filterTerm.toUpperCase();
