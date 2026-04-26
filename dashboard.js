@@ -1967,21 +1967,6 @@ function applyRollosGlobalFilters() {
   renderRollosRefTable();
 }
 
-  ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
-  ROLLOS_REF_FILTERED = (ROLLOS_RAW?.referencias || []).slice();
-  rollosDetallePage  = 1;
-  rollosComercioPage = 1;
-  rollosRefPage      = 1;
-
-  renderRollosKPIs();
-  renderRollosKPIsTareas();
-  renderRollosANSRow();
-  renderRollosCharts();
-  renderRollosDetalleTable();
-  renderRollosComercioTable();
-  renderRollosRefTable();
-}
-
 function resetRollosGlobalFilters() {
   ['rg-fecha-desde','rg-fecha-hasta'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   ['rg-estado','rg-departamento','rg-tipo-flujo','rg-material','rg-proyecto'].forEach(id => {
