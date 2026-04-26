@@ -1622,8 +1622,15 @@ function _selectBoardTab(board, tab) {
   if (tab === 'tabla')           renderMainTable();
   if (tab === 'incumplimientos') renderIncumplimientosTab();
   if (tab === 'rollos-main')     renderRollosTab();
-  if (tab === 'rollos-detalle')  { if (ROLLOS_RAW) renderRollosDetalleTable(); }
-  if (tab === 'rollos-comercio') { if (ROLLOS_RAW) renderRollosComercioTable(); if (typeof window.renderRollosInvComercio === 'function') window.renderRollosInvComercio(); }
+  if (tab === 'rollos-detalle')  {
+    if (ROLLOS_RAW) renderRollosDetalleTable();
+    else setTimeout(() => { if (ROLLOS_RAW) renderRollosDetalleTable(); }, 2000);
+  }
+  if (tab === 'rollos-comercio') {
+    if (ROLLOS_RAW) renderRollosComercioTable();
+    else setTimeout(() => { if (ROLLOS_RAW) renderRollosComercioTable(); }, 2000);
+    if (typeof window.renderRollosInvComercio === 'function') window.renderRollosInvComercio();
+  }
   if (tab === 'rollos-inventario') { if (typeof window.renderRollosInventario === 'function') window.renderRollosInventario(); }
   if (tab === 'inv-principal')   renderInventarioPrincipal();
   if (tab === 'inv-detalles')    renderInventarioDetalles();
@@ -1877,19 +1884,38 @@ async function loadRollosData() {
         const codMO    = (f.cal_codigo_mo || '').trim();
         const key      = codSitio || codMO;
         // Detalle: cada fila es un movimiento
+        // Mapear campos de TABLERO_ROLLOS_FILAS al formato que espera computeRollosKPIs / DETALLE_COLS
+        const _flujoLimpio = (f.flujo || '').replace(/P-TA-/gi, '').trim();
+        const _estTarea    = (f.estado_tarea || '').toUpperCase();
         detalle.push({
-          tarea             : f.tarea || '',
-          cod_sitio         : codSitio,
-          nombre_sitio      : f.nombre_sitio || '',
-          departamento      : f.departamento || '',
-          ciudad            : f.Ciudad || f.ciudad || '',
-          proyecto          : f.proyecto || '',
-          tipo_flujo        : (f.flujo || '').replace(/P-TA-/gi, '').trim(),
-          codigo_material   : f.codigo_material || '',
-          nombre_material   : f.nombre_material || '',
-          Cantidad          : f.Cantidad || 0,
-          estado_tarea      : f.estado_tarea || '',
-          fecha_confirmacion: f.fecha_confirmacion || '',
+          tarea                 : f.tarea || '',
+          codigo_tarea          : f.tarea || '',           // alias para computeRollosKPIs
+          cod_sitio             : codSitio,
+          nombre_sitio          : f.nombre_sitio || '',
+          departamento          : f.departamento || '',
+          ciudad                : f.Ciudad || f.ciudad || '',
+          proyecto              : f.proyecto || '',
+          tipo_flujo            : _flujoLimpio,
+          codigo_material       : f.codigo_material || '',
+          nombre_material       : f.nombre_material || '',
+          Cantidad              : f.Cantidad || 0,
+          cantidad              : parseFloat(f.Cantidad || 0),
+          estado                : f.estado_tarea || '',    // para status pills
+          estado_tarea          : f.estado_tarea || '',
+          estado_transportadora : '',                      // no disponible en esta fuente
+          // estado_ans inferido: Completada → CUMPLE (heurístico)
+          estado_ans            : _estTarea === 'COMPLETADA' ? 'CUMPLE' : '',
+          estado_resultado      : _estTarea === 'COMPLETADA' ? 'EXITOSO' : '',
+          fecha_confirmacion    : f.fecha_confirmacion || '',
+          fecha_entrega         : f.fecha_confirmacion || f.tarea_fecha_fin || '',
+          fecha_entrega_raw     : f.tarea_fecha_fin || '',
+          fecha_plan_inicio     : f.plan_inicio || '',
+          fecha_plan_fin        : f.plan_fin || '',
+          guia                  : f.guia || f.guia_raw || '',
+          transportadora        : f.transportadora || '',
+          oportunidad           : '',
+          FO                    : '',
+          dias_inventario_restantes: '',
         });
         // Calculos: un registro por sitio con join real
         if (!calcMap.has(key) && parseFloat(f.cal_saldo_dias || 0) !== 0) {
@@ -2752,8 +2778,11 @@ function _destroyChart(key) {
 // ── Render principal del tab ──────────────────────────────────────
 function renderRollosTab() {
   if (!ROLLOS_RAW) {
-    document.getElementById('rollos-kpi-grid').innerHTML =
-      '<div class="empty-state"><div class="icon">⚠️</div><p>data_rollos.json.gz no disponible</p></div>';
+    const el = document.getElementById('rollos-kpi-grid');
+    if (el) el.innerHTML =
+      '<div class="empty-state"><div class="icon">⏳</div><p>Cargando datos de rollos... Si persiste, recarga la página.</p></div>';
+    // Reintentar en 2 s por si el fallback async aún no terminó
+    setTimeout(() => { if (ROLLOS_RAW) renderRollosTab(); }, 2000);
     return;
   }
   renderRollosKPIs();
