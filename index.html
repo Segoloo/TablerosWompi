@@ -479,205 +479,235 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
 
         <!-- PANEL: ROLLOS DETALLE -->
         <div id="panel-rollos-detalle" style="display:none">
-          <div style="margin-bottom:20px;">
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.2px;margin-bottom:4px;">📋 Tabla Detalles de Tareas</div>
-            <div style="font-size:12px;color:#475569;">Todas las columnas de cada tarea con su MO, stock y datos logísticos — fuente: <span style="font-family:'JetBrains Mono',monospace;color:#64748b;">data_tablero_rollos.json.gz</span></div>
+          <style>
+            @keyframes rdt-pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+            /* Scroll bar horizontal visible y estilizada */
+            #rdt-hscroll-bar { overflow-x:auto; overflow-y:hidden; height:14px; }
+            #rdt-hscroll-inner { height:1px; }
+            #rdt-hscroll-bar::-webkit-scrollbar { height:8px; }
+            #rdt-hscroll-bar::-webkit-scrollbar-track { background:rgba(153,209,252,.06); border-radius:4px; }
+            #rdt-hscroll-bar::-webkit-scrollbar-thumb { background:rgba(153,209,252,.35); border-radius:4px; }
+            #rdt-hscroll-bar::-webkit-scrollbar-thumb:hover { background:rgba(153,209,252,.6); }
+            #rdt-hscroll-bar { scrollbar-width:thin; scrollbar-color:rgba(153,209,252,.35) rgba(153,209,252,.06); }
+            /* Scroll vertical de la tabla */
+            #rollos-detalle-wrap { scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.15) rgba(255,255,255,.04); }
+            #rollos-detalle-wrap::-webkit-scrollbar { width:6px; height:0px; }
+            #rollos-detalle-wrap::-webkit-scrollbar-track { background:rgba(255,255,255,.04); }
+            #rollos-detalle-wrap::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
+            /* Sombra derecha */
+            .rdt-shadow-right { position:relative; }
+            .rdt-shadow-right::after { content:''; position:absolute; top:0; right:0; width:48px; height:100%; background:linear-gradient(to right,transparent,rgba(4,14,10,.92)); pointer-events:none; z-index:3; transition:opacity .25s; }
+            .rdt-shadow-right.at-end::after { opacity:0; }
+            /* Filtros compactos */
+            .rdf-group-label { font-size:9px; font-weight:800; letter-spacing:.7px; padding:2px 8px; border-radius:4px; white-space:nowrap; line-height:1; }
+            .rdf-sep { width:1px; background:rgba(255,255,255,.08); align-self:stretch; margin:0 2px; flex-shrink:0; }
+          </style>
+
+          <div style="margin-bottom:14px;">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.2px;margin-bottom:3px;">📋 Tabla Detalles de Tareas</div>
+            <div style="font-size:11px;color:#475569;">Todas las columnas de cada tarea con su MO, stock y datos logísticos</div>
           </div>
 
-          <!-- ══ FILTROS POR GRUPOS DE COLUMNAS ══ -->
-          <div class="filters-bar" style="margin-bottom:16px;padding:16px 20px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-              <div class="filters-title" style="margin-bottom:0;">Filtros por columnas</div>
-              <div style="display:flex;gap:8px;">
-                <button class="btn-apply" onclick="applyRollosDetalleSearch()" style="padding:6px 16px;font-size:12px;">✦ Aplicar filtros</button>
-                <button class="btn-reset" onclick="resetRollosDetalleSearch()" style="padding:6px 14px;font-size:12px;">↺ Limpiar todo</button>
+          <!-- ══ FILTROS COMPACTOS ══ -->
+          <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+            <!-- Fila 1: etiqueta + acciones -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px;">FILTROS</span>
+              <div style="display:flex;gap:6px;">
+                <button class="btn-apply" onclick="applyRollosDetalleSearch()" style="padding:4px 14px;font-size:11px;border-radius:7px;">✦ Aplicar</button>
+                <button class="btn-reset" onclick="resetRollosDetalleSearch()" style="padding:4px 12px;font-size:11px;border-radius:7px;">↺ Limpiar</button>
               </div>
             </div>
+            <!-- Fila 2: todos los filtros en una línea scrollable con separadores de grupo -->
+            <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start;">
 
-            <!-- Grupo: 🔖 TAREA -->
-            <div style="margin-bottom:10px;">
-              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#99D1FC;background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">🔖 TAREA</div>
-              <div style="background:rgba(153,209,252,.04);border:1px solid rgba(153,209,252,.12);border-radius:0 8px 8px 8px;padding:10px 14px;">
-                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
-                  <div class="filter-group" style="min-width:170px;flex:1;">
-                    <label>Código Tarea / MO</label>
-                    <input type="text" id="rf-codigo-tarea" placeholder="Ej: MO-12345...">
+              <!-- 🔖 TAREA -->
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rdf-group-label" style="color:#99D1FC;background:rgba(153,209,252,.1);border:1px solid rgba(153,209,252,.2);">🔖 TAREA</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:rgba(153,209,252,.04);border:1px solid rgba(153,209,252,.1);border-radius:0 8px 8px 8px;">
+                  <div class="filter-group" style="margin:0;min-width:140px;max-width:160px;">
+                    <label style="font-size:9px;">Código Tarea / MO</label>
+                    <input type="text" id="rf-codigo-tarea" placeholder="MO-12345..." style="font-size:11px;padding:5px 8px;">
                   </div>
-                  <div class="filter-group" style="min-width:160px;flex:1;">
-                    <label>Estado Tarea</label>
-                    <div id="rf-estado" class="ms-container" data-placeholder="Todos los estados"></div>
+                  <div class="filter-group" style="margin:0;min-width:130px;max-width:150px;">
+                    <label style="font-size:9px;">Plantilla Tarea</label>
+                    <div id="rf-plantilla-tarea-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;"></div>
                   </div>
-                  <div class="filter-group" style="min-width:140px;flex:1;">
-                    <label>Tipo Flujo</label>
-                    <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos"></div>
+                  <div class="filter-group" style="margin:0;min-width:130px;max-width:160px;">
+                    <label style="font-size:9px;">Estado Tarea</label>
+                    <div id="rf-estado" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
                   </div>
-                  <div class="filter-group" style="min-width:110px;flex:0 0 120px;">
-                    <label>Año</label>
-                    <div id="rf-anio" class="ms-container" data-placeholder="Todos"></div>
+                  <div class="filter-group" style="margin:0;min-width:120px;max-width:140px;">
+                    <label style="font-size:9px;">Tipo Flujo</label>
+                    <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
                   </div>
-                  <div class="filter-group" style="min-width:110px;flex:0 0 120px;">
-                    <label>Mes</label>
-                    <div id="rf-mes" class="ms-container" data-placeholder="Todos"></div>
+                  <div class="filter-group" style="margin:0;min-width:90px;max-width:110px;">
+                    <label style="font-size:9px;">Año</label>
+                    <div id="rf-anio" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
+                  </div>
+                  <div class="filter-group" style="margin:0;min-width:90px;max-width:110px;">
+                    <label style="font-size:9px;">Mes</label>
+                    <div id="rf-mes" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Grupo: 🏪 SITIO / CORRESPONSAL -->
-            <div style="margin-bottom:10px;">
-              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#B0F2AE;background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">🏪 SITIO / CORRESPONSAL</div>
-              <div style="background:rgba(176,242,174,.03);border:1px solid rgba(176,242,174,.1);border-radius:0 8px 8px 8px;padding:10px 14px;">
-                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
-                  <div class="filter-group" style="min-width:150px;flex:1;">
-                    <label>Cód. Sitio</label>
-                    <input type="text" id="rf-cod-sitio" placeholder="Ej: BOG-001...">
+              <!-- 🏪 SITIO -->
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rdf-group-label" style="color:#B0F2AE;background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);">🏪 SITIO</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:rgba(176,242,174,.03);border:1px solid rgba(176,242,174,.1);border-radius:0 8px 8px 8px;">
+                  <div class="filter-group" style="margin:0;min-width:120px;max-width:140px;">
+                    <label style="font-size:9px;">Cód. Sitio</label>
+                    <input type="text" id="rf-cod-sitio" placeholder="BOG-001..." style="font-size:11px;padding:5px 8px;">
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Grupo: 📍 UBICACIÓN -->
-            <div style="margin-bottom:10px;">
-              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#94a3b8;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">📍 UBICACIÓN</div>
-              <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:0 8px 8px 8px;padding:10px 14px;">
-                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
-                  <div class="filter-group" style="min-width:160px;flex:1;">
-                    <label>Departamento</label>
-                    <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos"></div>
+              <!-- 📍 UBICACIÓN -->
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rdf-group-label" style="color:#94a3b8;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);">📍 UBICACIÓN</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:0 8px 8px 8px;">
+                  <div class="filter-group" style="margin:0;min-width:130px;max-width:160px;">
+                    <label style="font-size:9px;">Departamento</label>
+                    <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
                   </div>
-                  <div class="filter-group" style="min-width:160px;flex:1;">
-                    <label>Ciudad</label>
-                    <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas"></div>
+                  <div class="filter-group" style="margin:0;min-width:120px;max-width:150px;">
+                    <label style="font-size:9px;">Ciudad</label>
+                    <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;"></div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Grupo: 📁 PROYECTO -->
-            <div style="margin-bottom:10px;">
-              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#DFFF61;background:rgba(223,255,97,.07);border:1px solid rgba(223,255,97,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">📁 PROYECTO</div>
-              <div style="background:rgba(223,255,97,.02);border:1px solid rgba(223,255,97,.08);border-radius:0 8px 8px 8px;padding:10px 14px;">
-                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
-                  <div class="filter-group" style="min-width:180px;flex:1;">
-                    <label>Proyecto</label>
-                    <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos"></div>
+              <!-- 📁 PROYECTO -->
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rdf-group-label" style="color:#DFFF61;background:rgba(223,255,97,.07);border:1px solid rgba(223,255,97,.2);">📁 PROYECTO</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:rgba(223,255,97,.02);border:1px solid rgba(223,255,97,.08);border-radius:0 8px 8px 8px;">
+                  <div class="filter-group" style="margin:0;min-width:140px;max-width:180px;">
+                    <label style="font-size:9px;">Proyecto</label>
+                    <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Grupo: 📦 MATERIAL -->
-            <div style="margin-bottom:10px;">
-              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#F49D6E;background:rgba(244,157,110,.08);border:1px solid rgba(244,157,110,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">📦 MATERIAL</div>
-              <div style="background:rgba(244,157,110,.02);border:1px solid rgba(244,157,110,.08);border-radius:0 8px 8px 8px;padding:10px 14px;">
-                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
-                  <div class="filter-group" style="min-width:180px;flex:2;">
-                    <label>Nombre Material</label>
-                    <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos"></div>
+              <!-- 📦 MATERIAL -->
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rdf-group-label" style="color:#F49D6E;background:rgba(244,157,110,.08);border:1px solid rgba(244,157,110,.2);">📦 MATERIAL</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:rgba(244,157,110,.02);border:1px solid rgba(244,157,110,.08);border-radius:0 8px 8px 8px;">
+                  <div class="filter-group" style="margin:0;min-width:140px;max-width:180px;">
+                    <label style="font-size:9px;">Nombre Material</label>
+                    <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;"></div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Grupo: 🚚 LOGÍSTICA -->
-            <div>
-              <div style="font-size:9px;font-weight:800;letter-spacing:.8px;color:#FFC04D;background:rgba(255,192,77,.07);border:1px solid rgba(255,192,77,.2);border-radius:6px 6px 0 0;padding:4px 12px;display:inline-flex;align-items:center;gap:5px;">🚚 LOGÍSTICA</div>
-              <div style="background:rgba(255,192,77,.02);border:1px solid rgba(255,192,77,.08);border-radius:0 8px 8px 8px;padding:10px 14px;">
-                <div class="filters-row" style="flex-wrap:wrap;gap:10px;">
-                  <div class="filter-group" style="min-width:160px;flex:1;">
-                    <label>Guía</label>
-                    <input type="text" id="rf-guia" placeholder="Número de guía...">
+              <!-- 🚚 LOGÍSTICA -->
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span class="rdf-group-label" style="color:#FFC04D;background:rgba(255,192,77,.07);border:1px solid rgba(255,192,77,.2);">🚚 LOGÍSTICA</span>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;padding:6px 8px;background:rgba(255,192,77,.02);border:1px solid rgba(255,192,77,.08);border-radius:0 8px 8px 8px;">
+                  <div class="filter-group" style="margin:0;min-width:130px;max-width:160px;">
+                    <label style="font-size:9px;">Guía</label>
+                    <input type="text" id="rf-guia" placeholder="Núm. guía..." style="font-size:11px;padding:5px 8px;">
                   </div>
                 </div>
               </div>
+
             </div>
           </div>
+
+          <!-- ══ TABLA ══ -->
           <div style="background:linear-gradient(145deg,rgba(6,18,14,.98),rgba(4,14,10,.95));border:1px solid rgba(153,209,252,.15);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 24px rgba(0,0,0,.45);">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(153,209,252,.08);flex-wrap:wrap;gap:10px;">
+            <!-- Cabecera: título + buscador + export -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(153,209,252,.08);flex-wrap:wrap;gap:10px;">
               <div>
                 <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Detalles de Tareas Rollos</div>
                 <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="rollos-detalle-count">0 registros</div>
               </div>
-              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input type="text" id="rdt-search-inline"
-                  placeholder="🔍 Buscar tarea, sitio, guía, material, ciudad..."
+                  placeholder="🔍 Buscar tarea, sitio, guía, material..."
                   oninput="window._rdtSetSearch(this.value)"
-                  style="background:rgba(255,255,255,.05);border:1px solid rgba(153,209,252,.2);border-radius:8px;color:#f1f5f9;padding:7px 14px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:300px;transition:border-color .2s;"
+                  style="background:rgba(255,255,255,.05);border:1px solid rgba(153,209,252,.2);border-radius:8px;color:#f1f5f9;padding:6px 12px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;width:260px;transition:border-color .2s;"
                   onfocus="this.style.borderColor='rgba(153,209,252,.5)'"
                   onblur="this.style.borderColor='rgba(153,209,252,.2)'">
                 <button onclick="exportRollosDetalleExcel()"
-                  style="background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.25);color:#99D1FC;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;white-space:nowrap;">⬇ Excel</button>
+                  style="background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.25);color:#99D1FC;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;transition:all .2s;white-space:nowrap;">⬇ Excel</button>
               </div>
             </div>
-            <!-- Leyenda de grupos de columnas -->
-            <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.2);">
-              <span style="font-size:9px;color:#475569;font-weight:700;letter-spacing:.5px;align-self:center;">GRUPOS:</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(153,209,252,.1);color:#99D1FC;border:1px solid rgba(153,209,252,.25);">🔖 TAREA</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(176,242,174,.08);color:#B0F2AE;border:1px solid rgba(176,242,174,.25);">🏪 SITIO</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.04);color:#94a3b8;border:1px solid rgba(255,255,255,.1);">📍 UBICACIÓN</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(223,255,97,.07);color:#DFFF61;border:1px solid rgba(223,255,97,.2);">📁 PROYECTO</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(244,157,110,.08);color:#F49D6E;border:1px solid rgba(244,157,110,.25);">📦 MATERIAL</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(192,132,252,.07);color:#C084FC;border:1px solid rgba(192,132,252,.25);">📅 FECHAS</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,192,77,.07);color:#FFC04D;border:1px solid rgba(255,192,77,.2);">🚚 LOGÍSTICA</span>
-              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,92,92,.07);color:#FF5C5C;border:1px solid rgba(255,92,92,.2);">📊 STOCK MO</span>
+
+            <!-- Leyenda de grupos -->
+            <div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.2);">
+              <span style="font-size:9px;color:#334155;font-weight:700;letter-spacing:.5px;align-self:center;">COLS:</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(153,209,252,.1);color:#99D1FC;border:1px solid rgba(153,209,252,.25);">🔖 TAREA</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(176,242,174,.08);color:#B0F2AE;border:1px solid rgba(176,242,174,.25);">🏪 SITIO</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,255,255,.04);color:#94a3b8;border:1px solid rgba(255,255,255,.1);">📍 UBIC.</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(223,255,97,.07);color:#DFFF61;border:1px solid rgba(223,255,97,.2);">📁 PROYECTO</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(244,157,110,.08);color:#F49D6E;border:1px solid rgba(244,157,110,.25);">📦 MATERIAL</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(192,132,252,.07);color:#C084FC;border:1px solid rgba(192,132,252,.25);">📅 FECHAS</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,192,77,.07);color:#FFC04D;border:1px solid rgba(255,192,77,.2);">🚚 LOGÍST.</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,92,92,.07);color:#FF5C5C;border:1px solid rgba(255,92,92,.2);">📊 STOCK</span>
+              <!-- Indicador scroll -->
+              <div id="rdt-scroll-hint" style="display:none;margin-left:auto;align-items:center;gap:5px;font-size:9px;color:#99D1FC;font-weight:700;letter-spacing:.3px;animation:rdt-pulse 2s ease-in-out infinite;">
+                ◀ scroll horizontal ▶
+              </div>
             </div>
-            <!-- Indicador de scroll horizontal -->
-            <div id="rdt-scroll-hint" style="display:none;align-items:center;justify-content:center;gap:6px;padding:6px 20px;background:rgba(153,209,252,.06);border-bottom:1px solid rgba(153,209,252,.1);font-size:10px;color:#99D1FC;letter-spacing:.3px;">
-              <span style="animation:rdt-pulse 1.5s ease-in-out infinite;">◀</span>
-              <span style="font-weight:600;">Desplaza horizontalmente para ver todas las columnas</span>
-              <span style="animation:rdt-pulse 1.5s ease-in-out infinite 0.75s;">▶</span>
+
+            <!-- Scroll horizontal VISIBLE ARRIBA (barra espejo) -->
+            <div id="rdt-hscroll-bar" style="padding:0 0 2px 0;border-bottom:1px solid rgba(153,209,252,.08);">
+              <div id="rdt-hscroll-inner" style="height:1px;"></div>
             </div>
-            <style>
-              @keyframes rdt-pulse { 0%,100%{opacity:.4} 50%{opacity:1} }
-              #rollos-detalle-wrap { scrollbar-width: thin; scrollbar-color: rgba(153,209,252,.3) rgba(255,255,255,.04); }
-              #rollos-detalle-wrap::-webkit-scrollbar { height: 8px; width: 8px; }
-              #rollos-detalle-wrap::-webkit-scrollbar-track { background: rgba(255,255,255,.04); border-radius: 4px; }
-              #rollos-detalle-wrap::-webkit-scrollbar-thumb { background: rgba(153,209,252,.3); border-radius: 4px; }
-              #rollos-detalle-wrap::-webkit-scrollbar-thumb:hover { background: rgba(153,209,252,.5); }
-              /* Sombra derecha que indica más contenido */
-              .rdt-scroll-container { position: relative; }
-              .rdt-scroll-container::after {
-                content: '';
-                position: absolute;
-                top: 0; right: 0;
-                width: 40px; height: 100%;
-                background: linear-gradient(to right, transparent, rgba(6,18,14,.9));
-                pointer-events: none;
-                transition: opacity .3s;
-                border-radius: 0 0 0 0;
-                z-index: 3;
-              }
-              .rdt-scroll-container.at-end::after { opacity: 0; }
-            </style>
-            <div class="rdt-scroll-container" id="rdt-scroll-container">
-              <div id="rollos-detalle-wrap" style="overflow-x:auto;overflow-y:auto;max-height:580px;"><div class="loading"><div class="spinner"></div></div></div>
+
+            <!-- Tabla -->
+            <div class="rdt-shadow-right" id="rdt-scroll-container">
+              <div id="rollos-detalle-wrap" style="overflow-x:auto;overflow-y:auto;max-height:560px;"></div>
             </div>
+
             <script>
-              (function() {
-                function setupRdtScroll() {
+              (function(){
+                function initRdtScroll(){
                   const wrap = document.getElementById('rollos-detalle-wrap');
+                  const topBar = document.getElementById('rdt-hscroll-bar');
+                  const inner = document.getElementById('rdt-hscroll-inner');
                   const hint = document.getElementById('rdt-scroll-hint');
-                  const container = document.getElementById('rdt-scroll-container');
-                  if (!wrap) return;
-                  function checkScroll() {
-                    const canScrollH = wrap.scrollWidth > wrap.clientWidth + 4;
-                    if (hint) hint.style.display = canScrollH ? 'flex' : 'none';
-                    if (container) {
-                      const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 10;
-                      container.classList.toggle('at-end', atEnd || !canScrollH);
-                    }
+                  const shadow = document.getElementById('rdt-scroll-container');
+                  if (!wrap || !topBar) return;
+
+                  // Sincronizar scroll entre barra superior y tabla
+                  let syncing = false;
+                  topBar.addEventListener('scroll', () => {
+                    if (syncing) return; syncing = true;
+                    wrap.scrollLeft = topBar.scrollLeft;
+                    syncing = false;
+                  });
+                  wrap.addEventListener('scroll', () => {
+                    if (syncing) return; syncing = true;
+                    topBar.scrollLeft = wrap.scrollLeft;
+                    // sombra derecha
+                    const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 10;
+                    if (shadow) shadow.classList.toggle('at-end', atEnd);
+                    syncing = false;
+                  });
+
+                  // Actualizar ancho del inner cuando cambie el contenido
+                  function syncWidth() {
+                    const tw = wrap.scrollWidth;
+                    if (inner) inner.style.width = tw + 'px';
+                    const canH = tw > wrap.clientWidth + 4;
+                    if (hint) hint.style.display = canH ? 'flex' : 'none';
+                    if (shadow) shadow.classList.toggle('at-end', !canH || wrap.scrollLeft + wrap.clientWidth >= tw - 10);
+                    // init topBar scroll position
+                    topBar.scrollLeft = wrap.scrollLeft;
                   }
-                  wrap.addEventListener('scroll', checkScroll);
-                  // Observar cambios en el contenido
-                  const obs = new MutationObserver(() => setTimeout(checkScroll, 50));
+                  const obs = new MutationObserver(() => setTimeout(syncWidth, 60));
                   obs.observe(wrap, { childList: true, subtree: false });
-                  setTimeout(checkScroll, 500);
+                  window.addEventListener('resize', syncWidth);
+                  setTimeout(syncWidth, 400);
                 }
-                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', setupRdtScroll);
-                else setupRdtScroll();
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initRdtScroll);
+                else initRdtScroll();
               })();
             </script>
-            <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(153,209,252,.07);">
+
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 18px;border-top:1px solid rgba(153,209,252,.07);">
               <div id="rollos-detalle-pagination" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
             </div>
           </div>
