@@ -1806,7 +1806,7 @@ let ROLLOS_DETALLE   = [];     // detalle filtrado por búsqueda de tabla
 let ROLLOS_COMERCIO  = [];     // comercio filtrado
 let rollosDetallePage  = 1;
 let rollosComercioPage = 1;
-const ROLLOS_PAGE_SIZE = 50;
+const ROLLOS_PAGE_SIZE = 15;
 
 // ── Carga y descompresión ─────────────────────────────────────────
 async function loadRollosData() {
