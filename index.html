@@ -479,11 +479,14 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
 
         <!-- PANEL: ROLLOS DETALLE -->
         <div id="panel-rollos-detalle" style="display:none">
-          <div class="section-label" style="margin-top:8px">Detalles de Tareas</div>
+          <div style="margin-bottom:20px;">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.2px;margin-bottom:4px;">📋 Tabla Detalles de Tareas</div>
+            <div style="font-size:12px;color:#475569;">Todas las columnas de cada tarea con su MO, stock y datos logísticos — fuente: <span style="font-family:'JetBrains Mono',monospace;color:#64748b;">data_tablero_rollos.json.gz</span></div>
+          </div>
           <div class="filters-bar" style="margin-bottom:16px">
-            <div class="filters-title">Búsqueda en tabla detalle</div>
+            <div class="filters-title">Filtros de búsqueda</div>
             <div class="filters-row">
-              <div class="filter-group"><label>Código Tarea</label><input type="text" id="rf-codigo-tarea" placeholder="Código de tarea..."></div>
+              <div class="filter-group"><label>Código Tarea / MO</label><input type="text" id="rf-codigo-tarea" placeholder="Código de tarea..."></div>
               <div class="filter-group"><label>Cód. Sitio</label><input type="text" id="rf-cod-sitio" placeholder="Cód. Sitio..."></div>
               <div class="filter-group"><label>Guía</label><input type="text" id="rf-guia" placeholder="Número de guía..."></div>
               <div class="filter-group"><label>Estado Lógico Final</label><div id="rf-estado" class="ms-container" data-placeholder="Todos"></div></div>
@@ -499,15 +502,38 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
               </div>
             </div>
           </div>
-          <div class="table-section" style="margin-bottom:32px">
-            <div class="table-header">
-              <h3>Detalles de Tareas Rollos</h3>
-              <div class="table-actions"><button class="btn-export" onclick="exportRollosDetalleExcel()">⬇ Excel</button></div>
+          <div style="background:linear-gradient(145deg,rgba(6,18,14,.98),rgba(4,14,10,.95));border:1px solid rgba(153,209,252,.15);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 24px rgba(0,0,0,.45);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(153,209,252,.08);flex-wrap:wrap;gap:10px;">
+              <div>
+                <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Detalles de Tareas Rollos</div>
+                <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="rollos-detalle-count">0 registros</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="rdt-search-inline"
+                  placeholder="🔍 Buscar tarea, sitio, guía, material, ciudad..."
+                  oninput="window._rdtSetSearch(this.value)"
+                  style="background:rgba(255,255,255,.05);border:1px solid rgba(153,209,252,.2);border-radius:8px;color:#f1f5f9;padding:7px 14px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;width:300px;transition:border-color .2s;"
+                  onfocus="this.style.borderColor='rgba(153,209,252,.5)'"
+                  onblur="this.style.borderColor='rgba(153,209,252,.2)'">
+                <button onclick="exportRollosDetalleExcel()"
+                  style="background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.25);color:#99D1FC;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;white-space:nowrap;">⬇ Excel</button>
+              </div>
             </div>
-            <div class="table-wrap" id="rollos-detalle-wrap" style="max-height:480px"><div class="loading"><div class="spinner"></div></div></div>
-            <div class="table-footer">
-              <span class="table-count" id="rollos-detalle-count">0 registros</span>
-              <div class="table-pagination" id="rollos-detalle-pagination"></div>
+            <!-- Leyenda de grupos de columnas -->
+            <div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.2);">
+              <span style="font-size:9px;color:#475569;font-weight:700;letter-spacing:.5px;align-self:center;">GRUPOS:</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(153,209,252,.1);color:#99D1FC;border:1px solid rgba(153,209,252,.25);">🔖 TAREA</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(176,242,174,.08);color:#B0F2AE;border:1px solid rgba(176,242,174,.25);">🏪 SITIO</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,255,255,.04);color:#94a3b8;border:1px solid rgba(255,255,255,.1);">📍 UBICACIÓN</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(223,255,97,.07);color:#DFFF61;border:1px solid rgba(223,255,97,.2);">📁 PROYECTO</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(244,157,110,.08);color:#F49D6E;border:1px solid rgba(244,157,110,.25);">📦 MATERIAL</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(192,132,252,.07);color:#C084FC;border:1px solid rgba(192,132,252,.25);">📅 FECHAS</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,192,77,.07);color:#FFC04D;border:1px solid rgba(255,192,77,.2);">🚚 LOGÍSTICA</span>
+              <span style="font-size:9px;padding:2px 8px;border-radius:10px;background:rgba(255,92,92,.07);color:#FF5C5C;border:1px solid rgba(255,92,92,.2);">📊 STOCK MO</span>
+            </div>
+            <div id="rollos-detalle-wrap" style="overflow-x:auto;max-height:560px;"><div class="loading"><div class="spinner"></div></div></div>
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(153,209,252,.07);">
+              <div id="rollos-detalle-pagination" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
             </div>
           </div>
         </div>

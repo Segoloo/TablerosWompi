@@ -1902,7 +1902,9 @@ async function loadRollosData() {
           departamento          : f.departamento || '',
           ciudad                : f.Ciudad || f.ciudad || '',
           proyecto              : f.proyecto || '',
+          subproyecto           : f.subproyecto || '',
           tipo_flujo            : _flujoLimpio,
+          flujo_raw             : f.flujo || '',
           codigo_material       : f.codigo_material || '',
           nombre_material       : f.nombre_material || '',
           Cantidad              : f.Cantidad || 0,
@@ -1920,6 +1922,21 @@ async function loadRollosData() {
           fecha_plan_fin        : f.plan_fin || '',
           guia                  : f.guia || f.guia_raw || '',
           transportadora        : f.transportadora || '',
+          nombre_ubicacion_origen  : f.nombre_ubicacion_origen || '',
+          nombre_ubicacion_destino : f.nombre_ubicacion_destino || '',
+          nombre_plantilla_tarea   : f.nombre_plantilla_tarea || '',
+          codigo_operacion         : f.codigo_operacion || '',
+          tipologia                : f.tipologia || '',
+          red_asociada             : f.red_asociada || '',
+          nit                      : f.nit || '',
+          // campos cal_* del corresponsal para enriquecer la fila de tarea
+          cal_codigo_mo            : (f.cal_codigo_mo || '').trim(),
+          cal_saldo_rollos         : parseFloat(f.cal_saldo_rollos || 0),
+          cal_saldo_dias           : parseFloat(f.cal_saldo_dias || 0),
+          cal_punto_reorden        : parseFloat(f.cal_punto_reorden || 0),
+          cal_prom_mensual         : parseFloat(f.cal_promedio_mensual || 0),
+          cal_estado_punto         : f.cal_estado_punto || '',
+          cal_fecha_abst           : f.cal_fecha_abst_1 || '',
           oportunidad           : '',
           FO                    : '',
           dias_inventario_restantes: '',
@@ -2839,52 +2856,181 @@ function mkPagination(containerId, page, pages, setPageFn) {
   pg.innerHTML = html;
 }
 
-// ── Tabla Detalle ─────────────────────────────────────────────────
+// ── Tabla Detalle por Tarea ────────────────────────────────────────
+// Columnas que exponen TODOS los datos relevantes de una tarea y su MO
+// Fuente: TABLERO_ROLLOS_FILAS (data_tablero_rollos.json.gz)
 const DETALLE_COLS = [
-  { label:'Cod. Sitio',            fn: r => r.cod_sitio || '—' },
-  { label:'F. Plan Inicio',        fn: r => r.fecha_plan_inicio || '—' },
-  { label:'F. Plan Entrega',       fn: r => r.fecha_plan_fin || '—' },
-  { label:'F. Entrega',            fn: r => r.fecha_entrega_raw || r.fecha_entrega || '—' },
-  { label:'Cantidad',              fn: r => r.cantidad ?? '—' },
-  { label:'Cod. Tarea',            fn: r => r.codigo_tarea || '—' },
-  { label:'Guía',                  fn: r => r.guia || '—' },
-  { label:'FO',                    fn: r => r.FO || '—' },
-  { label:'Estado',                fn: r => r.estado || '—', isStatus: true },
-  { label:'Estado Transportadora', fn: r => r.estado_transportadora || '—' },
-  { label:'Oportunidad',           fn: r => r.oportunidad || '—' },
-  { label:'Tipo Flujo',            fn: r => r.tipo_flujo || '—' },
-  { label:'Proyecto',              fn: r => r.proyecto || '—' },
-  { label:'Departamento',          fn: r => r.departamento || '—' },
-  { label:'Ciudad',                fn: r => r.ciudad || '—' },
-  { label:'Días Inv. Rest.',       fn: r => r.dias_inventario_restantes ?? '—', isDias: true },
+  // ── Identificación de la tarea ─────────────────────────────────
+  { label:'Tarea / MO',            fn: r => r.codigo_tarea || '—',            group: 'tarea' },
+  { label:'Cód. Operación',        fn: r => r.codigo_operacion || '—',        group: 'tarea' },
+  { label:'Plantilla Tarea',       fn: r => r.nombre_plantilla_tarea || '—',  group: 'tarea' },
+  { label:'Estado Tarea',          fn: r => r.estado_tarea || '—', isStatus: true, group: 'tarea' },
+  // ── Sitio / Corresponsal ────────────────────────────────────────
+  { label:'Cód. Sitio',            fn: r => r.cod_sitio || '—',               group: 'sitio' },
+  { label:'Nombre Sitio',          fn: r => r.nombre_sitio || '—',            group: 'sitio' },
+  { label:'Destino',               fn: r => r.nombre_ubicacion_destino || '—',group: 'sitio' },
+  { label:'Origen',                fn: r => r.nombre_ubicacion_origen || '—', group: 'sitio' },
+  { label:'MO Corresponsal',       fn: r => r.cal_codigo_mo || '—',           group: 'sitio' },
+  // ── Ubicación ───────────────────────────────────────────────────
+  { label:'Departamento',          fn: r => r.departamento || '—',            group: 'geo' },
+  { label:'Ciudad',                fn: r => r.ciudad || '—',                  group: 'geo' },
+  // ── Proyecto ────────────────────────────────────────────────────
+  { label:'Proyecto',              fn: r => r.proyecto || '—',                group: 'proyecto' },
+  { label:'Subproyecto',           fn: r => r.subproyecto || '—',             group: 'proyecto' },
+  { label:'Tipo Flujo',            fn: r => r.tipo_flujo || '—',              group: 'proyecto' },
+  // ── Material ────────────────────────────────────────────────────
+  { label:'Cód. Material',         fn: r => r.codigo_material || '—',         group: 'material' },
+  { label:'Material',              fn: r => r.nombre_material || '—',         group: 'material' },
+  { label:'Cantidad',              fn: r => r.cantidad != null ? Number(r.cantidad).toLocaleString('es-CO') : '—', isNum: true, group: 'material' },
+  // ── Fechas ──────────────────────────────────────────────────────
+  { label:'Plan Inicio',           fn: r => r.fecha_plan_inicio || '—',       group: 'fechas' },
+  { label:'Plan Fin',              fn: r => r.fecha_plan_fin || '—',          group: 'fechas' },
+  { label:'Fecha Entrega',         fn: r => r.fecha_entrega_raw || r.fecha_entrega || '—', group: 'fechas' },
+  // ── Logística ───────────────────────────────────────────────────
+  { label:'Guía',                  fn: r => r.guia || '—',                    group: 'logistica' },
+  { label:'Transportadora',        fn: r => r.transportadora || '—',          group: 'logistica' },
+  // ── Stock del corresponsal (cal_*) ──────────────────────────────
+  { label:'Saldo Rollos',          fn: r => r.cal_saldo_rollos != null && r.cal_saldo_rollos !== 0 ? Number(r.cal_saldo_rollos).toLocaleString('es-CO') : '—', isNum: true, group: 'stock' },
+  { label:'Saldo Días',            fn: r => r.cal_saldo_dias != null && r.cal_saldo_dias !== 0 ? Number(r.cal_saldo_dias).toFixed(0) : '—', isDias: true, group: 'stock' },
+  { label:'P. Reorden',            fn: r => r.cal_punto_reorden != null && r.cal_punto_reorden !== 0 ? Number(r.cal_punto_reorden).toLocaleString('es-CO') : '—', group: 'stock' },
+  { label:'Prom/Mes',              fn: r => r.cal_prom_mensual != null && r.cal_prom_mensual !== 0 ? Number(r.cal_prom_mensual).toLocaleString('es-CO', {maximumFractionDigits:1}) : '—', group: 'stock' },
+  { label:'Estado Punto',          fn: r => r.cal_estado_punto || '—',        group: 'stock' },
+  { label:'Próx. Abast.',          fn: r => r.cal_fecha_abst || '—',          group: 'stock' },
 ];
+
+// Búsqueda inline en la tabla detalle
+let _rdtSearch = '';
+
+window._rdtSetSearch = function(val) {
+  _rdtSearch = (val || '').toLowerCase().trim();
+  rollosDetallePage = 1;
+  renderRollosDetalleTable();
+};
+
+// Colores de grupo para el header
+const _RDT_GROUP_COLORS = {
+  tarea:    { bg: 'rgba(153,209,252,.12)', border: 'rgba(153,209,252,.3)', text: '#99D1FC' },
+  sitio:    { bg: 'rgba(176,242,174,.10)', border: 'rgba(176,242,174,.3)', text: '#B0F2AE' },
+  geo:      { bg: 'rgba(255,255,255,.04)', border: 'rgba(255,255,255,.1)', text: '#94a3b8' },
+  proyecto: { bg: 'rgba(223,255,97,.08)',  border: 'rgba(223,255,97,.25)', text: '#DFFF61' },
+  material: { bg: 'rgba(244,157,110,.10)', border: 'rgba(244,157,110,.3)', text: '#F49D6E' },
+  fechas:   { bg: 'rgba(192,132,252,.08)', border: 'rgba(192,132,252,.3)', text: '#C084FC' },
+  logistica:{ bg: 'rgba(255,192,77,.08)', border: 'rgba(255,192,77,.3)',  text: '#FFC04D' },
+  stock:    { bg: 'rgba(255,92,92,.08)',   border: 'rgba(255,92,92,.25)', text: '#FF5C5C' },
+};
+
+function _rdtStatusCell(val) {
+  const v = (val || '').toUpperCase();
+  let col = '#94a3b8', bg = 'rgba(255,255,255,.06)';
+  if (v === 'COMPLETADA')                   { col = '#B0F2AE'; bg = 'rgba(176,242,174,.1)'; }
+  else if (v === 'COMPLETADA CON PENDIENTES') { col = '#DFFF61'; bg = 'rgba(223,255,97,.08)'; }
+  else if (v === 'EN PROCESO')              { col = '#99D1FC'; bg = 'rgba(153,209,252,.1)'; }
+  else if (v === 'ABIERTA')                 { col = '#FFC04D'; bg = 'rgba(255,192,77,.1)'; }
+  else if (v.includes('DEVOLUC') || v.includes('DEVUELTO')) { col = '#FF5C5C'; bg = 'rgba(255,92,92,.1)'; }
+  else if (v === 'CANCELADO' || v === 'CANCELADA') { col = '#64748b'; bg = 'rgba(100,116,139,.1)'; }
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;color:${col};background:${bg};border:1px solid ${col}44;white-space:nowrap;">${val || '—'}</span>`;
+}
+
+function _rdtDiasCell(val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || val === '—') return `<span style="color:#475569;">—</span>`;
+  let col = '#B0F2AE'; // ok
+  if (n < 30)  col = '#FF5C5C';  // crítico
+  else if (n < 60) col = '#FFC04D'; // alerta
+  else if (n < 90) col = '#DFFF61'; // atención
+  return `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:${col};">${Math.round(n)}d</span>`;
+}
 
 function renderRollosDetalleTable() {
   const wrap  = document.getElementById('rollos-detalle-wrap');
   const count = document.getElementById('rollos-detalle-count');
   if (!wrap) return;
-  const data   = ROLLOS_DETALLE;
+
+  // Aplicar búsqueda inline si hay término
+  let data = ROLLOS_DETALLE;
+  if (_rdtSearch) {
+    const t = _rdtSearch;
+    data = data.filter(r => {
+      return (r.codigo_tarea||'').toLowerCase().includes(t) ||
+             (r.cod_sitio||'').toLowerCase().includes(t) ||
+             (r.nombre_sitio||'').toLowerCase().includes(t) ||
+             (r.nombre_ubicacion_destino||'').toLowerCase().includes(t) ||
+             (r.nombre_material||'').toLowerCase().includes(t) ||
+             (r.guia||'').toLowerCase().includes(t) ||
+             (r.proyecto||'').toLowerCase().includes(t) ||
+             (r.ciudad||'').toLowerCase().includes(t) ||
+             (r.departamento||'').toLowerCase().includes(t) ||
+             (r.cal_codigo_mo||'').toLowerCase().includes(t) ||
+             (r.transportadora||'').toLowerCase().includes(t) ||
+             (r.estado_tarea||'').toLowerCase().includes(t);
+    });
+  }
+
   const pages  = Math.max(1, Math.ceil(data.length / ROLLOS_PAGE_SIZE));
   const slice  = data.slice((rollosDetallePage-1)*ROLLOS_PAGE_SIZE, rollosDetallePage*ROLLOS_PAGE_SIZE);
 
-  if (!data.length) {
+  if (!ROLLOS_DETALLE.length) {
     wrap.innerHTML = '<div class="empty-state"><div class="icon">📭</div><p>Sin registros</p></div>';
     if (count) count.textContent = '0 registros';
     return;
   }
 
-  wrap.innerHTML = `<table><thead><tr>
-    ${DETALLE_COLS.map(c=>`<th>${c.label}</th>`).join('')}
-  </tr></thead><tbody>
-    ${slice.map(r => `<tr>${DETALLE_COLS.map(c => {
-      const v = c.fn(r);
-      if (c.isStatus) return `<td>${statusPill(v)}</td>`;
-      if (c.isDias)   return `<td>${diasBadge(v)}</td>`;
-      return `<td>${v}</td>`;
-    }).join('')}</tr>`).join('')}
-  </tbody></table>`;
+  // Construir grupos de header
+  const groupSpans = {};
+  DETALLE_COLS.forEach(c => {
+    groupSpans[c.group] = (groupSpans[c.group] || 0) + 1;
+  });
+  const groupOrder = ['tarea','sitio','geo','proyecto','material','fechas','logistica','stock'];
+  const groupLabels = {
+    tarea: '🔖 TAREA', sitio: '🏪 SITIO / CORRESPONSAL', geo: '📍 UBICACIÓN',
+    proyecto: '📁 PROYECTO', material: '📦 MATERIAL', fechas: '📅 FECHAS',
+    logistica: '🚚 LOGÍSTICA', stock: '📊 STOCK MO',
+  };
 
-  if (count) count.textContent = `${data.length} registros`;
+  const groupHeaderCells = groupOrder.map(g => {
+    const gc = _RDT_GROUP_COLORS[g];
+    const span = groupSpans[g] || 0;
+    if (!span) return '';
+    return `<th colspan="${span}" style="padding:6px 10px;font-size:9px;font-weight:800;letter-spacing:.8px;text-align:center;color:${gc.text};background:${gc.bg};border-bottom:1px solid ${gc.border};border-right:1px solid rgba(255,255,255,.05);white-space:nowrap;">${groupLabels[g]}</th>`;
+  }).join('');
+
+  const colHeaderCells = DETALLE_COLS.map(c => {
+    const gc = _RDT_GROUP_COLORS[c.group];
+    return `<th style="padding:8px 10px;font-size:9px;color:#64748b;font-weight:700;letter-spacing:.4px;white-space:nowrap;text-align:${c.isNum||c.isDias?'right':'left'};border-bottom:2px solid ${gc.border};border-right:1px solid rgba(255,255,255,.03);">${c.label}</th>`;
+  }).join('');
+
+  const rows = slice.map((r, idx) => {
+    const bg = idx % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.013)';
+    const cells = DETALLE_COLS.map(c => {
+      const v = c.fn(r);
+      let inner;
+      if (c.isStatus)  inner = _rdtStatusCell(v);
+      else if (c.isDias) inner = _rdtDiasCell(v);
+      else if (c.isNum)  inner = `<span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:#B0F2AE;">${v}</span>`;
+      else               inner = `<span style="color:${v==='—'?'#334155':'#e2e8f0'}">${v}</span>`;
+      const align = (c.isNum || c.isDias) ? 'right' : 'left';
+      return `<td style="padding:7px 10px;font-size:11px;border-bottom:1px solid rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.02);text-align:${align};white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;" title="${String(c.fn(r)).replace(/"/g,'&quot;')}">${inner}</td>`;
+    }).join('');
+    return `<tr style="background:${bg};transition:background .12s;"
+      onmouseover="this.style.background='rgba(176,242,174,.04)'"
+      onmouseout="this.style.background='${bg}'">${cells}</tr>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:'Outfit',sans-serif;font-size:12px;min-width:1800px;">
+        <thead>
+          <tr style="background:rgba(0,0,0,.5);">${groupHeaderCells}</tr>
+          <tr style="background:rgba(0,0,0,.35);position:sticky;top:0;z-index:2;">${colHeaderCells}</tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  const totalStr = _rdtSearch
+    ? `${data.length.toLocaleString('es-CO')} de ${ROLLOS_DETALLE.length.toLocaleString('es-CO')} registros`
+    : `${ROLLOS_DETALLE.length.toLocaleString('es-CO')} registros`;
+  if (count) count.textContent = totalStr;
   mkPagination('rollos-detalle-pagination', rollosDetallePage, pages, 'goRollosDetallePage');
 }
 
@@ -3117,12 +3263,51 @@ function resetRefFilters() {
 
 // ── Exportar Excel (Rollos) ───────────────────────────────────────
 function exportRollosDetalleExcel() {
-  const data = ROLLOS_DETALLE.map(r => {
-    const o = {};
-    DETALLE_COLS.forEach(c => { o[c.label] = c.fn(r); });
-    return o;
-  });
-  _exportExcelRollos(data, 'Rollos_Detalle');
+  const src = _rdtSearch
+    ? ROLLOS_DETALLE.filter(r => {
+        const t = _rdtSearch;
+        return (r.codigo_tarea||'').toLowerCase().includes(t) ||
+               (r.cod_sitio||'').toLowerCase().includes(t) ||
+               (r.nombre_sitio||'').toLowerCase().includes(t) ||
+               (r.nombre_ubicacion_destino||'').toLowerCase().includes(t) ||
+               (r.nombre_material||'').toLowerCase().includes(t) ||
+               (r.guia||'').toLowerCase().includes(t) ||
+               (r.proyecto||'').toLowerCase().includes(t) ||
+               (r.ciudad||'').toLowerCase().includes(t) ||
+               (r.cal_codigo_mo||'').toLowerCase().includes(t);
+      })
+    : ROLLOS_DETALLE;
+  const data = src.map(r => ({
+    'Tarea / MO'           : r.codigo_tarea || '',
+    'Cód. Operación'       : r.codigo_operacion || '',
+    'Plantilla Tarea'      : r.nombre_plantilla_tarea || '',
+    'Estado Tarea'         : r.estado_tarea || '',
+    'Cód. Sitio'           : r.cod_sitio || '',
+    'Nombre Sitio'         : r.nombre_sitio || '',
+    'Destino'              : r.nombre_ubicacion_destino || '',
+    'Origen'               : r.nombre_ubicacion_origen || '',
+    'MO Corresponsal'      : r.cal_codigo_mo || '',
+    'Departamento'         : r.departamento || '',
+    'Ciudad'               : r.ciudad || '',
+    'Proyecto'             : r.proyecto || '',
+    'Subproyecto'          : r.subproyecto || '',
+    'Tipo Flujo'           : r.tipo_flujo || '',
+    'Cód. Material'        : r.codigo_material || '',
+    'Material'             : r.nombre_material || '',
+    'Cantidad'             : r.cantidad || 0,
+    'Plan Inicio'          : r.fecha_plan_inicio || '',
+    'Plan Fin'             : r.fecha_plan_fin || '',
+    'Fecha Entrega'        : r.fecha_entrega_raw || r.fecha_entrega || '',
+    'Guía'                 : r.guia || '',
+    'Transportadora'       : r.transportadora || '',
+    'Saldo Rollos'         : r.cal_saldo_rollos || '',
+    'Saldo Días'           : r.cal_saldo_dias || '',
+    'Punto Reorden'        : r.cal_punto_reorden || '',
+    'Prom/Mes'             : r.cal_prom_mensual || '',
+    'Estado Punto'         : r.cal_estado_punto || '',
+    'Próx. Abast.'         : r.cal_fecha_abst || '',
+  }));
+  _exportExcelRollos(data, 'Rollos_Detalle_Tareas');
 }
 
 function exportComercioExcel() {
