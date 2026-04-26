@@ -2240,36 +2240,30 @@ function computeRollosKPIs() {
 
   const pct = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
 
-  // ── ANS Oportunidad — basado en PLAN INICIO, PLAN FIN y FECHA ENTREGA ──
-  // Lógica: una tarea CUMPLE ANS si fue entregada (estado COMPLETADA) y
-  //         la FECHA ENTREGA (fecha_entrega) <= PLAN FIN (fecha_plan_fin).
-  //         Una tarea NO CUMPLE si fue entregada pero fuera de plazo.
-  //         Solo se evalúan tareas COMPLETADAS con plan_fin y fecha_entrega válidos.
-  // Se trabaja por tarea única (DISTINCTCOUNT codigo_tarea, igual que el DAX).
-  const tareasANSMap = new Map(); // tarea -> { plan_inicio, plan_fin, fecha_entrega, estado }
-  det.forEach(r => {
-    const tarea = r.codigo_tarea; if (!tarea) return;
-    if (!tareasANSMap.has(tarea)) {
-      tareasANSMap.set(tarea, {
-        plan_inicio  : r.fecha_plan_inicio  || '',
-        plan_fin     : r.fecha_plan_fin     || '',
-        fecha_entrega: r.fecha_entrega      || '',
-        estado       : (r.estado            || '').toUpperCase(),
-      });
-    }
-  });
+  // ── ANS Oportunidad — basado en PLAN FIN vs FECHA ENTREGA, sumando ROLLOS ──
+  // Lógica: se suman los rollos (cantidad) de filas COMPLETADAS con ambas fechas válidas.
+  //         CUMPLE → FECHA ENTREGA <= PLAN FIN
+  //         NO CUMPLE → FECHA ENTREGA > PLAN FIN
+  //         Filas sin plan_fin o sin fecha_entrega se excluyen del cálculo.
   let sla_cumple = 0, sla_nc = 0;
-  tareasANSMap.forEach(({ plan_fin, fecha_entrega, estado }) => {
+  det.forEach(r => {
+    const estado = (r.estado || '').toUpperCase();
     const esCompletada = estado === 'COMPLETADA' || estado === 'COMPLETADA CON PENDIENTES';
-    if (!esCompletada || !plan_fin || !fecha_entrega) return; // solo evaluar entregadas con fechas
-    const dPlanFin   = new Date(plan_fin);
-    const dEntrega   = new Date(fecha_entrega);
-    if (isNaN(dPlanFin) || isNaN(dEntrega)) return; // fechas inválidas: no evaluar
-    if (dEntrega <= dPlanFin) sla_cumple++;
-    else                      sla_nc++;
+    if (!esCompletada) return;
+    const plan_fin      = r.fecha_plan_fin  || '';
+    const fecha_entrega = r.fecha_entrega   || '';
+    if (!plan_fin || !fecha_entrega) return; // sin fechas → no evaluar
+    const dPlanFin  = new Date(plan_fin);
+    const dEntrega  = new Date(fecha_entrega);
+    if (isNaN(dPlanFin) || isNaN(dEntrega)) return; // fechas inválidas → no evaluar
+    const rollos = parseFloat(r.cantidad) || 0;
+    if (dEntrega <= dPlanFin) sla_cumple += rollos;
+    else                      sla_nc     += rollos;
   });
+  sla_cumple = Math.round(sla_cumple);
+  sla_nc     = Math.round(sla_nc);
   const sla_total = sla_cumple + sla_nc;
-  // % Cumplimiento = CUMPLE / total evaluadas (tareas completadas con fechas válidas)
+  // % Cumplimiento = rollos entregados a tiempo / total rollos evaluados
   const pct_sla = pct(sla_cumple, sla_total);
 
   // ── Tareas únicas por estado ──────────────────────────────────────
