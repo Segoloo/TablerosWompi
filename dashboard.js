@@ -1850,7 +1850,103 @@ async function loadRollosData() {
     _updateLoadingUI();
   } catch(e) {
     console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
-    _rollosLoaded = true;  // mark done even on error so loading screen dismisses
+
+    // ── Fallback: construir ROLLOS_RAW desde data_tablero_rollos.json.gz ──
+    // data_rollos.json.gz fue descontinuado; los mismos datos viven en
+    // TABLERO_ROLLOS_FILAS con columnas cal_* (cargado por rollos_inventario.js).
+    // Esperamos hasta 8 s a que esté disponible.
+    const _waitTablRollos = () => new Promise(resolve => {
+      const t0 = Date.now();
+      const check = () => {
+        const filas = window.TABLERO_ROLLOS_FILAS;
+        if (filas && filas.length > 0) return resolve(filas);
+        if (Date.now() - t0 > 8000) return resolve([]);
+        setTimeout(check, 200);
+      };
+      check();
+    });
+
+    const filas = await _waitTablRollos();
+
+    if (filas.length > 0) {
+      // Derivar calculos: una fila por sitio único (tomando la primera con cal_saldo_dias != 0)
+      const calcMap = new Map();
+      const detalle = [];
+      filas.forEach(f => {
+        const codSitio = (f.codigo_sitio || f.cal_codigo_sitio || '').trim();
+        const codMO    = (f.cal_codigo_mo || '').trim();
+        const key      = codSitio || codMO;
+        // Detalle: cada fila es un movimiento
+        detalle.push({
+          tarea             : f.tarea || '',
+          cod_sitio         : codSitio,
+          nombre_sitio      : f.nombre_sitio || '',
+          departamento      : f.departamento || '',
+          ciudad            : f.Ciudad || f.ciudad || '',
+          proyecto          : f.proyecto || '',
+          tipo_flujo        : (f.flujo || '').replace(/P-TA-/gi, '').trim(),
+          codigo_material   : f.codigo_material || '',
+          nombre_material   : f.nombre_material || '',
+          Cantidad          : f.Cantidad || 0,
+          estado_tarea      : f.estado_tarea || '',
+          fecha_confirmacion: f.fecha_confirmacion || '',
+        });
+        // Calculos: un registro por sitio con join real
+        if (!calcMap.has(key) && parseFloat(f.cal_saldo_dias || 0) !== 0) {
+          calcMap.set(key, {
+            id                          : f.cal_id || '',
+            tarea                       : f.tarea || '',
+            codigo_mo                   : (f.cal_codigo_mo || '').trim(),
+            codigo_sitio                : codSitio || codMO,
+            estado_punto                : f.cal_estado_punto || '',
+            promedio_mensual            : parseFloat(f.cal_promedio_mensual || 0),
+            rollos_promedio_mes         : parseFloat(f.cal_rollos_promedio_mes || 0),
+            periodo_abast_e5            : parseFloat(f.cal_periodo_abast_e5 || 0),
+            valor_busqueda              : f.cal_valor_busqueda || '',
+            rollos_periodo_abast_e5     : parseFloat(f.cal_rollos_periodo_abast_e5 || 0),
+            rollos_anio_e5              : parseFloat(f.cal_rollos_anio_e5 || 0),
+            punto_reorden               : parseFloat(f.cal_punto_reorden || 0),
+            fecha_apertura_final        : f.cal_fecha_apertura_final || '',
+            fecha_abst_1                : f.cal_fecha_abst_1 || '',
+            rollos_entregados_mig_apert : parseFloat(f.cal_rollos_entregados_mig_apert || 0),
+            trx_desde_migra_apert       : parseFloat(f.cal_trx_desde_migra_apert || 0),
+            rollos_consumidos_migr_apert: parseFloat(f.cal_rollos_consumidos_migr_apert || 0),
+            saldo_rollos                : parseFloat(f.cal_saldo_rollos || 0),
+            saldo_dias                  : parseFloat(f.cal_saldo_dias || 0),
+            saldo                       : parseFloat(f.cal_saldo || 0),
+            // metadata para enriquecer
+            nombre_sitio : f.nombre_sitio || '',
+            departamento : f.departamento || '',
+            ciudad       : f.Ciudad || f.ciudad || '',
+            proyecto     : f.proyecto || '',
+          });
+        }
+      });
+
+      const calculos = [...calcMap.values()].filter(r =>
+        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
+      );
+      const detalleFiltered = detalle.filter(r =>
+        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
+      );
+
+      ROLLOS_RAW = { detalle: detalleFiltered, comercio: [], calculos };
+      window.ROLLOS_RAW = ROLLOS_RAW;
+
+      console.log('[Rollos] Fallback TABLERO_ROLLOS_FILAS → ROLLOS_RAW construido:',
+        calculos.length, 'sitios en calculos,', detalleFiltered.length, 'filas en detalle');
+
+      initRollosGlobalFilters();
+      applyRollosGlobalFilters();
+      if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
+      console.log('[Rollos] Llamando a initRollosInventario (fallback)...');
+      if (typeof window.initRollosInventario === 'function') window.initRollosInventario();
+      else console.warn('[Rollos] window.initRollosInventario no es una función!');
+    } else {
+      console.warn('[Rollos] TABLERO_ROLLOS_FILAS también vacío — tablero de rollos sin datos.');
+    }
+
+    _rollosLoaded = true;
     _updateLoadingUI();
   }
 }
