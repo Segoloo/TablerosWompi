@@ -112,9 +112,9 @@ function rcv2BuildIndex() {
     }
 
     // Agregar movimiento (cada fila del tablero es un movimiento de MO)
-    const sitio = RCV2_SITIOS.get(key);
+    const sitioMov = RCV2_SITIOS.get(key);
     if (f.tarea) {
-      sitio.movs.push({
+      sitioMov.movs.push({
         tarea          : f.tarea,
         fecha          : f.fecha_confirmacion || f.tarea_fecha_fin || '',
         fecha_fin      : f.tarea_fecha_fin || '',
@@ -655,12 +655,25 @@ window.rcv2ClearSearch = function() {
 // Sobrescribimos para inicializar nuestro módulo en su lugar.
 
 window.renderRollosComercioTable = function() {
+  console.log('[RCV2] renderRollosComercioTable | RCV2_READY:', RCV2_READY,
+    '| filas:', (window.TABLERO_ROLLOS_FILAS || []).length);
+
   if (RCV2_READY) {
-    // Ya inicializado: solo re-renderizar la tabla global (el buscador ya está montado)
     rcv2RenderGlobalTable();
     return;
   }
-  if (_rcv2Initializing) return;  // ya hay un init corriendo
+
+  // Si los datos ya están disponibles, construir índice de forma síncrona ahora
+  const filas = window.TABLERO_ROLLOS_FILAS || [];
+  if (filas.length > 0) {
+    console.log('[RCV2] Datos listos, construyendo índice...');
+    rcv2BuildIndex();
+    rcv2RenderSearchUI();
+    return;
+  }
+
+  // Datos aún no disponibles — esperar con polling
+  if (_rcv2Initializing) return;
   _rcv2Initializing = true;
   window.initRollosComercioV2();
 };
