@@ -2,6 +2,7 @@
  * ╔══════════════════════════════════════════════════════════════════╗
  * ║  rollos_inventario.js — Módulo Inventario de Rollos Wompi       ║
  * ║  Fuente: wompi_tablero_rollos_calculos (via data_rollos.json.gz) ║
+ * ║          + data_tablero_rollos.json.gz (tablero completo enriq.) ║
  * ║                                                                  ║
  * ║  Indicadores:                                                    ║
  * ║  · Cobertura por corresponsal (meses)                            ║
@@ -31,6 +32,68 @@ const RI_PAGE_SIZE = 50;
 
 // Chart instances for this module
 let riCharts = {};
+
+// ──────────────────────────────────────────────────────────────────
+//  TABLERO ROLLOS COMPLETO — data_tablero_rollos.json.gz
+//  Todas las filas de v_rollos_tablero_wompi + cal_* de calculos
+// ──────────────────────────────────────────────────────────────────
+window.TABLERO_ROLLOS_RAW = null;   // payload completo del JSON
+window.TABLERO_ROLLOS_FILAS = [];   // array de filas listo para consultar
+
+/**
+ * Carga data_tablero_rollos.json.gz y lo guarda en memoria.
+ * No modifica ningún render ni funcionalidad existente.
+ * Expone window.TABLERO_ROLLOS_FILAS y window.TABLERO_ROLLOS_RAW.
+ */
+async function _loadTablRollos() {
+    if (window.TABLERO_ROLLOS_RAW) return; // ya cargado
+    try {
+        const res = await fetch('data_tablero_rollos.json.gz?t=' + Date.now());
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+
+        const buf    = await res.arrayBuffer();
+        const ds     = new DecompressionStream('gzip');
+        const writer = ds.writable.getWriter();
+        writer.write(new Uint8Array(buf));
+        writer.close();
+
+        const reader = ds.readable.getReader();
+        const chunks = [];
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+        }
+        const total  = chunks.reduce((s, c) => s + c.length, 0);
+        const merged = new Uint8Array(total);
+        let off = 0;
+        for (const c of chunks) { merged.set(c, off); off += c.length; }
+
+        const payload = JSON.parse(new TextDecoder().decode(merged));
+        window.TABLERO_ROLLOS_RAW   = payload;
+        window.TABLERO_ROLLOS_FILAS = payload.filas || [];
+
+        console.log(
+            '[TablRollos] Cargado:',
+            window.TABLERO_ROLLOS_FILAS.length, 'filas |',
+            'join_sitio:', payload.pct_join_sitio + '%',
+            '| join_cal:', payload.pct_join_calculos + '%',
+            '| cols/fila:', Object.keys(window.TABLERO_ROLLOS_FILAS[0] || {}).length
+        );
+    } catch (e) {
+        // El archivo puede no existir aún en el servidor; silenciar para no
+        // interrumpir el dashboard existente.
+        console.warn('[TablRollos] No se pudo cargar data_tablero_rollos.json.gz:', e.message);
+        window.TABLERO_ROLLOS_RAW   = { filas: [] };
+        window.TABLERO_ROLLOS_FILAS = [];
+    }
+}
+
+// Iniciar carga en paralelo tan pronto como se parsee este script
+_loadTablRollos();
+
+// Exponer para que otros módulos puedan re-intentar o esperar
+window.loadTablRollos = _loadTablRollos;
 
 // ──────────────────────────────────────────────────────────────────
 //  BOOTSTRAP — called once ROLLOS_RAW is ready
@@ -905,8 +968,6 @@ window.renderRollosInvBodegaKPIs = function () {
     const pct    = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
     const fmt    = n => n.toLocaleString('es-CO');
 
-    const GW_PATTERN = /^GW\d+$/i;
-
     // Solo rollos
     const soloRollos  = raw.filter(r => getCat(r['Nombre']) === 'Rollos');
     const totalRollos = sumQty(soloRollos);
@@ -918,7 +979,6 @@ window.renderRollosInvBodegaKPIs = function () {
     const enComercio = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'));
     const enTecnico  = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'));
     const enOPL      = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
-    const enGW       = sumQty(soloRollos.filter(r => GW_PATTERN.test((r['Código de ubicación']||'').trim())));
     // Bodegas únicas con rollos
     const bodegasConRollos = new Set(
         soloRollos
@@ -972,14 +1032,6 @@ window.renderRollosInvBodegaKPIs = function () {
             pct: pct(enOPL, totalRollos), pctColor: '#C084FC',
             drillRows: soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'),
             drillTitle: 'OPL (Supplier)'
-        },
-        {
-            label: 'Gest. & Empl. Wompi', value: fmt(enGW), icon: '👤',
-            color: '#C084FC', bg: 'rgba(192,132,252,.07)', border: 'rgba(192,132,252,.18)',
-            sub: `${pct(enGW, totalRollos)}% del total · cód. GW`,
-            pct: pct(enGW, totalRollos), pctColor: '#C084FC',
-            drillRows: soloRollos.filter(r => GW_PATTERN.test((r['Código de ubicación']||'').trim())),
-            drillTitle: 'Gest. & Empl. Wompi (GW)'
         },
     ];
 
