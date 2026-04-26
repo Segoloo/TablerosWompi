@@ -514,39 +514,12 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         </div>
 
         <!-- PANEL: ROLLOS COMERCIO -->
+        <!-- PANEL: DETALLE POR COMERCIO — v2 (rollos_comercio_v2.js) -->
         <div id="panel-rollos-comercio" style="display:none">
-          <div class="section-label">Detalle por Comercio</div>
-          <div class="filters-bar" style="margin-bottom:16px">
-            <div class="filters-title">Búsqueda Comercios</div>
-            <div class="filters-row">
-              <div class="filter-group"><label>Cod. Comercio</label><input type="text" id="rf-cod-comercio" placeholder="Código..."></div>
-              <div class="filter-group"><label>Nombre Sitio</label><input type="text" id="rf-nombre-sitio" placeholder="Nombre..."></div>
-              <div class="filter-group"><label>Ciudad</label><input type="text" id="rf-com-ciudad" placeholder="Ciudad..."></div>
-              <div class="filter-group"><label>Departamento</label><div id="rf-com-departamento" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Estado</label><div id="rf-com-estado" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filter-group"><label>Tipo Envío</label><div id="rf-com-tipo" class="ms-container" data-placeholder="Todos"></div></div>
-              <div class="filters-actions">
-                <button class="btn-apply" onclick="applyComercioFilters()">✦ Aplicar</button>
-                <button class="btn-reset" onclick="resetComercioFilters()">↺ Reset</button>
-              </div>
-            </div>
-          </div>
-          <div class="table-section" style="margin-bottom:32px">
-            <div class="table-header">
-              <h3>Comercios — Rollos</h3>
-              <div class="table-actions"><button class="btn-export" onclick="exportComercioExcel()">⬇ Excel</button></div>
-            </div>
-            <div class="table-wrap" id="rollos-comercio-wrap" style="max-height:400px"><div class="loading"><div class="spinner"></div></div></div>
-            <div class="table-footer">
-              <span class="table-count" id="rollos-comercio-count">0 registros</span>
-              <div class="table-pagination" id="rollos-comercio-pagination"></div>
-            </div>
-          </div>
-
-          <!-- SECCIÓN: Total Rollos por Comercio (desde Inventario Wompi) -->
-          <div id="ri-inv-comercio-section" style="margin-top:8px;">
-            <!-- Renderizado dinámicamente por renderRollosInvComercio() en rollos_inventario.js -->
-          </div>
+          <!-- Contenido inyectado por window.initRollosComercioV2() -->
+          <!-- Incluye: buscador autocomplete · ficha por corresponsal · KPIs cobertura -->
+          <!-- consumo real vs proyectado · alertas SLA/quiebre/reorden · historial MOs -->
+          <!-- tabla global de todos los corresponsales ordenada por criticidad -->
         </div>
 
 
@@ -865,5 +838,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="garantia_inventario.js"></script>
 <script src="puntos_reorden.js"></script>
 <script src="rollos_inventario.js"></script>
+<script src="rollos_comercio_v2.js"></script>
 </body>
 </html>
