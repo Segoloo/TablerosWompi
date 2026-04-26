@@ -21,6 +21,7 @@
 let RCV2_READY   = false;
 let RCV2_SITIOS  = new Map(); // codigo_sitio → { meta, calculos, movimientos[] }
 let RCV2_CURRENT = null;      // sitio seleccionado actualmente
+let _rcv2Initializing = false; // evita lanzar múltiples init en paralelo
 
 // ── Helpers ────────────────────────────────────────────────────────
 const rcv2Fmt  = n  => (parseFloat(n) || 0).toLocaleString('es-CO', { maximumFractionDigits: 1 });
@@ -164,6 +165,7 @@ function rcv2BuildIndex() {
   }
 
   RCV2_READY = true;
+  _rcv2Initializing = false;
   const conCal   = [...RCV2_SITIOS.values()].filter(s => s._calSet).length;
   const sinCal   = RCV2_SITIOS.size - conCal;
   console.log('[RCV2] Índice construido:', RCV2_SITIOS.size, 'sitios únicos |',
@@ -651,14 +653,16 @@ window.rcv2ClearSearch = function() {
 // ── Hook al tab rollos-comercio ────────────────────────────────────
 // dashboard.js llama renderRollosComercioTable() cuando se abre el tab.
 // Sobrescribimos para inicializar nuestro módulo en su lugar.
+
 window.renderRollosComercioTable = function() {
-  if (!RCV2_READY) {
-    window.initRollosComercioV2();
+  if (RCV2_READY) {
+    // Ya inicializado: solo re-renderizar la tabla global (el buscador ya está montado)
+    rcv2RenderGlobalTable();
+    return;
   }
-  // También llamar renderRollosInvComercio si existe (para compatibilidad)
-  if (typeof window._origRenderRollosInvComercio === 'function') {
-    // no llamar — el panel es ahora v2
-  }
+  if (_rcv2Initializing) return;  // ya hay un init corriendo
+  _rcv2Initializing = true;
+  window.initRollosComercioV2();
 };
 
 // ── Exponer función de búsqueda global ────────────────────────────

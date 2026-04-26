@@ -1627,8 +1627,9 @@ function _selectBoardTab(board, tab) {
     else setTimeout(() => { if (ROLLOS_RAW) renderRollosDetalleTable(); }, 2000);
   }
   if (tab === 'rollos-comercio') {
-    if (ROLLOS_RAW) renderRollosComercioTable();
-    else setTimeout(() => { if (ROLLOS_RAW) renderRollosComercioTable(); }, 2000);
+    // rollos_comercio_v2.js sobrescribe renderRollosComercioTable y maneja
+    // internamente la espera de TABLERO_ROLLOS_FILAS — no necesita ROLLOS_RAW.
+    if (typeof window.renderRollosComercioTable === 'function') window.renderRollosComercioTable();
     if (typeof window.renderRollosInvComercio === 'function') window.renderRollosInvComercio();
   }
   if (tab === 'rollos-inventario') { if (typeof window.renderRollosInventario === 'function') window.renderRollosInventario(); }
