@@ -887,7 +887,19 @@ window.renderRollosInvBodegaKPIs = function () {
         return;
     }
 
-    const INV_BODEGAS_SET = window.INV_BODEGAS || new Set();
+    const INV_BODEGAS_SET = window.INV_BODEGAS instanceof Set && window.INV_BODEGAS.size > 0
+        ? window.INV_BODEGAS
+        : new Set([
+            "ALMACEN WOMPI MEDELLIN","ALMACEN WOMPI BOGOTA","ALMACEN WOMPI BUCARAMANGA",
+            "ALMACEN WOMPI CALI","ALMACEN WOMPI VILLAVICENCIO","ALMACEN WOMPI CUCUTA",
+            "ALMACEN WOMPI PEREIRA","ALMACEN WOMPI NEIVA","ALMACEN WOMPI IBAGUE",
+            "ALMACEN WOMPI TUNJA","ALMACEN WOMPI MONTERIA","ALMACEN WOMPI SANTA MARTA",
+            "ALMACEN WOMPI VALLEDUPAR","ALMACEN WOMPI CARTAGENA","ALMACEN WOMPI FLORENCIA",
+            "ALMACEN WOMPI POPAYAN","ALMACEN WOMPI MANIZALES","ALMACEN WOMPI YOPAL",
+            "ALMACEN WOMPI APARTADO","ALMACEN WOMPI PASTO",
+            "ALMACEN WOMPI SINCELEJO","ALMACEN WOMPI BARRANQUILLA","ALMACEN WOMPI ARMENIA",
+            "ALMACEN BAJAS WOMPI","ALMACEN INGENICO - PROVEEDOR WOMPI",
+          ]);
     const getCat = window.invCategoria || (n => ((n||'').toUpperCase().includes('ROLLO') ? 'Rollos' : 'Otro'));
     const sumQty = rows => rows.reduce((s, r) => s + (parseInt(r['Cantidad']) || 0), 0);
     const pct    = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
