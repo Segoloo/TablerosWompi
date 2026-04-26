@@ -916,8 +916,6 @@ window.renderRollosInvBodegaKPIs = function () {
     const enComercio = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'));
     const enTecnico  = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'));
     const enOPL      = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
-    const enIngenico = sumQty(soloRollos.filter(r => (r['Nombre de la ubicación']||'').trim() === 'ALMACEN INGENICO - PROVEEDOR WOMPI'));
-
     // Bodegas únicas con rollos
     const bodegasConRollos = new Set(
         soloRollos
@@ -935,50 +933,61 @@ window.renderRollosInvBodegaKPIs = function () {
         {
             label: 'Total Rollos Inventario', value: fmt(totalRollos), icon: '📦',
             color: '#B0F2AE', bg: 'rgba(176,242,174,.07)', border: 'rgba(176,242,174,.2)',
-            sub: `${refsUnicas.size} referencia${refsUnicas.size !== 1 ? 's' : ''} distintas`
+            sub: `${refsUnicas.size} referencia${refsUnicas.size !== 1 ? 's' : ''} distintas`,
+            drillRows: soloRollos, drillTitle: 'Total Rollos Inventario'
         },
         {
             label: 'En Bodega Wompi', value: fmt(enBodega), icon: '🏪',
             color: '#99D1FC', bg: 'rgba(153,209,252,.07)', border: 'rgba(153,209,252,.2)',
             sub: `${pct(enBodega, totalRollos)}% del total · ${bodegasConRollos.size} bodega${bodegasConRollos.size !== 1 ? 's' : ''}`,
-            pct: pct(enBodega, totalRollos), pctColor: '#99D1FC'
+            pct: pct(enBodega, totalRollos), pctColor: '#99D1FC',
+            drillRows: soloRollos.filter(r => INV_BODEGAS_SET.size
+                ? INV_BODEGAS_SET.has((r['Nombre de la ubicación']||'').trim())
+                : (r['Tipo de ubicación']||'').trim() === 'Warehouse'),
+            drillTitle: 'En Bodega Wompi'
         },
         {
             label: 'En Comercio (Site)', value: fmt(enComercio), icon: '🏬',
             color: '#DFFF61', bg: 'rgba(223,255,97,.06)', border: 'rgba(223,255,97,.18)',
             sub: `${pct(enComercio, totalRollos)}% del total`,
-            pct: pct(enComercio, totalRollos), pctColor: '#DFFF61'
+            pct: pct(enComercio, totalRollos), pctColor: '#DFFF61',
+            drillRows: soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'),
+            drillTitle: 'En Comercio (Site)'
         },
         {
             label: 'Tec. Lineacom (Staff)', value: fmt(enTecnico), icon: '🔧',
             color: '#F49D6E', bg: 'rgba(244,157,110,.07)', border: 'rgba(244,157,110,.2)',
             sub: `${pct(enTecnico, totalRollos)}% del total`,
-            pct: pct(enTecnico, totalRollos), pctColor: '#F49D6E'
+            pct: pct(enTecnico, totalRollos), pctColor: '#F49D6E',
+            drillRows: soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'),
+            drillTitle: 'Tec. Lineacom (Staff)'
         },
         {
             label: 'OPL (Supplier)', value: fmt(enOPL), icon: '🚚',
             color: '#C084FC', bg: 'rgba(192,132,252,.07)', border: 'rgba(192,132,252,.18)',
             sub: `${pct(enOPL, totalRollos)}% del total`,
-            pct: pct(enOPL, totalRollos), pctColor: '#C084FC'
-        },
-        {
-            label: 'Ingenico (Proveedor)', value: fmt(enIngenico), icon: '🔌',
-            color: '#F87171', bg: 'rgba(248,113,113,.06)', border: 'rgba(248,113,113,.15)',
-            sub: `${pct(enIngenico, totalRollos)}% del total`,
-            pct: pct(enIngenico, totalRollos), pctColor: '#F87171'
+            pct: pct(enOPL, totalRollos), pctColor: '#C084FC',
+            drillRows: soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'),
+            drillTitle: 'OPL (Supplier)'
         },
     ];
+
+    // Guardar cards para acceso desde el modal
+    window._rollInvBodegaCards = cards;
 
     el.innerHTML = `
     <div style="padding-top:22px;border-top:1px solid rgba(176,242,174,.12);margin-bottom:6px;">
       <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#B0F2AE;letter-spacing:.6px;text-transform:uppercase;margin-bottom:14px;">
         📦 Stock Actual de Rollos — Inventario Wompi
+        <span style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:400;color:#475569;text-transform:none;letter-spacing:0;margin-left:10px;">Haz clic en un KPI para ver el detalle</span>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;">
-        ${cards.map(c => `
-        <div style="background:${c.bg};border:1px solid ${c.border};border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;"
-             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.35)'"
-             onmouseout="this.style.transform='';this.style.boxShadow=''">
+        ${cards.map((c, idx) => `
+        <div data-kpi-idx="${idx}" style="background:${c.bg};border:1px solid ${c.border};border-radius:14px;padding:16px 18px;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:pointer;"
+             onclick="window._openRollInvBodegaModal(${idx})"
+             onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.4)';this.style.borderColor='${c.color}66'"
+             onmouseout="this.style.transform='';this.style.boxShadow='';this.style.borderColor='${c.border}'">
+          <div style="position:absolute;top:10px;right:10px;font-size:9px;color:${c.color};opacity:.6;font-family:'Outfit',sans-serif;">Ver detalle ›</div>
           <div style="font-size:20px;margin-bottom:6px;">${c.icon}</div>
           <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${c.color};line-height:1;">${c.value}</div>
           <div style="font-size:10px;color:#7A7674;margin-top:6px;font-family:'Outfit',sans-serif;">${c.label}</div>
@@ -990,6 +999,177 @@ window.renderRollosInvBodegaKPIs = function () {
         </div>`).join('')}
       </div>
     </div>`;
+
+    // ── Modal drilldown para KPIs de Rollos Inventario ───────────────
+    if (!document.getElementById('roll-inv-modal')) {
+        const modal = document.createElement('div');
+        modal.id = 'roll-inv-modal';
+        modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;';
+        modal.innerHTML = `
+        <div id="roll-inv-modal-box" style="background:#0d1520;border:1px solid rgba(176,242,174,.2);border-radius:20px;width:min(960px,100%);max-height:85vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 32px 80px rgba(0,0,0,.7);">
+          <div style="padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <div>
+              <div id="roll-inv-modal-title" style="font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:#f1f5f9;letter-spacing:.4px;"></div>
+              <div id="roll-inv-modal-count" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#475569;margin-top:3px;"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <input id="roll-inv-modal-search" type="text" placeholder="🔍 Buscar referencia, ubicación..."
+                oninput="window._rollInvModalSearch(this.value)"
+                style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 12px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:12px;width:240px;outline:none;"
+                onfocus="this.style.borderColor='rgba(176,242,174,.4)'"
+                onblur="this.style.borderColor='rgba(255,255,255,.1)'">
+              <button onclick="window._rollInvModalExcel()"
+                style="background:rgba(176,242,174,.1);border:1px solid rgba(176,242,174,.25);border-radius:8px;color:#B0F2AE;font-family:'Outfit',sans-serif;font-size:12px;padding:7px 13px;cursor:pointer;">⬇ Excel</button>
+              <button onclick="window._closeRollInvModal()"
+                style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#94a3b8;font-family:'Outfit',sans-serif;font-size:13px;padding:7px 13px;cursor:pointer;line-height:1;">✕</button>
+            </div>
+          </div>
+          <div id="roll-inv-modal-body" style="overflow-y:auto;flex:1;padding:0;"></div>
+          <div id="roll-inv-modal-pag" style="padding:12px 20px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex-shrink:0;"></div>
+        </div>`;
+        document.body.appendChild(modal);
+        modal.addEventListener('click', e => { if (e.target === modal) window._closeRollInvModal(); });
+    }
+
+    const MODAL_PAGE_SIZE = 50;
+    let _modalAllRows = [], _modalFilteredRows = [], _modalPage = 1, _modalColor = '#B0F2AE', _modalTitle = '';
+
+    window._openRollInvBodegaModal = function(idx) {
+        const card = (window._rollInvBodegaCards || [])[idx];
+        if (!card || !card.drillRows) return;
+        _modalAllRows = card.drillRows;
+        _modalFilteredRows = _modalAllRows.slice();
+        _modalPage = 1;
+        _modalColor = card.color;
+        _modalTitle = card.drillTitle;
+        const modal = document.getElementById('roll-inv-modal');
+        const titleEl = document.getElementById('roll-inv-modal-title');
+        const searchEl = document.getElementById('roll-inv-modal-search');
+        if (titleEl) titleEl.innerHTML = `${card.icon} ${card.label} <span style="color:${card.color}">${card.value}</span>`;
+        if (searchEl) searchEl.value = '';
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        _rollInvModalRender();
+    };
+
+    window._closeRollInvModal = function() {
+        const modal = document.getElementById('roll-inv-modal');
+        if (modal) modal.style.display = 'none';
+        document.body.style.overflow = '';
+    };
+
+    window._rollInvModalSearch = function(term) {
+        const t = (term || '').toLowerCase();
+        _modalFilteredRows = t
+            ? _modalAllRows.filter(r =>
+                (r['Nombre']||'').toLowerCase().includes(t) ||
+                (r['Nombre de la ubicación']||'').toLowerCase().includes(t) ||
+                (r['Código de ubicación']||'').toLowerCase().includes(t) ||
+                (r['Tipo de ubicación']||'').toLowerCase().includes(t))
+            : _modalAllRows.slice();
+        _modalPage = 1;
+        _rollInvModalRender();
+    };
+
+    window._rollInvModalGoPage = function(p) {
+        _modalPage = p;
+        _rollInvModalRender();
+        const body = document.getElementById('roll-inv-modal-body');
+        if (body) body.scrollTop = 0;
+    };
+
+    window._rollInvModalExcel = function() {
+        if (!window.XLSX) { alert('XLSX no disponible'); return; }
+        const rows = _modalFilteredRows.map(r => ({
+            'Referencia': r['Nombre'] || '',
+            'Ubicación': r['Nombre de la ubicación'] || '',
+            'Código Ubicación': r['Código de ubicación'] || '',
+            'Tipo Ubicación': r['Tipo de ubicación'] || '',
+            'Cantidad': parseInt(r['Cantidad']) || 0,
+        }));
+        const ws = window.XLSX.utils.json_to_sheet(rows);
+        const wb = window.XLSX.utils.book_new();
+        window.XLSX.utils.book_append_sheet(wb, ws, _modalTitle.substring(0, 31));
+        window.XLSX.writeFile(wb, `rollos_${_modalTitle.replace(/\s+/g,'_').toLowerCase()}_${new Date().toISOString().slice(0,10)}.xlsx`);
+    };
+
+    function _rollInvModalRender() {
+        const countEl = document.getElementById('roll-inv-modal-count');
+        const body = document.getElementById('roll-inv-modal-body');
+        const pagEl = document.getElementById('roll-inv-modal-pag');
+        if (!body) return;
+
+        const total = _modalFilteredRows.length;
+        const totalPages = Math.max(1, Math.ceil(total / MODAL_PAGE_SIZE));
+        if (_modalPage > totalPages) _modalPage = 1;
+        const start = (_modalPage - 1) * MODAL_PAGE_SIZE;
+        const slice = _modalFilteredRows.slice(start, start + MODAL_PAGE_SIZE);
+
+        const totalQty = _modalFilteredRows.reduce((s, r) => s + (parseInt(r['Cantidad']) || 0), 0);
+        if (countEl) countEl.textContent = `${total.toLocaleString('es-CO')} registros · ${totalQty.toLocaleString('es-CO')} unidades`;
+
+        const fmt = n => Number(n).toLocaleString('es-CO');
+        const tipoColor = t => t === 'Site' ? '#DFFF61' : t === 'Staff' ? '#F49D6E' : t === 'Supplier' ? '#C084FC' : '#99D1FC';
+
+        body.innerHTML = total === 0
+            ? `<div style="padding:40px;text-align:center;color:#475569;font-family:'Outfit',sans-serif;">Sin resultados para la búsqueda</div>`
+            : `<div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-family:'Outfit',sans-serif;font-size:12px;">
+              <thead>
+                <tr style="background:rgba(0,0,0,.4);border-bottom:1px solid rgba(176,242,174,.15);position:sticky;top:0;z-index:1;">
+                  <th style="padding:10px 16px;text-align:left;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.5px;">#</th>
+                  <th style="padding:10px 16px;text-align:left;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.5px;">REFERENCIA</th>
+                  <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.5px;">UBICACIÓN</th>
+                  <th style="padding:10px 12px;text-align:left;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.5px;">CÓD. UBIC.</th>
+                  <th style="padding:10px 12px;text-align:center;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.5px;">TIPO</th>
+                  <th style="padding:10px 16px;text-align:right;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.5px;">CANTIDAD</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${slice.map((r, i) => {
+                    const qty = parseInt(r['Cantidad']) || 0;
+                    const tipo = (r['Tipo de ubicación'] || '').trim();
+                    const bgBase = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)';
+                    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);background:${bgBase};transition:background .12s;"
+                         onmouseover="this.style.background='rgba(176,242,174,.04)'"
+                         onmouseout="this.style.background='${bgBase}'">
+                      <td style="padding:8px 16px;color:#334155;font-family:'JetBrains Mono',monospace;font-size:10px;">${start + i + 1}</td>
+                      <td style="padding:8px 16px;color:#f1f5f9;font-weight:600;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${(r['Nombre']||'').replace(/"/g,'&quot;')}">${r['Nombre'] || '—'}</td>
+                      <td style="padding:8px 12px;color:#94a3b8;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${(r['Nombre de la ubicación']||'').replace(/"/g,'&quot;')}">${r['Nombre de la ubicación'] || '—'}</td>
+                      <td style="padding:8px 12px;color:#64748b;font-family:'JetBrains Mono',monospace;font-size:10px;">${r['Código de ubicación'] || '—'}</td>
+                      <td style="padding:8px 12px;text-align:center;">
+                        <span style="font-size:10px;padding:2px 9px;border-radius:10px;background:${tipoColor(tipo)}18;color:${tipoColor(tipo)};font-weight:600;">${tipo || '—'}</span>
+                      </td>
+                      <td style="padding:8px 16px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:${_modalColor};">${fmt(qty)}</td>
+                    </tr>`;
+                }).join('')}
+              </tbody>
+              <tfoot>
+                <tr style="background:rgba(176,242,174,.05);border-top:2px solid rgba(176,242,174,.2);">
+                  <td colspan="5" style="padding:10px 16px;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;color:#B0F2AE;letter-spacing:.4px;">
+                    SUBTOTAL PÁGINA ${_modalPage}/${totalPages}
+                  </td>
+                  <td style="padding:10px 16px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#B0F2AE;">
+                    ${fmt(slice.reduce((s,r)=>s+(parseInt(r['Cantidad'])||0),0))}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+            </div>`;
+
+        // Paginación
+        if (pagEl) {
+            const btnStyle = act => `padding:5px 10px;border-radius:6px;border:1px solid ${act?`rgba(176,242,174,.5)`:'rgba(255,255,255,.08)'};background:${act?'rgba(176,242,174,.12)':'rgba(255,255,255,.03)'};color:${act?'#B0F2AE':'#94a3b8'};cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px;`;
+            let h = `<span style="font-size:11px;color:#475569;font-family:'JetBrains Mono',monospace;margin-right:8px;">Pág ${_modalPage}/${totalPages}</span>`;
+            if (_modalPage > 1) h += `<button onclick="window._rollInvModalGoPage(${_modalPage-1})" style="${btnStyle(false)}">‹</button>`;
+            const half=3, st=Math.max(1,_modalPage-half), en=Math.min(totalPages,_modalPage+half);
+            if (st>1){h+=`<button onclick="window._rollInvModalGoPage(1)" style="${btnStyle(false)}">1</button>`;if(st>2)h+=`<span style="color:#475569;padding:0 3px;">…</span>`;}
+            for(let p=st;p<=en;p++) h+=`<button onclick="window._rollInvModalGoPage(${p})" style="${btnStyle(p===_modalPage)}">${p}</button>`;
+            if(en<totalPages){if(en<totalPages-1)h+=`<span style="color:#475569;padding:0 3px;">…</span>`;h+=`<button onclick="window._rollInvModalGoPage(${totalPages})" style="${btnStyle(false)}">${totalPages}</button>`;}
+            if(_modalPage<totalPages) h+=`<button onclick="window._rollInvModalGoPage(${_modalPage+1})" style="${btnStyle(false)}">›</button>`;
+            pagEl.innerHTML = h;
+        }
+    }
 };
 
 // Export Excel de la sección de inventario por comercio

@@ -1790,35 +1790,92 @@ async function loadRollosData() {
 
 // ── Inicializar selects de filtros GLOBALES ───────────────────────
 function initRollosGlobalFilters() {
+  // Los filtros del panel "Rollos Wompi" usan INV_RAW (inventario)
+  // para reflejar los mismos datos que muestra la sección de KPIs de stock
+  const invRaw = window.INV_RAW;
+  const getCat = window.invCategoria || (n => ((n||'').toUpperCase().includes('ROLLO') ? 'Rollos' : 'Otro'));
+
+  if (invRaw && invRaw.length) {
+    const soloRollos = invRaw.filter(r => getCat(r['Nombre']) === 'Rollos');
+
+    const uniqInv = (key) => [...new Set(soloRollos.map(r => (r[key]||'').trim()).filter(Boolean))].sort();
+
+    const populate = (id, vals) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.classList.contains('ms-container')) {
+        window._setupMS(id, vals);
+      } else {
+        el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+      }
+    };
+
+    // Reutilizar los slots de filtros existentes con valores del inventario
+    populate('rg-estado',      uniqInv('Tipo de ubicación'));      // Tipo ubic como "estado"
+    populate('rg-departamento', []);                                // No aplica en inv
+    populate('rg-tipo-flujo',  []);                                 // No aplica en inv
+    populate('rg-material',    uniqInv('Nombre'));                  // Referencia de rollo
+    populate('rg-proyecto',    uniqInv('Nombre de la ubicación')); // Bodega/ubicación
+
+    // Actualizar labels de los filtros para que tengan sentido con inventario
+    const labelMap = {
+      'rg-estado':      'Tipo Ubicación',
+      'rg-departamento': null,   // ocultar
+      'rg-tipo-flujo':  null,    // ocultar
+      'rg-material':    'Referencia',
+      'rg-proyecto':    'Ubicación',
+    };
+    Object.entries(labelMap).forEach(([id, labelText]) => {
+      const group = document.getElementById(id)?.closest('.filter-group');
+      if (!group) return;
+      if (labelText === null) {
+        group.style.display = 'none';
+      } else {
+        group.style.display = '';
+        const lbl = group.querySelector('label');
+        if (lbl) lbl.textContent = labelText;
+      }
+    });
+
+    // Ocultar el filtro de fecha (no aplica a inventario estático)
+    const dateGroup = document.querySelector('.filter-group--date-range');
+    if (dateGroup) dateGroup.style.display = 'none';
+
+  } else if (ROLLOS_RAW) {
+    // Fallback: si inventario aún no cargó, usar ROLLOS_RAW (comportamiento anterior)
+    const det = ROLLOS_RAW.detalle || [];
+    const uniq = (key) => [...new Set(det.map(r => r[key]).filter(Boolean))].sort();
+    const populate = (id, vals) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.classList.contains('ms-container')) window._setupMS(id, vals);
+      else el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+    };
+    populate('rg-estado',      uniq('estado'));
+    populate('rg-departamento',uniq('departamento'));
+    populate('rg-tipo-flujo',  uniq('tipo_flujo'));
+    populate('rg-material',    uniq('material'));
+    populate('rg-proyecto',    uniq('proyecto'));
+  }
+
   if (!ROLLOS_RAW) return;
   const det = ROLLOS_RAW.detalle || [];
-
   const uniq = (key) => [...new Set(det.map(r => r[key]).filter(Boolean))].sort();
-
   const populate = (id, vals) => {
     const el = document.getElementById(id);
     if (!el) return;
-    if (el.classList.contains('ms-container')) {
-      window._setupMS(id, vals);
-    } else {
-      el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
-    }
+    if (el.classList.contains('ms-container')) window._setupMS(id, vals);
+    else el.innerHTML = '<option value="">Todos</option>' + vals.map(v=>`<option value="${v}">${v}</option>`).join('');
   };
 
-  populate('rg-estado',      uniq('estado'));
-  populate('rg-departamento',uniq('departamento'));
-  populate('rg-tipo-flujo',  uniq('tipo_flujo'));
-  populate('rg-material',    uniq('material'));
-  populate('rg-proyecto',    uniq('proyecto'));
-
-  // Filtros tabla detalle
-  const estados   = uniq('estado');
+  // Filtros tabla detalle (internos, sin cambios)
   const anios     = [...new Set(det.map(r=>r.anio).filter(Boolean))].sort().reverse();
   const meses     = [...new Set(det.map(r=>r.mes).filter(Boolean))].sort();
   const tiposFlujo= uniq('tipo_flujo');
   const deptos    = uniq('departamento');
   const ciudades  = uniq('ciudad');
   const proyectos = uniq('proyecto');
+  const estados   = uniq('estado');
 
   populate('rf-estado',           estados);
   populate('rf-tipo-flujo-det',   tiposFlujo);
@@ -1843,56 +1900,72 @@ function initRollosGlobalFilters() {
 
 // ── Aplicar filtros GLOBALES — recalcula TODO ─────────────────────
 function applyRollosGlobalFilters() {
+  if (!ROLLOS_RAW && !window.INV_RAW) return;
+
+  // ── Filtros de inventario (afectan KPIs de stock) ─────────────
+  const selTipoUbic  = window._msGetSels('rg-estado');    // mapeado a Tipo Ubicación
+  const selReferencia= window._msGetSels('rg-material');  // mapeado a Nombre (referencia)
+  const selUbicacion = window._msGetSels('rg-proyecto');  // mapeado a Nombre de la ubicación
+
+  const hayFiltroInv = selTipoUbic || selReferencia || selUbicacion;
+
+  if (window.INV_RAW && hayFiltroInv) {
+    // Filtrar INV_RAW con los filtros de inventario y re-renderizar KPIs
+    const getCat = window.invCategoria || (n => ((n||'').toUpperCase().includes('ROLLO') ? 'Rollos' : 'Otro'));
+    window._invRawOverride = window.INV_RAW.filter(r => {
+      if (getCat(r['Nombre']) !== 'Rollos') return false;
+      if (selTipoUbic   && !selTipoUbic.includes((r['Tipo de ubicación']||'').trim().toUpperCase()))    return false;
+      if (selReferencia && !selReferencia.includes((r['Nombre']||'').trim().toUpperCase()))               return false;
+      if (selUbicacion  && !selUbicacion.includes((r['Nombre de la ubicación']||'').trim().toUpperCase())) return false;
+      return true;
+    });
+    // Temporalmente sobreescribir INV_RAW para re-render (restaurar después)
+    const origInvRaw = window.INV_RAW;
+    window.INV_RAW = window._invRawOverride;
+    if (typeof window.renderRollosInvBodegaKPIs === 'function') window.renderRollosInvBodegaKPIs();
+    window.INV_RAW = origInvRaw;
+  } else if (!hayFiltroInv && typeof window.renderRollosInvBodegaKPIs === 'function') {
+    // Sin filtros: re-renderizar con datos completos
+    window.renderRollosInvBodegaKPIs();
+  }
+
+  // ── Filtros ROLLOS_RAW (gráficas y tablas de tracking) ──────
   if (!ROLLOS_RAW) return;
   const det = ROLLOS_RAW.detalle || [];
 
-  const desde   = document.getElementById('rg-fecha-desde')?.value;
-  const hasta   = document.getElementById('rg-fecha-hasta')?.value;
-
-  const selEstado   = window._msGetSels('rg-estado');
-  const selDepto    = window._msGetSels('rg-departamento');
-  const selFlujo    = window._msGetSels('rg-tipo-flujo');
-  const selMaterial = window._msGetSels('rg-material');
-  const selProyecto = window._msGetSels('rg-proyecto');
-
-  ROLLOS_FILTERED = det.filter(r => {
-    if (selEstado   && !selEstado.includes((r.estado||'').toUpperCase()))       return false;
-    if (selDepto    && !selDepto.includes((r.departamento||'').toUpperCase()))   return false;
-    if (selFlujo    && !selFlujo.includes((r.tipo_flujo||'').toUpperCase()))     return false;
-    if (selMaterial && !selMaterial.includes((r.material||'').toUpperCase()))    return false;
-    if (selProyecto && !selProyecto.includes((r.proyecto||'').toUpperCase()))    return false;
-
-    if (desde || hasta) {
-      const fp = r.fecha_plan_fin ? new Date(r.fecha_plan_fin.substring(0,10)) : null;
-      if (!fp) return !(desde || hasta);
-      if (desde && fp < new Date(desde)) return false;
-      if (hasta && fp > new Date(hasta + 'T23:59:59')) return false;
-    }
-    return true;
-  });
+  // Para las gráficas de tracking seguimos usando los campos de ROLLOS_RAW
+  // (los filtros visibles en el panel son ahora de inventario, pero las gráficas
+  //  de tendencias/estados se filtran sin restricción por defecto)
+  ROLLOS_FILTERED = det.slice(); // sin filtro extra sobre rollos_raw
 
   // Actualizar sumario de filtros
   const activos = [];
-  if (desde || hasta) activos.push(`Fecha: ${desde||'…'} → ${hasta||'…'}`);
-  if (selEstado)   activos.push(`Estado: ${selEstado.length > 1 ? selEstado.length+' items' : selEstado[0]}`);
-  if (selDepto)    activos.push(`Depto: ${selDepto.length > 1 ? selDepto.length+' items' : selDepto[0]}`);
-  if (selFlujo)    activos.push(`Flujo: ${selFlujo.length > 1 ? selFlujo.length+' items' : selFlujo[0]}`);
-  if (selMaterial) activos.push(`Material: ${selMaterial.length > 1 ? selMaterial.length+' items' : selMaterial[0]}`);
-  if (selProyecto) activos.push(`Proyecto: ${selProyecto.length > 1 ? selProyecto.length+' items' : selProyecto[0]}`);
+  if (selTipoUbic)   activos.push(`Tipo Ubic: ${selTipoUbic.length > 1 ? selTipoUbic.length+' items' : selTipoUbic[0]}`);
+  if (selReferencia) activos.push(`Ref: ${selReferencia.length > 1 ? selReferencia.length+' items' : selReferencia[0]}`);
+  if (selUbicacion)  activos.push(`Ubic: ${selUbicacion.length > 1 ? selUbicacion.length+' items' : selUbicacion[0]}`);
   
   const summary = document.getElementById('rg-filter-summary');
   if (summary) {
     summary.textContent = activos.length
-      ? `🔍 Filtros activos: ${activos.join('  ·  ')}  |  ${ROLLOS_FILTERED.length} registros`
-      : `Sin filtros activos — mostrando ${ROLLOS_FILTERED.length} registros`;
+      ? `🔍 Filtros activos (Inventario): ${activos.join('  ·  ')}`
+      : `Sin filtros activos — mostrando datos completos del inventario`;
   }
 
-  // También filtrar comercio por estados que coincidan con detalle filtrado
-  const sitiosFiltrados = new Set(ROLLOS_FILTERED.map(r => r.cod_sitio));
-  ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).filter(r => {
-    if (!selEstado && !selDepto && !selFlujo && !selMaterial && !selProyecto && !desde && !hasta) return true;
-    return sitiosFiltrados.has(r.cod_comercio);
-  });
+  ROLLOS_COMERCIO = (ROLLOS_RAW.comercio || []).slice();
+  ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
+  ROLLOS_REF_FILTERED = (ROLLOS_RAW?.referencias || []).slice();
+  rollosDetallePage  = 1;
+  rollosComercioPage = 1;
+  rollosRefPage      = 1;
+
+  renderRollosKPIs();
+  renderRollosKPIsTareas();
+  renderRollosANSRow();
+  renderRollosCharts();
+  renderRollosDetalleTable();
+  renderRollosComercioTable();
+  renderRollosRefTable();
+}
 
   ROLLOS_DETALLE = ROLLOS_FILTERED.slice();
   ROLLOS_REF_FILTERED = (ROLLOS_RAW?.referencias || []).slice();
@@ -1916,6 +1989,9 @@ function resetRollosGlobalFilters() {
     if (el && el.classList.contains('ms-container')) window._msAction(id, 'clear');
     else if (el) el.value = '';
   });
+  // Restaurar KPIs de inventario sin filtros
+  window._invRawOverride = null;
+  if (typeof window.renderRollosInvBodegaKPIs === 'function') window.renderRollosInvBodegaKPIs();
   applyRollosGlobalFilters();
 }
 
