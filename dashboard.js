@@ -2240,23 +2240,37 @@ function computeRollosKPIs() {
 
   const pct = (n, d) => d > 0 ? Math.round(n / d * 100) : 0;
 
-  // ── ANS Oportunidad (replica DAX: ESTADO_ANS_ROLLOS_SIMPLE) ─────
-  // DAX: % Oportunidad = Rollos Entregados (ANS_SI) / Total_Tareas_Solicitadas
-  // = tareas con estado_ans==="CUMPLE" / total_tareas (DISTINCTCOUNT codigo_tarea)
-  // Usamos tareas únicas (Map) para respetar el DISTINCTCOUNT del DAX
-  const tareasANSMap = new Map(); // tarea -> estado_ans
+  // ── ANS Oportunidad — basado en PLAN INICIO, PLAN FIN y FECHA ENTREGA ──
+  // Lógica: una tarea CUMPLE ANS si fue entregada (estado COMPLETADA) y
+  //         la FECHA ENTREGA (fecha_entrega) <= PLAN FIN (fecha_plan_fin).
+  //         Una tarea NO CUMPLE si fue entregada pero fuera de plazo.
+  //         Solo se evalúan tareas COMPLETADAS con plan_fin y fecha_entrega válidos.
+  // Se trabaja por tarea única (DISTINCTCOUNT codigo_tarea, igual que el DAX).
+  const tareasANSMap = new Map(); // tarea -> { plan_inicio, plan_fin, fecha_entrega, estado }
   det.forEach(r => {
     const tarea = r.codigo_tarea; if (!tarea) return;
-    if (!tareasANSMap.has(tarea)) tareasANSMap.set(tarea, (r.estado_ans || '').toUpperCase());
+    if (!tareasANSMap.has(tarea)) {
+      tareasANSMap.set(tarea, {
+        plan_inicio  : r.fecha_plan_inicio  || '',
+        plan_fin     : r.fecha_plan_fin     || '',
+        fecha_entrega: r.fecha_entrega      || '',
+        estado       : (r.estado            || '').toUpperCase(),
+      });
+    }
   });
   let sla_cumple = 0, sla_nc = 0;
-  tareasANSMap.forEach(ans => {
-    if (ans === 'CUMPLE')    sla_cumple++;
-    else if (ans === 'INCUMPLE') sla_nc++;
+  tareasANSMap.forEach(({ plan_fin, fecha_entrega, estado }) => {
+    const esCompletada = estado === 'COMPLETADA' || estado === 'COMPLETADA CON PENDIENTES';
+    if (!esCompletada || !plan_fin || !fecha_entrega) return; // solo evaluar entregadas con fechas
+    const dPlanFin   = new Date(plan_fin);
+    const dEntrega   = new Date(fecha_entrega);
+    if (isNaN(dPlanFin) || isNaN(dEntrega)) return; // fechas inválidas: no evaluar
+    if (dEntrega <= dPlanFin) sla_cumple++;
+    else                      sla_nc++;
   });
   const sla_total = sla_cumple + sla_nc;
-  // % Oportunidad = CUMPLE / Total_Tareas_Solicitadas (no solo las evaluadas)
-  const pct_sla = pct(sla_cumple, total_tareas);
+  // % Cumplimiento = CUMPLE / total evaluadas (tareas completadas con fechas válidas)
+  const pct_sla = pct(sla_cumple, sla_total);
 
   // ── Tareas únicas por estado ──────────────────────────────────────
   const tareasEstadoMap = new Map();
@@ -2402,51 +2416,31 @@ function renderRollosKPIsTareas() {
 }
 
 // ── ANS Big Row ────────────────────────────────────────────────────
+// Solo muestra el card de Cumplimiento ANS (calculado con PLAN FIN vs FECHA ENTREGA).
+// Los cards de Tasa de Entrega y % Calidad fueron removidos.
 function renderRollosANSRow() {
   const k   = computeRollosKPIs();
   const row = document.getElementById('rollos-ans-row');
   if (!row) return;
 
-  const pctNc  = 100 - k.pct_sla;
-  const pctDev = k.pct_devolucion;
-  const pctOk  = k.pct_entrega;
-
   row.innerHTML = `
-    <div class="ans-big-card" style="border-top:3px solid var(--verde-menta)">
-      <canvas id="ans-mini-entrega" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
-      <div class="ans-big-pct" style="color:var(--verde-menta)">${k.pct_entrega}%</div>
-      <div class="ans-big-label">Tasa de Entrega</div>
-      <div class="ans-detail-row">
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.rollos_entregados.toLocaleString()}</div><div class="ans-detail-lbl">Entregados</div></div>
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--muted)">${k.total_rollos.toLocaleString()}</div><div class="ans-detail-lbl">Total</div></div>
-      </div>
-    </div>
-    <div class="ans-big-card" style="border-top:3px solid var(--azul-cielo)">
+    <div class="ans-big-card" style="border-top:3px solid var(--azul-cielo);max-width:320px;margin:0 auto;">
       <canvas id="ans-mini-sla" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
       <div class="ans-big-pct" style="color:var(--azul-cielo)">${k.pct_sla}%</div>
       <div class="ans-big-label">Cumplimiento ANS</div>
       <div class="ans-detail-row">
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.sla_cumple}</div><div class="ans-detail-lbl">Cumple</div></div>
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--danger)">${k.sla_nc}</div><div class="ans-detail-lbl">No Cumple</div></div>
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--muted)">${k.sla_total}</div><div class="ans-detail-lbl">Total eval.</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.sla_cumple.toLocaleString('es-CO')}</div><div class="ans-detail-lbl">Cumple</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--danger)">${k.sla_nc.toLocaleString('es-CO')}</div><div class="ans-detail-lbl">No Cumple</div></div>
+        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--muted)">${k.sla_total.toLocaleString('es-CO')}</div><div class="ans-detail-lbl">Total eval.</div></div>
       </div>
-    </div>
-    <div class="ans-big-card" style="border-top:3px solid ${k.pct_calidad_nueva > 10 ? 'var(--danger)' : k.pct_calidad_nueva > 5 ? 'var(--warning)' : 'var(--verde-menta)'}">
-      <canvas id="ans-mini-devol" width="120" height="120" style="width:120px;height:120px;margin-bottom:12px"></canvas>
-      <div class="ans-big-pct" style="color:${k.pct_calidad_nueva > 10 ? 'var(--danger)' : k.pct_calidad_nueva > 5 ? 'var(--warning)' : 'var(--verde-menta)'}">${100 - k.pct_calidad_nueva}%</div>
-      <div class="ans-big-label">% Calidad</div>
-      <div class="ans-detail-row">
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--danger)">${k.rollos_devueltos.toLocaleString()}</div><div class="ans-detail-lbl">Devueltos</div></div>
-        <div class="ans-detail-item"><div class="ans-detail-val" style="color:var(--verde-menta)">${k.rollos_entregados.toLocaleString()}</div><div class="ans-detail-lbl">Entregados</div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:10px;text-align:center;line-height:1.4;">
+        Entregadas con <strong>FECHA ENTREGA &le; PLAN FIN</strong>
       </div>
     </div>`;
 
-  // Dibujar mini donuts (después de insertar el DOM)
+  // Dibujar mini donut
   requestAnimationFrame(() => {
-    _miniDonut('ans-mini-entrega', k.pct_entrega, '#B0F2AE', '#1a2a1a');
-    _miniDonut('ans-mini-sla',     k.pct_sla,     '#99D1FC', '#1a1f2a');
-    _miniDonut('ans-mini-devol',   100 - k.pct_calidad_nueva,
-      k.pct_calidad_nueva <= 5 ? '#B0F2AE' : k.pct_calidad_nueva <= 10 ? '#FFC04D' : '#FF5C5C', '#1a1a1a');
+    _miniDonut('ans-mini-sla', k.pct_sla, '#99D1FC', '#1a1f2a');
   });
 }
 
