@@ -57,75 +57,142 @@ const CHART_OPTS = {
 };
 
 // ── MULTI-SELECT HELPER ───────────────────────────────────────────
+// ── Multiselect con buscador y renderizado virtual ────────────────
+// Umbral: ≥ este número de opciones → muestra input de búsqueda
+const MS_SEARCH_THRESHOLD = 10;
+const MS_VIRTUAL_MAX      = 120; // máx items renderizados en el DOM a la vez
+
 window._setupMS = function(id, vals) {
   const container = document.getElementById(id);
   if (!container) return;
   const placeholder = container.dataset.placeholder || 'Todos';
+  const useSearch   = vals.length >= MS_SEARCH_THRESHOLD;
+
+  container._msAllVals      = vals;          // lista original completa
+  container._selectedValues = [];
+  container._msFilteredVals = vals.slice();  // lista actualmente visible
+
   container.innerHTML = `
     <div class="ms-trigger">${placeholder}</div>
     <div class="ms-dropdown">
-      <div class="ms-items-wrap">
-        ${vals.map(v => `
-          <div class="ms-item" data-val="${String(v).toUpperCase()}">
-            <input type="checkbox">
-            <span class="ms-item-label">${v}</span>
-          </div>
-        `).join('')}
-      </div>
+      ${useSearch ? `
+      <div class="ms-search-wrap">
+        <input class="ms-search-input" type="text" placeholder="🔍 Buscar..." autocomplete="off"
+               onclick="event.stopPropagation()"
+               oninput="window._msFilterItems('${id}', this.value)">
+        <span class="ms-search-count"></span>
+      </div>` : ''}
+      <div class="ms-items-wrap"></div>
       <div class="ms-actions">
         <button class="ms-btn" onclick="event.stopPropagation(); window._msAction('${id}', 'clear')">Limpiar</button>
         <button class="ms-btn ms-btn-apply" onclick="event.stopPropagation(); window._msAction('${id}', 'apply')">Hecho</button>
       </div>
     </div>
   `;
+
   const trigger = container.querySelector('.ms-trigger');
-  container._selectedValues = [];
   trigger.onclick = (e) => {
     e.stopPropagation();
     const isOpen = container.classList.contains('open');
     document.querySelectorAll('.ms-container').forEach(c => c.classList.remove('open'));
-    if (!isOpen) container.classList.add('open');
+    if (!isOpen) {
+      container.classList.add('open');
+      // Renderizar items al abrir (lazy)
+      _msRenderItems(container);
+      // Foco en búsqueda si aplica
+      const si = container.querySelector('.ms-search-input');
+      if (si) setTimeout(() => si.focus(), 50);
+    }
   };
-  container.querySelectorAll('.ms-item').forEach(item => {
+};
+
+// Renderiza hasta MS_VIRTUAL_MAX items del filtrado actual
+function _msRenderItems(container) {
+  const wrap     = container.querySelector('.ms-items-wrap');
+  if (!wrap) return;
+  const filtered = container._msFilteredVals || [];
+  const selected = new Set(container._selectedValues || []);
+  const slice    = filtered.slice(0, MS_VIRTUAL_MAX);
+  const hasMore  = filtered.length > MS_VIRTUAL_MAX;
+
+  wrap.innerHTML = slice.map(v => {
+    const key  = String(v).toUpperCase();
+    const isSel= selected.has(key);
+    return `<div class="ms-item${isSel ? ' selected' : ''}" data-val="${key}">
+      <input type="checkbox"${isSel ? ' checked' : ''}>
+      <span class="ms-item-label">${v}</span>
+    </div>`;
+  }).join('') + (hasMore
+    ? `<div class="ms-more-hint">… ${(filtered.length - MS_VIRTUAL_MAX).toLocaleString('es-CO')} más — refiná la búsqueda</div>`
+    : '');
+
+  // Actualizar contador de búsqueda
+  const countEl = container.querySelector('.ms-search-count');
+  if (countEl) {
+    const id = container.id;
+    const all = (container._msAllVals || []).length;
+    countEl.textContent = filtered.length < all
+      ? `${filtered.length.toLocaleString('es-CO')} de ${all.toLocaleString('es-CO')}`
+      : `${all.toLocaleString('es-CO')} opciones`;
+  }
+
+  // Re-bindear eventos de click en los items renderizados
+  wrap.querySelectorAll('.ms-item').forEach(item => {
     item.onclick = (e) => {
       e.stopPropagation();
       item.classList.toggle('selected');
-      const cb = item.querySelector('input');
+      const cb  = item.querySelector('input');
       cb.checked = !cb.checked;
-      const val = item.dataset.val;
-      if (cb.checked) {
-        if (!container._selectedValues.includes(val)) container._selectedValues.push(val);
-      } else {
-        container._selectedValues = container._selectedValues.filter(v => v !== val);
-      }
+      const val  = item.dataset.val;
+      const sels = container._selectedValues;
+      if (cb.checked) { if (!sels.includes(val)) sels.push(val); }
+      else            { container._selectedValues = sels.filter(v => v !== val); }
       _updateMSLabel(container);
     };
   });
+}
+
+window._msFilterItems = function(id, term) {
+  const container = document.getElementById(id);
+  if (!container) return;
+  const t = (term || '').toLowerCase().trim();
+  container._msFilteredVals = t
+    ? (container._msAllVals || []).filter(v => String(v).toLowerCase().includes(t))
+    : (container._msAllVals || []).slice();
+  _msRenderItems(container);
 };
+
 function _updateMSLabel(container) {
   const trigger = container.querySelector('.ms-trigger');
-  const vals = container._selectedValues;
-  if (vals.length === 0) trigger.textContent = container.dataset.placeholder || 'Todos';
+  const vals    = container._selectedValues;
+  if (vals.length === 0)      trigger.textContent = container.dataset.placeholder || 'Todos';
   else if (vals.length === 1) trigger.textContent = vals[0];
-  else trigger.textContent = `${vals.length} seleccionados`;
+  else                        trigger.textContent = `${vals.length} seleccionados`;
 }
+
 window._msAction = function(id, action) {
   const container = document.getElementById(id);
   if (!container) return;
   if (action === 'clear') {
     container._selectedValues = [];
-    container.querySelectorAll('.ms-item').forEach(i => { i.classList.remove('selected'); i.querySelector('input').checked = false; });
+    container._msFilteredVals = (container._msAllVals || []).slice();
+    // Limpiar búsqueda
+    const si = container.querySelector('.ms-search-input');
+    if (si) si.value = '';
+    _msRenderItems(container);
     _updateMSLabel(container);
   } else if (action === 'apply') {
     container.classList.remove('open');
   }
 };
+
 window._msGetSels = function(id) {
   const el = document.getElementById(id);
   if (el && el._selectedValues && el._selectedValues.length > 0) return el._selectedValues;
   const val = el?.value;
   return (val && val !== '') ? [val.toUpperCase()] : null;
 };
+
 document.addEventListener('click', () => document.querySelectorAll('.ms-container').forEach(c => c.classList.remove('open')));
 
 // ══════════════════════════════════════════════════════════════════
