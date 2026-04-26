@@ -979,6 +979,8 @@ window.renderRollosInvBodegaKPIs = function () {
     const enComercio = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'));
     const enTecnico  = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'));
     const enOPL      = sumQty(soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'));
+    const GW_RE_INV  = /^GW\d+$/i;
+    const enGW       = sumQty(soloRollos.filter(r => GW_RE_INV.test((r['Código de ubicación']||'').trim())));
     // Bodegas únicas con rollos
     const bodegasConRollos = new Set(
         soloRollos
@@ -1032,6 +1034,14 @@ window.renderRollosInvBodegaKPIs = function () {
             pct: pct(enOPL, totalRollos), pctColor: '#C084FC',
             drillRows: soloRollos.filter(r => (r['Tipo de ubicación']||'').trim() === 'Supplier'),
             drillTitle: 'OPL (Supplier)'
+        },
+        {
+            label: 'Gest. & Empl. Wompi', value: fmt(enGW), icon: '👤',
+            color: '#F9A8D4', bg: 'rgba(249,168,212,.07)', border: 'rgba(249,168,212,.18)',
+            sub: `${pct(enGW, totalRollos)}% del total · cód. GW*`,
+            pct: pct(enGW, totalRollos), pctColor: '#F9A8D4',
+            drillRows: soloRollos.filter(r => GW_RE_INV.test((r['Código de ubicación']||'').trim())),
+            drillTitle: 'Gestores & Empleados Wompi (GW)'
         },
     ];
 
