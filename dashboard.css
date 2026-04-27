@@ -582,7 +582,8 @@ tbody td { padding:10px 16px; color:var(--blanco); white-space:nowrap; }
 .ms-container.open .ms-trigger { border-color: var(--verde-menta); box-shadow: 0 0 0 2px rgba(176,242,174,.1); }
 
 .ms-dropdown {
-  position: absolute; top: calc(100% + 5px); left: 0; right: 0; z-index: 99999 !important;
+  position: absolute; top: calc(100% + 5px); left: 0; right: auto; z-index: 99999 !important;
+  min-width: max(100%, 180px); width: max-content; max-width: 320px;
   background: var(--surface2); border: 1px solid var(--border-glow); border-radius: var(--radius-sm);
   box-shadow: 0 8px 32px rgba(0,0,0,.8); max-height: 250px; overflow-y: auto !important;
   opacity: 0; visibility: hidden; transform: translateY(-10px); transition: all .2s;

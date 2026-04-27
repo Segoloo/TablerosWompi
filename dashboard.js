@@ -1979,6 +1979,10 @@ async function loadRollosData() {
           oportunidad           : '',
           FO                    : '',
           dias_inventario_restantes: '',
+          // Año y mes derivados de plan_fin (o fecha_confirmacion como fallback)
+          // Necesarios para que los filtros rf-anio / rf-mes funcionen correctamente
+          anio: (() => { const s = f.plan_fin || f.fecha_confirmacion || ''; if (!s) return null; const d = new Date(s); return isNaN(d) ? null : d.getFullYear(); })(),
+          mes:  (() => { const s = f.plan_fin || f.fecha_confirmacion || ''; if (!s) return null; const d = new Date(s); return isNaN(d) ? null : d.getMonth() + 1; })(),
         });
         // Calculos: un registro por sitio con join real
         if (!calcMap.has(key) && parseFloat(f.cal_saldo_dias || 0) !== 0) {
