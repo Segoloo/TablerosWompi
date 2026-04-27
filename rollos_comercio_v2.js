@@ -514,49 +514,132 @@ function rcv2RenderSearchUI() {
   const panel = document.getElementById('panel-rollos-comercio');
   if (!panel) return;
 
-  // Reemplazar el contenido completo del panel
+  const totalSitios  = RCV2_SITIOS.size;
+  const conDatos     = [...RCV2_SITIOS.values()].filter(s=>s._calSet).length;
+  const ahora        = new Date().toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+  // Calcular stats globales para los mini-KPIs del header
+  const allRows = [...RCV2_SITIOS.entries()]
+    .map(([key,s])=>({key,...s,meses:s._calSet?s.cal.saldo_dias/30:null}));
+  const conMeses   = allRows.filter(r=>r.meses!==null);
+  const criticos   = conMeses.filter(r=>r.meses<1).length;
+  const alertasN   = conMeses.filter(r=>r.meses>=1&&r.meses<2).length;
+  const warnsN     = conMeses.filter(r=>r.meses>=2&&r.meses<3).length;
+  const oksN       = conMeses.filter(r=>r.meses>=3).length;
+  const slaIncN    = criticos+alertasN+warnsN;
+  const pctSla     = conMeses.length>0 ? (oksN/conMeses.length*100).toFixed(0) : '—';
+  const promCob    = conMeses.length>0 ? (conMeses.reduce((s,r)=>s+r.meses,0)/conMeses.length).toFixed(1) : '—';
+  const totalRollos= conMeses.reduce((s,r)=>s+(r.cal.saldo_rollos||0),0);
+  const totalProm  = conMeses.reduce((s,r)=>s+(r.cal.prom_mensual||0),0);
+
   panel.innerHTML = `
-  <!-- Header del panel -->
-  <div style="margin-bottom:24px;">
-    <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f1f5f9;letter-spacing:.3px;">🏪 Detalle por Comercio — Análisis Completo</div>
-    <div style="font-size:12px;color:#475569;margin-top:4px;">${[...RCV2_SITIOS.values()].filter(s=>s._calSet).length.toLocaleString('es-CO')} corresponsales con datos de cálculo · ${RCV2_SITIOS.size.toLocaleString('es-CO')} sitios totales indexados</div>
+  <!-- ══ HEADER DEL PANEL ══ -->
+  <div style="margin-bottom:28px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f1f5f9;letter-spacing:-.3px;line-height:1.1;">
+          Detalle por Comercio
+        </div>
+        <div style="font-family:'Outfit',sans-serif;font-size:13px;color:#64748b;margin-top:5px;font-weight:400;">
+          Análisis completo de cobertura, consumo y alertas por corresponsal
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(176,242,174,.06);border:1px solid rgba(176,242,174,.18);border-radius:20px;">
+        <div style="width:6px;height:6px;border-radius:50%;background:#B0F2AE;box-shadow:0 0 6px #B0F2AE;animation:dotPulse 2s ease-in-out infinite;"></div>
+        <span style="font-family:'Outfit',sans-serif;font-size:11px;color:#B0F2AE;">Actualizado: ${ahora}</span>
+      </div>
+    </div>
+
+    <!-- ── KPIs panorámicos del header ── -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px;">
+
+      <!-- Total corresponsales -->
+      <div style="background:rgba(153,209,252,.06);border:1px solid rgba(153,209,252,.15);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">🏪</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Corresponsales</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#99D1FC;line-height:1;">${conDatos.toLocaleString('es-CO')}</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">con datos de stock</div>
+        <div style="font-size:10px;color:#334155;margin-top:2px;">${totalSitios.toLocaleString('es-CO')} sitios totales</div>
+      </div>
+
+      <!-- Rollos disponibles -->
+      <div style="background:rgba(176,242,174,.06);border:1px solid rgba(176,242,174,.15);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">📦</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Rollos disponibles</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#B0F2AE;line-height:1;">${totalRollos.toLocaleString('es-CO')}</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">inventario total</div>
+        <div style="font-size:10px;color:#334155;margin-top:2px;">${totalProm.toLocaleString('es-CO',{maximumFractionDigits:0})} prom/mes total</div>
+      </div>
+
+      <!-- Cobertura promedio -->
+      <div style="background:rgba(223,255,97,.05);border:1px solid rgba(223,255,97,.14);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">📅</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Cobertura promedio</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#DFFF61;line-height:1;">${promCob}<span style="font-size:13px;font-weight:400;"> m</span></div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">meses promedio red</div>
+        <div style="font-size:10px;color:#334155;margin-top:2px;">SLA mínimo: 3 meses</div>
+      </div>
+
+      <!-- Cumplimiento SLA -->
+      <div style="background:${oksN/Math.max(conMeses.length,1)>.7?'rgba(176,242,174,.06)':'rgba(255,92,92,.06)'};border:1px solid ${oksN/Math.max(conMeses.length,1)>.7?'rgba(176,242,174,.15)':'rgba(255,92,92,.15)'};border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">✅</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Cumplimiento SLA</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:${parseInt(pctSla)>=70?'#B0F2AE':'#FF5C5C'};line-height:1;">${pctSla}<span style="font-size:13px;font-weight:400;">%</span></div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">${oksN} de ${conMeses.length} cumplen ≥3m</div>
+        <div style="font-size:10px;color:#FF5C5C;margin-top:2px;">${slaIncN} incumpliendo</div>
+      </div>
+
+      <!-- Críticos -->
+      <div style="background:rgba(255,92,92,.06);border:1px solid rgba(255,92,92,.2);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.1;">🚨</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">En riesgo quiebre</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#FF5C5C;line-height:1;">${criticos}</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">cobertura &lt; 1 mes</div>
+        <div style="font-size:10px;color:#FFC04D;margin-top:2px;">${alertasN} en alerta (&lt;2m)</div>
+      </div>
+
+    </div>
   </div>
 
-  <!-- Buscador -->
-  <div style="position:relative;max-width:560px;margin-bottom:28px;">
+  <!-- ══ BUSCADOR ══ -->
+  <div style="position:relative;max-width:560px;margin-bottom:32px;">
     <div style="display:flex;gap:10px;align-items:center;">
       <div style="position:relative;flex:1;">
         <input id="rcv2-search-input" type="text"
-          placeholder="🔍 Buscar corresponsal por nombre, código o ciudad..."
+          placeholder="Buscar corresponsal por nombre, código o ciudad..."
           oninput="rcv2Suggest(this.value)"
           onfocus="rcv2Suggest(this.value)"
           autocomplete="off"
-          style="width:100%;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:12px 18px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s;"
-          onfocus="this.style.borderColor='rgba(176,242,174,.5)'"
-          onblur="setTimeout(()=>{const ul=document.getElementById('rcv2-suggestions');if(ul)ul.style.display='none'},200)">
-        <ul id="rcv2-suggestions" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.1);border-radius:10px;list-style:none;margin:0;padding:0;z-index:9999;max-height:300px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);"></ul>
+          style="width:100%;background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.10);border-radius:12px;padding:13px 18px 13px 44px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:14px;outline:none;box-sizing:border-box;transition:border-color .2s,box-shadow .2s;"
+          onfocus="this.style.borderColor='rgba(176,242,174,.5)';this.style.boxShadow='0 0 0 3px rgba(176,242,174,.08)'"
+          onblur="this.style.borderColor='rgba(255,255,255,.10)';this.style.boxShadow='none';setTimeout(()=>{const ul=document.getElementById('rcv2-suggestions');if(ul)ul.style.display='none'},200)">
+        <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;">🔍</span>
+        <ul id="rcv2-suggestions" style="display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;background:#1a1a1a;border:1px solid rgba(255,255,255,.1);border-radius:12px;list-style:none;margin:0;padding:0;z-index:9999;max-height:300px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.5);"></ul>
       </div>
-      <button onclick="rcv2ClearSearch()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 16px;color:#94a3b8;font-family:'Outfit',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;">✕ Limpiar</button>
+      <button onclick="rcv2ClearSearch()" style="background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.10);border-radius:12px;padding:12px 16px;color:#64748b;font-family:'Outfit',sans-serif;font-size:12px;cursor:pointer;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='rgba(255,255,255,.2)';this.style.color='#94a3b8'" onmouseout="this.style.borderColor='rgba(255,255,255,.10)';this.style.color='#64748b'">✕ Limpiar</button>
     </div>
-    <div style="font-size:10px;color:#475569;margin-top:6px;">Tip: escribe mínimo 2 caracteres para ver sugerencias</div>
+    <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#334155;margin-top:7px;">Mínimo 2 caracteres para sugerencias · Selecciona un corresponsal para ver su análisis detallado</div>
   </div>
 
-  <!-- Panel de detalle (vacío hasta que se seleccione un comercio) -->
+  <!-- ══ PANEL DE DETALLE ══ -->
   <div id="rcv2-detail-panel">
-    <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:40px;text-align:center;color:#475569;">
-      <div style="font-size:36px;margin-bottom:12px;">🔍</div>
-      <div style="font-size:14px;font-weight:600;color:#64748b;">Busca un corresponsal para ver su análisis completo</div>
-      <div style="font-size:12px;margin-top:6px;">Stock actual · Historial de MOs · Cobertura · Consumo · Alertas</div>
+    <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:48px;text-align:center;color:#475569;">
+      <div style="font-size:40px;margin-bottom:14px;opacity:.5;">🔍</div>
+      <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#64748b;">Busca un corresponsal para ver su análisis completo</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:12px;margin-top:7px;color:#334155;">Stock actual · Historial de MOs · Cobertura · Consumo · Alertas · Punto de reorden</div>
     </div>
   </div>
 
-  <!-- Tabla resumen global (cobertura de todos los sitios) -->
-  <div style="margin-top:32px;">
-    <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:#f1f5f9;margin-bottom:16px;">📊 Cobertura Global — Todos los Corresponsales</div>
+  <!-- ══ TABLA DETALLE GLOBAL ══ -->
+  <div style="margin-top:40px;">
+    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap;">
+      <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.2px;">Tabla Detalle por Comercio</div>
+      <div style="font-family:'Outfit',sans-serif;font-size:12px;color:#475569;">KPIs de cobertura, SLA, reorden y alertas para toda la red</div>
+    </div>
+    <div style="width:40px;height:2px;background:linear-gradient(90deg,#B0F2AE,transparent);border-radius:2px;margin-bottom:20px;"></div>
     <div id="rcv2-global-table"></div>
   </div>`;
 
-  // Renderizar tabla global
   rcv2RenderGlobalTable();
 }
 
@@ -835,17 +918,12 @@ function rcv2RenderGlobalTable(filterTerm) {
   const el = document.getElementById('rcv2-global-table');
   if (!el) return;
 
-  // Incluir todos los sitios indexados.
-  // Los que tienen _calSet=true tienen datos reales de stock/cálculo.
-  // Los que no tienen _calSet se muestran como "Sin datos" (no se ocultan,
-  // porque son corresponsales reales sin match en la tabla de cálculos).
   let rows = [...RCV2_SITIOS.entries()]
     .map(([key, s]) => ({
       key, ...s,
-      meses: s._calSet ? s.cal.saldo_dias / 30 : null,  // null = sin datos
+      meses: s._calSet ? s.cal.saldo_dias / 30 : null,
     }))
     .sort((a, b) => {
-      // Sin datos van al final; con datos se ordenan más críticos primero
       if (a.meses === null && b.meses === null) return 0;
       if (a.meses === null) return 1;
       if (b.meses === null) return -1;
@@ -862,18 +940,26 @@ function rcv2RenderGlobalTable(filterTerm) {
     );
   }
 
-  // Stats rápidos — cada sitio se cuenta exactamente una vez
-  // meses===null significa sin datos de cálculo (no se clasifican en semáforo)
   const total     = rows.length;
   const sinDatos  = rows.filter(r => r.meses === null).length;
   const criticos  = rows.filter(r => r.meses !== null && r.meses < 1).length;
   const alertas   = rows.filter(r => r.meses !== null && r.meses >= 1 && r.meses < 2).length;
   const warns     = rows.filter(r => r.meses !== null && r.meses >= 2 && r.meses < 3).length;
   const oks       = rows.filter(r => r.meses !== null && r.meses >= 3).length;
-  // criticos + alertas + warns + oks + sinDatos debe ser === total
-  const slaIncump = criticos + alertas + warns; // solo los que tienen datos y < 3m
+  const slaIncump = criticos + alertas + warns;
+  const conMeses  = total - sinDatos;
+  const pctSla    = conMeses > 0 ? (oks / conMeses * 100).toFixed(0) : 0;
+  const promCob   = conMeses > 0 ? (rows.filter(r=>r.meses!==null).reduce((s,r)=>s+r.meses,0)/conMeses).toFixed(1) : '—';
+  const bajoPR    = rows.filter(r => r.meses !== null && r.cal.saldo_rollos > 0 && r.cal.saldo_rollos <= r.cal.punto_reorden).length;
 
-  // Guardar grupos para el modal drill-down
+  // Barra de distribución de cobertura
+  const distPct = conMeses > 0 ? {
+    c: (criticos/conMeses*100).toFixed(1),
+    a: (alertas/conMeses*100).toFixed(1),
+    w: (warns/conMeses*100).toFixed(1),
+    o: (oks/conMeses*100).toFixed(1),
+  } : {c:0,a:0,w:0,o:0};
+
   window._rcv2KpiGroups = {
     total:    rows,
     criticos: rows.filter(r => r.meses !== null && r.meses < 1),
@@ -881,6 +967,7 @@ function rcv2RenderGlobalTable(filterTerm) {
     warns:    rows.filter(r => r.meses !== null && r.meses >= 2 && r.meses < 3),
     oks:      rows.filter(r => r.meses !== null && r.meses >= 3),
     sla:      rows.filter(r => r.meses !== null && r.meses < 3),
+    bajoPR:   rows.filter(r => r.meses !== null && r.cal.saldo_rollos > 0 && r.cal.saldo_rollos <= r.cal.punto_reorden),
     sinDatos: rows.filter(r => r.meses === null),
   };
 
@@ -888,79 +975,224 @@ function rcv2RenderGlobalTable(filterTerm) {
   const maxShown  = Math.min(rows.length, PAGE_SIZE);
   const shown     = rows.slice(0, maxShown);
 
+  // ── Tooltip helper ─────────────────────────────────────────────────
+  const kpiDesc = {
+    total:    'Total de corresponsales indexados en el sistema.',
+    criticos: 'Corresponsales con menos de 1 mes de cobertura. Riesgo inmediato de quiebre de stock.',
+    alertas:  'Corresponsales con cobertura entre 1 y 2 meses. Requieren atención urgente.',
+    warns:    'Corresponsales con cobertura entre 2 y 3 meses. Por debajo del SLA acordado.',
+    oks:      'Corresponsales que cumplen el SLA de cobertura mínima de 3 meses.',
+    sla:      'Corresponsales que NO cumplen el SLA de 3 meses de cobertura garantizada.',
+    bajoPR:   'Corresponsales cuyo saldo actual está por debajo del punto de reorden definido.',
+    sinDatos: 'Corresponsales sin datos de stock disponibles en el sistema.',
+  };
+
   el.innerHTML = `
-  <!-- Stats -->
-  <div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
+
+  <!-- ══ KPI CARDS — SEMÁFORO ══ -->
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:24px;">
+
     ${[
-      ['📍 Total',           total,     '#99D1FC', 'total'],
-      ['🔴 Críticos (<1m)',  criticos,  '#FF5C5C', 'criticos'],
-      ['🟠 Alerta (<2m)',    alertas,   '#FFC04D', 'alertas'],
-      ['🟡 Atención (<3m)', warns,     '#DFFF61', 'warns'],
-      ['🟢 OK (≥3m)',        oks,       '#B0F2AE', 'oks'],
-      ['✗ SLA Incumplido',  slaIncump, '#FF5C5C', 'sla'],
-      ['⚪ Sin datos stock', sinDatos,  '#475569', 'sinDatos'],
-    ].map(([l,n,c,grp]) => `<div
-        onclick="rcv2OpenKpiModal('${l.replace(/'/g,"\\'")} (${n})', window._rcv2KpiGroups['${grp}'] || [])"
-        title="Click para ver corresponsales"
-        style="background:${c}12;border:1px solid ${c}33;border-radius:10px;padding:10px 16px;
-          display:flex;align-items:center;gap:8px;cursor:pointer;transition:background .18s,transform .15s;"
-        onmouseover="this.style.background='${c}22';this.style.transform='translateY(-2px)'"
-        onmouseout="this.style.background='${c}12';this.style.transform='translateY(0)'">
-      <span style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${c};">${n}</span>
-      <div style="line-height:1.3;">
-        <div style="font-size:10px;color:#64748b;">${l}</div>
-        <div style="font-size:9px;color:${c};opacity:.6;">Ver listado →</div>
+      { grp:'criticos', icon:'🚨', label:'Riesgo Quiebre', sub:'Cobertura &lt; 1 mes', n:criticos, col:'#FF5C5C',
+        detail:'Necesitan reabastecimiento urgente' },
+      { grp:'alertas',  icon:'⚠️', label:'En Alerta',     sub:'Cobertura 1–2 meses',  n:alertas,  col:'#FFC04D',
+        detail:'Ordenar en los próximos días' },
+      { grp:'warns',    icon:'⏳', label:'Bajo SLA',       sub:'Cobertura 2–3 meses',  n:warns,    col:'#DFFF61',
+        detail:'Por debajo del acuerdo de 3 meses' },
+      { grp:'oks',      icon:'✅', label:'SLA Cumplido',   sub:'Cobertura ≥ 3 meses',  n:oks,      col:'#B0F2AE',
+        detail:'Cumplen el estándar acordado' },
+      { grp:'bajoPR',   icon:'📉', label:'Bajo Reorden',  sub:'Stock ≤ punto reorden', n:bajoPR,   col:'#C084FC',
+        detail:'Deben generarse órdenes de compra' },
+      { grp:'sla',      icon:'✗',  label:'SLA Incumplido',sub:'Total fuera del SLA',   n:slaIncump,col:'#FF5C5C',
+        detail:'${slaIncump} de ${conMeses} corresponsales con datos' },
+    ].map(k=>`
+      <div onclick="rcv2OpenKpiModal('${k.label} (${k.n})', window._rcv2KpiGroups['${k.grp}'] || [])"
+        title="${kpiDesc[k.grp]||''}"
+        style="background:${k.col}0A;border:1px solid ${k.col}28;border-radius:14px;padding:16px 18px;cursor:pointer;
+          transition:transform .18s,box-shadow .18s,background .18s;position:relative;overflow:hidden;"
+        onmouseover="this.style.transform='translateY(-3px)';this.style.background='${k.col}16';this.style.boxShadow='0 8px 24px ${k.col}20'"
+        onmouseout="this.style.transform='translateY(0)';this.style.background='${k.col}0A';this.style.boxShadow='none'">
+        <div style="position:absolute;top:-8px;right:-6px;font-size:32px;opacity:.08;line-height:1;">${k.icon}</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#475569;letter-spacing:.7px;text-transform:uppercase;margin-bottom:8px;">${k.label}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;color:${k.col};line-height:1;">${k.n}</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:5px;">${k.sub}</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:9px;color:${k.col};opacity:.65;margin-top:3px;">${k.detail}</div>
+        <div style="position:absolute;bottom:8px;right:10px;font-size:9px;color:${k.col};opacity:.5;font-family:'Outfit',sans-serif;">Ver listado →</div>
+      </div>`).join('')}
+
+  </div>
+
+  <!-- ══ BARRA DE DISTRIBUCIÓN DE COBERTURA ══ -->
+  <div style="background:rgba(255,255,255,.025);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:18px 22px;margin-bottom:24px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#e2e8f0;">Distribución de Cobertura</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;color:#475569;margin-top:2px;">Proporción de corresponsales por rango de cobertura · ${conMeses} con datos</div>
       </div>
-    </div>`).join('')}
-    <div style="flex:1;display:flex;align-items:center;justify-content:flex-end;">
-      <input type="text" placeholder="Filtrar tabla..." oninput="rcv2RenderGlobalTable(this.value)"
-        style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:7px 12px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:12px;outline:none;width:200px;">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${parseInt(pctSla)>=70?'#B0F2AE':'#FF5C5C'};">${pctSla}%</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:9px;color:#64748b;">Cumple SLA</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:#DFFF61;">${promCob}m</div>
+          <div style="font-family:'Outfit',sans-serif;font-size:9px;color:#64748b;">Cob. promedio</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:${parseInt(pctSla)>=70?'rgba(176,242,174,.08)':'rgba(255,92,92,.08)'};border:1px solid ${parseInt(pctSla)>=70?'rgba(176,242,174,.2)':'rgba(255,92,92,.2)'};border-radius:20px;">
+          <span style="font-size:12px;">${parseInt(pctSla)>=70?'🟢':'🔴'}</span>
+          <span style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;color:${parseInt(pctSla)>=70?'#B0F2AE':'#FF5C5C'};">SLA ${parseInt(pctSla)>=70?'SALUDABLE':'EN RIESGO'}</span>
+        </div>
+      </div>
+    </div>
+    <!-- Barra apilada -->
+    <div style="display:flex;height:10px;border-radius:6px;overflow:hidden;gap:1px;margin-bottom:10px;">
+      ${parseFloat(distPct.c)>0?`<div style="width:${distPct.c}%;background:#FF5C5C;transition:width .4s;" title="Críticos: ${distPct.c}%"></div>`:''}
+      ${parseFloat(distPct.a)>0?`<div style="width:${distPct.a}%;background:#FFC04D;transition:width .4s;" title="Alerta: ${distPct.a}%"></div>`:''}
+      ${parseFloat(distPct.w)>0?`<div style="width:${distPct.w}%;background:#DFFF61;transition:width .4s;" title="Atención: ${distPct.w}%"></div>`:''}
+      ${parseFloat(distPct.o)>0?`<div style="width:${distPct.o}%;background:#B0F2AE;transition:width .4s;" title="OK: ${distPct.o}%"></div>`:''}
+    </div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">
+      ${[['#FF5C5C','Crítico &lt;1m',distPct.c,criticos],['#FFC04D','Alerta &lt;2m',distPct.a,alertas],['#DFFF61','Atención &lt;3m',distPct.w,warns],['#B0F2AE','OK ≥3m',distPct.o,oks]].map(([c,l,p,n])=>
+        `<div style="display:flex;align-items:center;gap:5px;">
+          <div style="width:8px;height:8px;border-radius:2px;background:${c};flex-shrink:0;"></div>
+          <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#64748b;">${l}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:#94a3b8;">${n} (${p}%)</span>
+        </div>`).join('')}
     </div>
   </div>
 
-  <!-- Tabla -->
-  <div style="overflow-x:auto;border-radius:10px;border:1px solid rgba(255,255,255,.06);">
+  <!-- ══ LEYENDA KPIs de la tabla ══ -->
+  <div style="background:rgba(153,209,252,.04);border:1px solid rgba(153,209,252,.10);border-radius:12px;padding:14px 18px;margin-bottom:18px;">
+    <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:#99D1FC;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      <span>ℹ</span> Guía de columnas
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 20px;">
+      ${[
+        ['COBERTURA','Meses de stock disponible con el consumo promedio actual. SLA mínimo: 3 meses.','#DFFF61'],
+        ['SALDO ROL.','Rollos físicamente disponibles según cálculos del tablero.','#B0F2AE'],
+        ['PROM/MES','Consumo promedio mensual histórico (proyectado).','#99D1FC'],
+        ['CONSUMO 30d','Consumo real registrado en los últimos 30 días.','#FFC04D'],
+        ['VAR. CONSUMO','Variación % del consumo real vs el proyectado mensual. Verde &lt;10%, Amarillo &lt;25%, Rojo ≥25%.','#C084FC'],
+        ['P. REORDEN','Umbral mínimo de stock. Al llegar a este nivel se debe emitir una orden de compra.','#C084FC'],
+        ['ROTACIÓN','Rollos consumidos / saldo actual. Indica con qué velocidad rota el inventario.','#F87171'],
+        ['SLA','Cumplimiento del acuerdo de cobertura garantizada de 3 meses (✓ OK / ✗ INC).','#B0F2AE'],
+        ['PRÓX. ABAST.','Fecha estimada del próximo abastecimiento programado.','#99D1FC'],
+      ].map(([col,desc,c])=>
+        `<div style="display:flex;align-items:flex-start;gap:6px;">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;font-weight:700;color:${c};white-space:nowrap;margin-top:1px;">${col}</span>
+          <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;line-height:1.4;">${desc}</span>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- ══ CONTROLES DE TABLA ══ -->
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-family:'Outfit',sans-serif;font-size:12px;color:#475569;">${shown.length} de ${total} corresponsales</span>
+      ${rows.length > PAGE_SIZE ? `<span style="font-family:'Outfit',sans-serif;font-size:11px;color:#FFC04D;">Usa el filtro para ver más</span>` : ''}
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div style="position:relative;">
+        <input type="text" placeholder="Filtrar tabla..." oninput="rcv2RenderGlobalTable(this.value)"
+          style="background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px 8px 34px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:12px;outline:none;width:220px;transition:border-color .2s;"
+          onfocus="this.style.borderColor='rgba(176,242,174,.4)'"
+          onblur="this.style.borderColor='rgba(255,255,255,.08)'">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.5;">🔍</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TABLA ══ -->
+  <div style="overflow-x:auto;border-radius:12px;border:1px solid rgba(255,255,255,.06);box-shadow:0 4px 24px rgba(0,0,0,.3);">
     <table style="width:100%;border-collapse:collapse;font-family:'Outfit',sans-serif;font-size:12px;">
       <thead>
-        <tr style="background:rgba(0,0,0,.4);">
-          ${['#','CORRESPONSAL','CIUDAD','COBERTURA','SALDO ROL.','PROM/MES','P.REORDEN','SLA','ESTADO'].map(h=>
-            `<th style="padding:9px 12px;font-size:9px;color:#475569;font-weight:700;letter-spacing:.5px;text-align:${h==='SALDO ROL.'||h==='PROM/MES'||h==='P.REORDEN'?'right':'left'};">${h}</th>`
-          ).join('')}
+        <tr style="background:rgba(0,0,0,.45);">
+          ${[
+            {h:'#',       align:'left'},
+            {h:'CORRESPONSAL', align:'left'},
+            {h:'CIUDAD',  align:'left'},
+            {h:'COBERTURA',tooltip:'Meses de stock disponible. SLA mínimo: 3m', align:'left'},
+            {h:'SALDO ROL.',tooltip:'Rollos disponibles actualmente', align:'right'},
+            {h:'PROM/MES',tooltip:'Consumo promedio mensual proyectado', align:'right'},
+            {h:'CONSUMO 30d',tooltip:'Consumo real últimos 30 días', align:'right'},
+            {h:'VAR.',    tooltip:'Variación consumo real vs proyectado', align:'right'},
+            {h:'P.REORDEN',tooltip:'Umbral mínimo: genera orden si saldo ≤ este valor', align:'right'},
+            {h:'ROTACIÓN',tooltip:'Consumidos / saldo (velocidad de rotación)', align:'right'},
+            {h:'PRÓX.ABAST.',tooltip:'Fecha estimada del próximo abastecimiento', align:'left'},
+            {h:'SLA',     tooltip:'✓ OK = cumple ≥3 meses  |  ✗ INC = por debajo del SLA', align:'center'},
+            {h:'ESTADO',  align:'left'},
+          ].map(c=>`<th title="${c.tooltip||''}" style="padding:10px 12px;font-family:'Outfit',sans-serif;font-size:9px;color:#475569;font-weight:700;letter-spacing:.6px;text-align:${c.align};white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.06);">${c.h}${c.tooltip?'<span style="opacity:.4;font-size:8px;"> (?)</span>':''}</th>`).join('')}
         </tr>
       </thead>
       <tbody>
         ${shown.map((r, i) => {
-          const noData = r.meses === null;
-          const sg    = noData ? { col: '#475569' } : rcv2Semaforo(r.meses);
-          const sla   = !noData && r.meses >= 3;
-          const bajPR = !noData && r.cal.saldo_rollos > 0 && r.cal.saldo_rollos <= r.cal.punto_reorden;
+          const noData  = r.meses === null;
+          const sg      = noData ? { col:'#475569', label:'—', emoji:'⚪' } : rcv2Semaforo(r.meses);
+          const slaOk2  = !noData && r.meses >= 3;
+          const bajPR   = !noData && r.cal.saldo_rollos > 0 && r.cal.saldo_rollos <= r.cal.punto_reorden;
+          const stockZero = !noData && r.cal.saldo_rollos === 0;
+
+          // Consumo real 30d desde historial (aproximación desde prom_mensual × variación)
+          // En la tabla global no tenemos movsOrd por comercio, usamos cal
+          const consReal30 = r.cal.rollos_consumidos > 0 && r.cal.trx_desde > 0
+            ? Math.round(r.cal.rollos_consumidos / (r.cal.trx_desde / 30))
+            : '—';
+          const varNum = (typeof consReal30 === 'number' && r.cal.prom_mensual > 0)
+            ? ((consReal30 - r.cal.prom_mensual) / r.cal.prom_mensual * 100)
+            : null;
+          const varStr  = varNum !== null ? (varNum>0?'+':'')+varNum.toFixed(0)+'%' : '—';
+          const varCol  = varNum === null ? '#475569' : Math.abs(varNum)<10 ? '#B0F2AE' : Math.abs(varNum)<25 ? '#FFC04D' : '#FF5C5C';
+
+          const rotacion = r.cal.saldo_rollos > 0 && r.cal.prom_mensual > 0
+            ? (r.cal.rollos_consumidos / r.cal.saldo_rollos).toFixed(1)
+            : '—';
+
+          const bgRow   = stockZero ? 'rgba(255,92,92,.04)' : bajPR ? 'rgba(255,192,77,.03)' : i%2 ? 'rgba(255,255,255,.013)' : 'transparent';
           const cobCell = noData
-            ? `<span style="font-size:10px;color:#475569;font-style:italic;">Sin datos</span>`
-            : `<div style="display:flex;align-items:center;gap:6px;">
-                <div style="width:${Math.min(r.meses/6*60,60).toFixed(0)}px;height:4px;background:${sg.col};border-radius:2px;"></div>
-                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${sg.col};">${r.meses.toFixed(1)}m</span>
+            ? `<span style="font-size:10px;color:#334155;font-style:italic;">Sin datos</span>`
+            : `<div style="display:flex;align-items:center;gap:7px;">
+                <div style="position:relative;width:48px;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;">
+                  <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(r.meses/6*100,100).toFixed(0)}%;background:${sg.col};border-radius:3px;"></div>
+                  ${r.meses < 3 ? `<div style="position:absolute;left:50%;top:0;height:100%;width:1px;background:rgba(255,255,255,.2);"></div>` : ''}
+                </div>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${sg.col};">${r.meses.toFixed(1)}<span style="font-size:9px;font-weight:400;">m</span></span>
                </div>`;
           const slaCell = noData
-            ? `<span style="font-size:10px;color:#475569;">—</span>`
-            : `<span style="font-size:10px;color:${sla?'#B0F2AE':'#FF5C5C'};background:${sla?'#B0F2AE':'#FF5C5C'}18;border:1px solid ${sla?'#B0F2AE':'#FF5C5C'}33;border-radius:20px;padding:2px 8px;">${sla?'✓ OK':'✗ INC'}</span>`;
-          return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);${i%2?'background:rgba(255,255,255,.012)':''}${noData?'opacity:.55;':''}cursor:pointer;transition:background .15s;"
+            ? `<span style="font-size:10px;color:#334155;">—</span>`
+            : `<span style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:${slaOk2?'#B0F2AE':'#FF5C5C'};background:${slaOk2?'#B0F2AE':'#FF5C5C'}15;border:1px solid ${slaOk2?'#B0F2AE':'#FF5C5C'}30;border-radius:20px;padding:3px 9px;white-space:nowrap;">${slaOk2?'✓ OK':'✗ INC'}</span>`;
+          const prCell  = noData ? '—'
+            : `<span style="font-family:'JetBrains Mono',monospace;color:${bajPR?'#FFC04D':'#475569'};">${rcv2FmtI(r.cal.punto_reorden)}</span>${bajPR?`<span style="font-size:9px;color:#FFC04D;display:block;margin-top:1px;">⬇ reordenar</span>`:''}`;
+          const estadoLabel = stockZero ? `<span style="font-size:9px;color:#FF5C5C;font-weight:700;">QUIEBRE</span>` : bajPR ? `<span style="font-size:9px;color:#FFC04D;">BAJO PR</span>` : noData ? '<span style="color:#334155;">—</span>' : `<span style="font-size:10px;color:#64748b;">${r.cal.estado_punto||'—'}</span>`;
+
+          return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);background:${bgRow};cursor:pointer;transition:background .12s;"
             onclick="rcv2Select('${r.key}')"
-            onmouseover="this.style.background='rgba(176,242,174,.05)'"
-            onmouseout="this.style.background='${i%2?'rgba(255,255,255,.012)':'transparent'}'">
-            <td style="padding:8px 12px;font-size:10px;color:#475569;">${i+1}</td>
-            <td style="padding:8px 12px;"><div style="font-size:11px;font-weight:600;color:#e2e8f0;">${r.meta.nombre_sitio}</div><div style="font-size:9px;color:#475569;font-family:'JetBrains Mono',monospace;">${r.key}</div></td>
-            <td style="padding:8px 10px;font-size:11px;color:#94a3b8;">${r.meta.ciudad||'—'}</td>
-            <td style="padding:8px 12px;">${cobCell}</td>
-            <td style="padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#B0F2AE;text-align:right;">${noData?'—':rcv2FmtI(r.cal.saldo_rollos)}</td>
-            <td style="padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#94a3b8;text-align:right;">${noData?'—':rcv2Fmt(r.cal.prom_mensual)}</td>
-            <td style="padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${bajPR?'#FFC04D':'#64748b'};text-align:right;">${noData?'—':rcv2FmtI(r.cal.punto_reorden)+(bajPR?' ⬇':'')}</td>
-            <td style="padding:8px 10px;">${slaCell}</td>
-            <td style="padding:8px 10px;font-size:10px;color:#64748b;">${noData?'—':r.cal.estado_punto||'—'}</td>
+            onmouseover="this.style.background='rgba(176,242,174,.06)'"
+            onmouseout="this.style.background='${bgRow}'">
+            <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#334155;">${i+1}</td>
+            <td style="padding:9px 12px;min-width:160px;">
+              <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;color:#e2e8f0;line-height:1.3;">${r.meta.nombre_sitio}</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#475569;margin-top:2px;">${r.key}</div>
+            </td>
+            <td style="padding:9px 10px;font-family:'Outfit',sans-serif;font-size:11px;color:#64748b;white-space:nowrap;">${r.meta.ciudad||'—'}</td>
+            <td style="padding:9px 12px;min-width:120px;">${cobCell}</td>
+            <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:${stockZero?'#FF5C5C':'#B0F2AE'};text-align:right;font-weight:${stockZero?700:400};">${noData?'—':rcv2FmtI(r.cal.saldo_rollos)}</td>
+            <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;text-align:right;">${noData?'—':rcv2Fmt(r.cal.prom_mensual)}</td>
+            <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#94a3b8;text-align:right;">${typeof consReal30==='number'?rcv2FmtI(consReal30):'—'}</td>
+            <td style="padding:9px 10px;text-align:right;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${varCol};">${varStr}</span></td>
+            <td style="padding:9px 10px;text-align:right;">${prCell}</td>
+            <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#F87171;text-align:right;">${rotacion !== '—'?rotacion+'x':'—'}</td>
+            <td style="padding:9px 10px;font-family:'Outfit',sans-serif;font-size:10px;color:#475569;white-space:nowrap;">${noData?'—':rcv2FmtDate(r.cal.fecha_abst)}</td>
+            <td style="padding:9px 12px;text-align:center;">${slaCell}</td>
+            <td style="padding:9px 10px;">${estadoLabel}</td>
           </tr>`;
         }).join('')}
       </tbody>
     </table>
-    ${rows.length > PAGE_SIZE ? `<div style="padding:10px 16px;font-size:11px;color:#475569;border-top:1px solid rgba(255,255,255,.06);">Mostrando ${maxShown} de ${rows.length} registros. Usa el buscador para filtrar.</div>` : ''}
+    ${rows.length > PAGE_SIZE ? `
+    <div style="padding:12px 18px;font-family:'Outfit',sans-serif;font-size:11px;color:#475569;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;">
+      <span>Mostrando ${maxShown} de ${rows.length} registros.</span>
+      <span style="color:#64748b;">Usa el campo de filtro para encontrar corresponsales específicos</span>
+    </div>` : ''}
   </div>`;
 }
 
