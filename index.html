@@ -1,1160 +1,867 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-  <meta charset="UTF-8">
-  <link rel="icon" type="image/png" href="LOGO-LINEA-BLANCO.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tracking VP · Wompi × Linea</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link
-    href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="dashboard.css">
-  <style>
-    /* ── Autocomplete tipo Excel para filtros de inventario ── */
-    .inv-ac-list {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      z-index: 9999;
-      background: #1c1b18;
-      border: 1px solid rgba(176, 242, 174, .35);
-      border-radius: 8px;
-      margin: 3px 0 0;
-      padding: 0;
-      list-style: none;
-      max-height: 220px;
-      overflow-y: auto;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, .7);
-      scrollbar-width: thin;
-      scrollbar-color: rgba(176, 242, 174, .3) transparent;
-    }
-
-    .inv-ac-list::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    .inv-ac-list::-webkit-scrollbar-thumb {
-      background: rgba(176, 242, 174, .3);
-      border-radius: 2px;
-    }
-
-    .inv-ac-list li {
-      padding: 7px 12px;
-      font-size: 12px;
-      font-family: 'Outfit', sans-serif;
-      color: #e2e8f0;
-      cursor: pointer;
-      border-bottom: 1px solid rgba(255, 255, 255, .04);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .inv-ac-list li:last-child {
-      border-bottom: none;
-    }
-
-    .inv-ac-list li:hover,
-    .inv-ac-list li.inv-ac-active {
-      background: rgba(176, 242, 174, .12);
-      color: #B0F2AE;
-    }
-
-    .inv-ac-list li.inv-ac-clear {
-      color: #64748b;
-      font-style: italic;
-    }
-
-    .inv-ac-list li.inv-ac-clear:hover {
-      background: rgba(255, 255, 255, .05);
-      color: #94a3b8;
-    }
-
-    /* Input con valor activo */
-    input.inv-ac-selected {
-      border-color: rgba(176, 242, 174, .6) !important;
-      background: rgba(176, 242, 174, .07) !important;
-      color: #B0F2AE !important;
-    }
-  </style>
+<meta charset="UTF-8">
+<link rel="icon" type="image/png" href="LOGO-LINEA-BLANCO.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracking VP · Wompi × Linea</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="dashboard.css">
+<style>
+/* ── Autocomplete tipo Excel para filtros de inventario ── */
+.inv-ac-list{position:absolute;top:100%;left:0;right:0;z-index:9999;
+  background:#1c1b18;border:1px solid rgba(176,242,174,.35);border-radius:8px;
+  margin:3px 0 0;padding:0;list-style:none;max-height:220px;overflow-y:auto;
+  box-shadow:0 8px 28px rgba(0,0,0,.7);
+  scrollbar-width:thin;scrollbar-color:rgba(176,242,174,.3) transparent;}
+.inv-ac-list::-webkit-scrollbar{width:4px;}
+.inv-ac-list::-webkit-scrollbar-thumb{background:rgba(176,242,174,.3);border-radius:2px;}
+.inv-ac-list li{padding:7px 12px;font-size:12px;font-family:'Outfit',sans-serif;
+  color:#e2e8f0;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.inv-ac-list li:last-child{border-bottom:none;}
+.inv-ac-list li:hover,.inv-ac-list li.inv-ac-active{background:rgba(176,242,174,.12);color:#B0F2AE;}
+.inv-ac-list li.inv-ac-clear{color:#64748b;font-style:italic;}
+.inv-ac-list li.inv-ac-clear:hover{background:rgba(255,255,255,.05);color:#94a3b8;}
+/* Input con valor activo */
+input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
+  background:rgba(176,242,174,.07)!important;color:#B0F2AE!important;}
+</style>
 </head>
-
 <body>
 
-  <!-- ════ DATA LOADING OVERLAY ════ -->
-  <div id="data-loading-overlay" class="hidden">
-    <div class="dl-logo-row">
-      <img src="logo_wompi.png" alt="Wompi" style="border-radius:10px;">
-      <div class="dl-sep"></div>
-      <img src="logo_linea.png" alt="Linea" style="filter:brightness(1.2);">
-    </div>
-    <div class="dl-title">Cargando Dashboard...</div>
-    <div class="dl-spinner-row">
-      <div class="dl-spinner"></div>
-      <div class="dl-msg" id="dl-msg">Iniciando carga de datos...</div>
-    </div>
-    <div class="dl-progress">
-      <div class="dl-progress-fill" id="dl-progress-fill"></div>
-    </div>
-    <div class="dl-items">
-      <div class="dl-item">
-        <div class="dl-item-dot-wrap">
-          <div class="dl-item-dot" id="dl-dot-main"></div>
-        </div>
-        <div class="dl-item-info">
-          <span class="dl-item-text">data.json</span>
-          <span class="dl-item-sub" id="dl-sub-main">&nbsp;</span>
-        </div>
+  
+<!-- ════ DATA LOADING OVERLAY ════ -->
+<div id="data-loading-overlay" class="hidden">
+  <div class="dl-logo-row">
+    <img src="logo_wompi.png" alt="Wompi" style="border-radius:10px;">
+    <div class="dl-sep"></div>
+    <img src="logo_linea.png" alt="Linea" style="filter:brightness(1.2);">
+  </div>
+  <div class="dl-title">Cargando Dashboard...</div>
+  <div class="dl-spinner-row">
+    <div class="dl-spinner"></div>
+    <div class="dl-msg" id="dl-msg">Iniciando carga de datos...</div>
+  </div>
+  <div class="dl-progress"><div class="dl-progress-fill" id="dl-progress-fill"></div></div>
+  <div class="dl-items">
+    <div class="dl-item">
+      <div class="dl-item-dot-wrap"><div class="dl-item-dot" id="dl-dot-main"></div></div>
+      <div class="dl-item-info">
+        <span class="dl-item-text">data.json</span>
+        <span class="dl-item-sub" id="dl-sub-main">&nbsp;</span>
       </div>
-      <div class="dl-item">
-        <div class="dl-item-dot-wrap">
-          <div class="dl-item-dot" id="dl-dot-rollos"></div>
-        </div>
-        <div class="dl-item-info">
-          <span class="dl-item-text">data_tablero_rollos.json.gz</span>
-          <span class="dl-item-sub" id="dl-sub-rollos">&nbsp;</span>
-        </div>
+    </div>
+    <div class="dl-item">
+      <div class="dl-item-dot-wrap"><div class="dl-item-dot" id="dl-dot-rollos"></div></div>
+      <div class="dl-item-info">
+        <span class="dl-item-text">data_tablero_rollos.json.gz</span>
+        <span class="dl-item-sub" id="dl-sub-rollos">&nbsp;</span>
       </div>
-      <div class="dl-item">
-        <div class="dl-item-dot-wrap">
-          <div class="dl-item-dot" id="dl-dot-inventario"></div>
-        </div>
-        <div class="dl-item-info">
-          <span class="dl-item-text">stock_wompi_filtrado.json.gz</span>
-          <span class="dl-item-sub" id="dl-sub-inventario">&nbsp;</span>
-        </div>
+    </div>
+    <div class="dl-item">
+      <div class="dl-item-dot-wrap"><div class="dl-item-dot" id="dl-dot-inventario"></div></div>
+      <div class="dl-item-info">
+        <span class="dl-item-text">stock_wompi_filtrado.json.gz</span>
+        <span class="dl-item-sub" id="dl-sub-inventario">&nbsp;</span>
       </div>
     </div>
   </div>
+</div>
 
-  <!-- ════ LOGIN ════ -->
-  <div id="login-screen">
-    <div class="login-orb login-orb-1"></div>
-    <div class="login-orb login-orb-2"></div>
-    <div class="login-orb login-orb-3"></div>
-    <div class="login-scanline"></div>
-    <div class="login-card">
-      <div class="login-logos">
-        <img src="logo_wompi.png" alt="Wompi" class="login-logo-wompi">
-        <div class="login-sep-v"></div>
-        <img src="logo_linea.png" alt="Linea" class="login-logo-linea">
-      </div>
-      <div class="login-title">Dashboard Tracking VP</div>
-      <div class="login-desc">Acceso restringido · Wompi × Linea Comunicaciones</div>
-      <div class="login-error" id="login-error" style="display:none;margin-bottom:12px;"></div>
-      <button class="btn-login btn-ms-login" id="msLoginBtn" onclick="doMicrosoftLogin()">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style="width:20px;height:20px;flex-shrink:0;">
-          <rect x="1" y="1" width="10" height="10" fill="#f25022" />
-          <rect x="12" y="1" width="10" height="10" fill="#7fba00" />
-          <rect x="1" y="12" width="10" height="10" fill="#00a4ef" />
-          <rect x="12" y="12" width="10" height="10" fill="#ffb900" />
-        </svg>
-        Iniciar sesión con Microsoft
-      </button>
-      <div style="margin-top:14px;font-size:11px;color:#64748b;text-align:center;line-height:1.5;">
-        Solo cuentas <strong style="color:#94a3b8;">@lineacom.co</strong> tienen acceso
-      </div>
+<!-- ════ LOGIN ════ -->
+<div id="login-screen">
+  <div class="login-orb login-orb-1"></div>
+  <div class="login-orb login-orb-2"></div>
+  <div class="login-orb login-orb-3"></div>
+  <div class="login-scanline"></div>
+  <div class="login-card">
+    <div class="login-logos">
+      <img src="logo_wompi.png" alt="Wompi" class="login-logo-wompi">
+      <div class="login-sep-v"></div>
+      <img src="logo_linea.png" alt="Linea" class="login-logo-linea">
+    </div>
+    <div class="login-title">Dashboard Tracking VP</div>
+    <div class="login-desc">Acceso restringido · Wompi × Linea Comunicaciones</div>
+    <div class="login-error" id="login-error" style="display:none;margin-bottom:12px;"></div>
+    <button class="btn-login btn-ms-login" id="msLoginBtn" onclick="doMicrosoftLogin()">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 23 23" style="width:20px;height:20px;flex-shrink:0;">
+        <rect x="1" y="1" width="10" height="10" fill="#f25022"/>
+        <rect x="12" y="1" width="10" height="10" fill="#7fba00"/>
+        <rect x="1" y="12" width="10" height="10" fill="#00a4ef"/>
+        <rect x="12" y="12" width="10" height="10" fill="#ffb900"/>
+      </svg>
+      Iniciar sesión con Microsoft
+    </button>
+    <div style="margin-top:14px;font-size:11px;color:#64748b;text-align:center;line-height:1.5;">
+      Solo cuentas <strong style="color:#94a3b8;">@lineacom.co</strong> tienen acceso
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <img src="logo_wompi.png" alt="Wompi" class="topbar-logo-wompi" style="filter:drop-shadow(0 0 8px rgba(176,242,174,.2));">
+      <div class="topbar-sep"></div>
+      <img src="logo_linea.png" alt="Linea" class="topbar-logo-linea">
+      <div class="topbar-label" id="topbar-board-label">Tracking VP · Venta Presente</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-badge" id="topbar-badge">Cargando...</div>
+      <span class="last-update" id="last-update">—</span>
+      <button class="btn-logout" onclick="doLogout()">Salir ↗</button>
     </div>
   </div>
 
-  <!-- ════ APP ════ -->
-  <div id="app">
-    <!-- TOPBAR -->
-    <div class="topbar">
-      <div class="topbar-left">
-        <img src="logo_wompi.png" alt="Wompi" class="topbar-logo-wompi"
-          style="filter:drop-shadow(0 0 8px rgba(176,242,174,.2));">
-        <div class="topbar-sep"></div>
-        <img src="logo_linea.png" alt="Linea" class="topbar-logo-linea">
-        <div class="topbar-label" id="topbar-board-label">Tracking VP · Venta Presente</div>
+  <!-- TABS (hidden, JS compat) -->
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('tracking')" id="tab-tracking">📊 Tracking General</div>
+    <div class="tab" onclick="showTab('detalle')"  id="tab-detalle">🎯 Tracking Detalle</div>
+    <div class="tab" onclick="showTab('tabla')"    id="tab-tabla">📋 Tabla Completa</div>
+    <div class="tab" onclick="showTab('rollos')"   id="tab-rollos">🎞️ Rollos Wompi</div>
+  </div>
+
+  <!-- APP BODY -->
+  <div class="app-body">
+
+    <!-- ══ SIDEBAR ══ -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-toggle">
+        <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Colapsar sidebar">
+          <span class="toggle-icon">◀</span>
+        </button>
       </div>
-      <div class="topbar-right">
-        <div class="topbar-badge" id="topbar-badge">Cargando...</div>
-        <span class="last-update" id="last-update">—</span>
-        <button class="btn-logout" onclick="doLogout()">Salir ↗</button>
+      <div class="sidebar-section-label">Seleccione tablero</div>
+
+      <!-- Board: Datafonos -->
+      <div class="sidebar-board-section" id="sb-board-datafonos">
+        <div class="sidebar-board-btn" id="sb-btn-datafonos" onclick="selectBoard('datafonos')">
+          <span class="sidebar-board-icon">📊</span>
+          <span class="sidebar-board-name">TRACKING DATAFONOS VP</span>
+          <span class="sidebar-board-chevron">▶</span>
+        </div>
+        <div class="sidebar-tabs">
+          <div class="sidebar-tab" id="sb-tab-tracking"       onclick="selectBoardTab('datafonos','tracking')"><span class="sidebar-tab-icon">📈</span> Tracking General</div>
+          <div class="sidebar-tab" id="sb-tab-detalle"        onclick="selectBoardTab('datafonos','detalle')"><span class="sidebar-tab-icon">🎯</span> Tracking Detalle</div>
+          <div class="sidebar-tab" id="sb-tab-tabla"          onclick="selectBoardTab('datafonos','tabla')"><span class="sidebar-tab-icon">📋</span> Tabla Completa</div>
+          <div class="sidebar-tab" id="sb-tab-incumplimientos" onclick="selectBoardTab('datafonos','incumplimientos')"><span class="sidebar-tab-icon">📛</span> Incumplimientos ANS</div>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Board: Rollos -->
+      <div class="sidebar-board-section" id="sb-board-rollos">
+        <div class="sidebar-board-btn" id="sb-btn-rollos" onclick="selectBoard('rollos')">
+          <span class="sidebar-board-icon">🎞️</span>
+          <span class="sidebar-board-name">TRACKING ROLLOS TRIM</span>
+          <span class="sidebar-board-chevron">▶</span>
+        </div>
+        <div class="sidebar-tabs">
+          <div class="sidebar-tab" id="sb-tab-rollos-main"     onclick="selectBoardTab('rollos','rollos-main')"><span class="sidebar-tab-icon">📊</span> Rollos Wompi</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-detalle"  onclick="selectBoardTab('rollos','rollos-detalle')"><span class="sidebar-tab-icon">📋</span> Tabla Detalles de Tareas</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')"><span class="sidebar-tab-icon">🏪</span> Tabla Detalle por Comercio</div>
+        </div>
+      </div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Board: Inventario -->
+      <div class="sidebar-board-section" id="sb-board-inventario">
+        <div class="sidebar-board-btn" id="sb-btn-inventario" onclick="selectBoard('inventario')">
+          <span class="sidebar-board-icon">📦</span>
+          <span class="sidebar-board-name">INVENTARIO WOMPI</span>
+          <span class="sidebar-board-chevron">▶</span>
+        </div>
+        <div class="sidebar-tabs">
+          <div class="sidebar-tab" id="sb-tab-inv-principal" onclick="selectBoardTab('inventario','inv-principal')"><span class="sidebar-tab-icon">📊</span> Principal</div>
+          <div class="sidebar-tab" id="sb-tab-inv-detalles" onclick="selectBoardTab('inventario','inv-detalles')"><span class="sidebar-tab-icon">🔍</span> Detalles</div>
+          <div class="sidebar-tab" id="sb-tab-estado-materiales" onclick="selectBoardTab('inventario','estado-materiales')"><span class="sidebar-tab-icon">🧩</span> Estado Materiales</div>
+          <div class="sidebar-tab" id="sb-tab-garantia-inventario" onclick="selectBoardTab('inventario','garantia-inventario')"><span class="sidebar-tab-icon">🔒</span> Garantía & Rollos</div>
+          <div class="sidebar-tab" id="sb-tab-puntos-reorden" onclick="selectBoardTab('inventario','puntos-reorden')"><span class="sidebar-tab-icon">🎯</span> Puntos de Reorden</div>
+        </div>
       </div>
     </div>
 
-    <!-- TABS (hidden, JS compat) -->
-    <div class="tabs">
-      <div class="tab active" onclick="showTab('tracking')" id="tab-tracking">📊 Tracking General</div>
-      <div class="tab" onclick="showTab('detalle')" id="tab-detalle">🎯 Tracking Detalle</div>
-      <div class="tab" onclick="showTab('tabla')" id="tab-tabla">📋 Tabla Completa</div>
-      <div class="tab" onclick="showTab('rollos')" id="tab-rollos">🎞️ Rollos Wompi</div>
-    </div>
+    <!-- ══ CONTENT AREA ══ -->
+    <div class="content-area">
+      <div class="main">
 
-    <!-- APP BODY -->
-    <div class="app-body">
-
-      <!-- ══ SIDEBAR ══ -->
-      <div class="sidebar" id="sidebar">
-        <div class="sidebar-toggle">
-          <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" title="Colapsar sidebar">
-            <span class="toggle-icon">◀</span>
-          </button>
-        </div>
-        <div class="sidebar-section-label">Seleccione tablero</div>
-
-        <!-- Board: Datafonos -->
-        <div class="sidebar-board-section" id="sb-board-datafonos">
-          <div class="sidebar-board-btn" id="sb-btn-datafonos" onclick="selectBoard('datafonos')">
-            <span class="sidebar-board-icon">📊</span>
-            <span class="sidebar-board-name">TRACKING DATAFONOS VP</span>
-            <span class="sidebar-board-chevron">▶</span>
+        <!-- PANEL: HOME -->
+        <div id="panel-home" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:32px;padding:48px 32px;">
+          <div style="text-align:center;">
+            <div style="font-size:48px;margin-bottom:16px;">📊</div>
+            <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--blanco);letter-spacing:-.5px;margin-bottom:8px;">Dashboard Unificado de Tableros</div>
           </div>
-          <div class="sidebar-tabs">
-            <div class="sidebar-tab" id="sb-tab-tracking" onclick="selectBoardTab('datafonos','tracking')"><span
-                class="sidebar-tab-icon">📈</span> Tracking General</div>
-            <div class="sidebar-tab" id="sb-tab-detalle" onclick="selectBoardTab('datafonos','detalle')"><span
-                class="sidebar-tab-icon">🎯</span> Tracking Detalle</div>
-            <div class="sidebar-tab" id="sb-tab-tabla" onclick="selectBoardTab('datafonos','tabla')"><span
-                class="sidebar-tab-icon">📋</span> Tabla Completa</div>
-            <div class="sidebar-tab" id="sb-tab-incumplimientos"
-              onclick="selectBoardTab('datafonos','incumplimientos')"><span class="sidebar-tab-icon">📛</span>
-              Incumplimientos ANS</div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
+            <div onclick="selectBoard('datafonos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(10,28,18,.98),rgba(0,100,70,.10));border:1px solid rgba(176,242,174,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(176,242,174,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(176,242,174,.2)';this.style.transform='translateY(0)'">
+              <div style="font-size:32px;margin-bottom:12px;">📱</div>
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--verde-menta);letter-spacing:.5px;margin-bottom:6px;">TRACKING DATAFONOS VP</div>
+            </div>
+            <div onclick="selectBoard('rollos')" style="cursor:pointer;background:linear-gradient(145deg,rgba(8,18,28,.98),rgba(0,70,110,.10));border:1px solid rgba(153,209,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(153,209,252,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(153,209,252,.2)';this.style.transform='translateY(0)'">
+              <div style="font-size:32px;margin-bottom:12px;">🎞️</div>
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--azul-cielo);letter-spacing:.5px;margin-bottom:6px;">TRACKING ROLLOS TRIM</div>
+            </div>
+          <div onclick="selectBoard('inventario')" style="cursor:pointer;background:linear-gradient(145deg,rgba(10,18,28,.98),rgba(40,0,80,.10));border:1px solid rgba(192,132,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);" onmouseover="this.style.borderColor='rgba(192,132,252,.5)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='rgba(192,132,252,.2)';this.style.transform='translateY(0)'">
+              <div style="font-size:32px;margin-bottom:12px;">📦</div>
+              <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#C084FC;letter-spacing:.5px;margin-bottom:6px;">INVENTARIO WOMPI</div>
+            </div>
           </div>
         </div>
 
-        <div class="sidebar-divider"></div>
-
-        <!-- Board: Rollos -->
-        <div class="sidebar-board-section" id="sb-board-rollos">
-          <div class="sidebar-board-btn" id="sb-btn-rollos" onclick="selectBoard('rollos')">
-            <span class="sidebar-board-icon">🎞️</span>
-            <span class="sidebar-board-name">TRACKING ROLLOS TRIM</span>
-            <span class="sidebar-board-chevron">▶</span>
+        <!-- PANEL: TRACKING GENERAL -->
+        <div id="panel-tracking" style="display:none">
+          <div class="filters-bar">
+            <div class="filters-title">Filtros de búsqueda</div>
+            <div class="filters-row">
+              <div class="filter-group"><label>Estado Datafono</label><select id="f-estado"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Tipo Envío</label><select id="f-tipo-envio"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Material / Datafono</label><select id="f-material"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Departamento</label><select id="f-departamento"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Ciudad</label><select id="f-ciudad"><option value="">Todos</option></select></div>
+              <div class="filter-group"><label>Transportadora</label><select id="f-transportadora"><option value="">Todas</option></select></div>
+            </div>
+            <div class="filters-row">
+              <div class="filter-group"><label>Nro. Guía</label><input type="text" id="f-guia" placeholder="Número de guía..."></div>
+              <div class="filter-group"><label>ID Sitio / Merchant</label><input type="text" id="f-idsitio" placeholder="ID Sitio..."></div>
+              <div class="filter-group"><label>Mes Solicitud</label><select id="f-mes"><option value="">Todos</option></select></div>
+              <div class="filter-group filter-group--date-range">
+                <label>📅 Fecha Solicitud</label>
+                <div class="date-range-inputs">
+                  <input type="date" id="f-fecha-desde"><span class="date-range-sep">→</span><input type="date" id="f-fecha-hasta">
+                </div>
+              </div>
+              <div class="filter-group filter-group--date-range">
+                <label>⏰ Fecha Límite Entrega</label>
+                <div class="date-range-inputs">
+                  <input type="date" id="f-limite-desde"><span class="date-range-sep">→</span><input type="date" id="f-limite-hasta">
+                </div>
+              </div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="applyFilters()">✦ Aplicar filtros</button>
+                <button class="btn-reset" onclick="resetFilters()">↺ Reset</button>
+              </div>
+            </div>
           </div>
-          <div class="sidebar-tabs">
-            <div class="sidebar-tab" id="sb-tab-rollos-main" onclick="selectBoardTab('rollos','rollos-main')"><span
-                class="sidebar-tab-icon">📊</span> Rollos Wompi</div>
-            <div class="sidebar-tab" id="sb-tab-rollos-detalle" onclick="selectBoardTab('rollos','rollos-detalle')">
-              <span class="sidebar-tab-icon">📋</span> Tabla Detalles de Tareas</div>
-            <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')">
-              <span class="sidebar-tab-icon">🏪</span> Tabla Detalle por Comercio</div>
+
+          <div class="section-label fade-up fade-up-1">KPIs Principales</div>
+          <div class="kpi-grid fade-up fade-up-2" id="kpi-grid">
+            <div class="loading"><div class="spinner"></div><span>Cargando datos...</span></div>
+          </div>
+
+          <div class="charts-grid" id="charts-general">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Estado de Envíos</div><div class="chart-sub">Distribución por estado actual</div></div>
+              <div class="chart-wrap"><canvas id="chart-estados"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Cumplimiento ANS</div><div class="chart-sub">% Oportunidad vs % Calidad</div></div>
+              <div class="chart-wrap"><canvas id="chart-ans"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Solicitudes por Día</div><div class="chart-sub">Tendencia diaria de solicitudes</div></div>
+              <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Visita Técnica vs Operador Logístico</div><div class="chart-sub">Total vs Entregado por tipo</div></div>
+              <div class="chart-wrap"><canvas id="chart-tipos"></canvas></div>
+            </div>
+            <div class="chart-card wide">
+              <div class="chart-header"><div class="chart-title">Distribución por Departamento</div><div class="chart-sub">Top departamentos · Tipología Principal / Intermedia / Lejana</div></div>
+              <div class="chart-wrap" style="height:280px"><canvas id="chart-dept"></canvas></div>
+            </div>
+          </div>
+
+          <div class="section-label">Detalle por Departamento / Tipología</div>
+          <div class="table-section">
+            <div class="table-header">
+              <h3>Tabla Departamentos</h3>
+              <div class="table-actions"><button class="btn-export" onclick="exportDeptExcel()">⬇ Excel</button></div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Departamento</th>
+                  <th style="color:var(--azul-cielo)">Principal</th>
+                  <th style="color:var(--verde-menta)">Intermedia</th>
+                  <th style="color:var(--verde-lima)">Lejana</th>
+                  <th style="color:var(--warning)">Total</th>
+                </tr></thead>
+                <tbody id="dept-tbody"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div class="sidebar-divider"></div>
+        <!-- PANEL: DETALLE ANS -->
+        <div id="panel-detalle" style="display:none">
+          <div class="section-label">KPIs de Alerta ANS</div>
+          <div class="alerts-grid" id="ans-alerts-grid"></div>
 
-        <!-- Board: Inventario -->
-        <div class="sidebar-board-section" id="sb-board-inventario">
-          <div class="sidebar-board-btn" id="sb-btn-inventario" onclick="selectBoard('inventario')">
-            <span class="sidebar-board-icon">📦</span>
-            <span class="sidebar-board-name">INVENTARIO WOMPI</span>
-            <span class="sidebar-board-chevron">▶</span>
+          <div class="section-label">Backlog por Vencer</div>
+          <div class="filters-bar" style="margin-bottom:16px;padding:14px 20px">
+            <div class="filter-group">
+              <label>Ventana de riesgo</label>
+              <select id="f-backlog-window">
+                <option value="24">Próximas 24h</option>
+                <option value="48">Próximas 48h</option>
+              </select>
+            </div>
+            <button class="btn-apply" onclick="renderBacklog()">Aplicar</button>
           </div>
-          <div class="sidebar-tabs">
-            <div class="sidebar-tab" id="sb-tab-inv-principal" onclick="selectBoardTab('inventario','inv-principal')">
-              <span class="sidebar-tab-icon">📊</span> Principal</div>
-            <div class="sidebar-tab" id="sb-tab-inv-detalles" onclick="selectBoardTab('inventario','inv-detalles')">
-              <span class="sidebar-tab-icon">🔍</span> Detalles</div>
-            <div class="sidebar-tab" id="sb-tab-estado-materiales"
-              onclick="selectBoardTab('inventario','estado-materiales')"><span class="sidebar-tab-icon">🧩</span> Estado
-              Materiales</div>
-            <div class="sidebar-tab" id="sb-tab-garantia-inventario"
-              onclick="selectBoardTab('inventario','garantia-inventario')"><span class="sidebar-tab-icon">🔒</span>
-              Garantía & Rollos</div>
-            <div class="sidebar-tab" id="sb-tab-puntos-reorden" onclick="selectBoardTab('inventario','puntos-reorden')">
-              <span class="sidebar-tab-icon">🎯</span> Puntos de Reorden</div>
+          <div class="table-section accent-warn">
+            <div class="table-header">
+              <h3>Solicitudes en Riesgo ANS</h3>
+              <div class="table-actions"><button class="btn-export" onclick="exportBacklogExcel()">⬇ Excel</button></div>
+            </div>
+            <div class="table-wrap" id="backlog-wrap">
+              <div class="empty-state"><div class="icon">✅</div><p>Sin registros en riesgo</p></div>
+            </div>
+          </div>
+
+          <div class="section-label">Guías sin Cambios &gt; 24h</div>
+          <div class="table-section accent-blue">
+            <div class="table-header"><h3>Guías sin Cambios</h3></div>
+            <div class="table-wrap" id="guias-estancadas-wrap">
+              <div class="empty-state"><div class="icon">✅</div><p>Sin guías sin cambios</p></div>
+            </div>
+          </div>
+
+          <div class="section-label">Guías con Intento Fallido</div>
+          <div class="table-section accent-danger">
+            <div class="table-header"><h3>Intentos Fallidos</h3></div>
+            <div class="table-wrap" id="fallidos-wrap">
+              <div class="empty-state"><div class="icon">✅</div><p>Sin intentos fallidos</p></div>
+            </div>
+          </div>
+
+          <div class="section-label">Devoluciones</div>
+          <div class="charts-grid">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Devoluciones por Transportadora</div><div class="chart-sub">Cantidad por operador logístico</div></div>
+              <div class="chart-wrap"><canvas id="chart-dev-transp"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Motivos de Devolución</div><div class="chart-sub">Causal / motivo estándar</div></div>
+              <div class="chart-wrap"><canvas id="chart-dev-motivo"></canvas></div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <!-- ══ CONTENT AREA ══ -->
-      <div class="content-area">
-        <div class="main">
-
-          <!-- PANEL: HOME -->
-          <div id="panel-home"
-            style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:32px;padding:48px 32px;">
-            <div style="text-align:center;">
-              <div style="font-size:48px;margin-bottom:16px;">📊</div>
-              <div
-                style="font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:var(--blanco);letter-spacing:-.5px;margin-bottom:8px;">
-                Dashboard Unificado de Tableros</div>
+        <!-- PANEL: TABLA COMPLETA -->
+        <div id="panel-tabla" style="display:none">
+          <div class="table-section">
+            <div class="table-header">
+              <h3>Detalle Completo de Registros</h3>
+              <div class="table-actions">
+                <button class="btn-export-pdf" onclick="exportPDF()">📄 PDF</button>
+                <button class="btn-export" onclick="exportMainExcel()">⬇ Exportar Excel</button>
+              </div>
             </div>
-            <div style="display:flex;gap:20px;flex-wrap:wrap;justify-content:center;">
-              <div onclick="selectBoard('datafonos')"
-                style="cursor:pointer;background:linear-gradient(145deg,rgba(10,28,18,.98),rgba(0,100,70,.10));border:1px solid rgba(176,242,174,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);"
-                onmouseover="this.style.borderColor='rgba(176,242,174,.5)';this.style.transform='translateY(-4px)'"
-                onmouseout="this.style.borderColor='rgba(176,242,174,.2)';this.style.transform='translateY(0)'">
-                <div style="font-size:32px;margin-bottom:12px;">📱</div>
-                <div
-                  style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--verde-menta);letter-spacing:.5px;margin-bottom:6px;">
-                  TRACKING DATAFONOS VP</div>
+            <div class="table-search-wrap">
+              <input type="text" class="table-search" id="table-search" placeholder="🔍 Buscar en tabla..." oninput="tableSearch(this.value)">
+            </div>
+            <div class="table-wrap" id="main-table-wrap"><div class="loading"><div class="spinner"></div></div></div>
+            <div class="table-footer">
+              <span class="table-count" id="table-count">0 registros</span>
+              <div class="table-pagination" id="table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: INCUMPLIMIENTOS ANS -->
+        <div id="panel-incump" style="display:none">
+          <div class="table-section">
+            <div class="table-header" style="margin-bottom:8px">
+              <div>
+                <h3 style="margin:0">📛 Incumplimientos ANS — Histórico Completo</h3>
+                <p style="margin:4px 0 0;color:var(--muted);font-size:13px">Cualquier datafono entregado después de su fecha límite, más los aún sin entregar con ANS vencido</p>
               </div>
-              <div onclick="selectBoard('rollos')"
-                style="cursor:pointer;background:linear-gradient(145deg,rgba(8,18,28,.98),rgba(0,70,110,.10));border:1px solid rgba(153,209,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);"
-                onmouseover="this.style.borderColor='rgba(153,209,252,.5)';this.style.transform='translateY(-4px)'"
-                onmouseout="this.style.borderColor='rgba(153,209,252,.2)';this.style.transform='translateY(0)'">
-                <div style="font-size:32px;margin-bottom:12px;">🎞️</div>
-                <div
-                  style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:var(--azul-cielo);letter-spacing:.5px;margin-bottom:6px;">
-                  TRACKING ROLLOS TRIM</div>
+              <div class="table-actions">
+                <button class="btn-export" onclick="exportIncumpExcel()">⬇ Exportar Excel</button>
               </div>
-              <div onclick="selectBoard('inventario')"
-                style="cursor:pointer;background:linear-gradient(145deg,rgba(10,18,28,.98),rgba(40,0,80,.10));border:1px solid rgba(192,132,252,.2);border-radius:18px;padding:28px 32px;width:220px;text-align:center;transition:all .25s;box-shadow:0 8px 32px rgba(0,0,0,.4);"
-                onmouseover="this.style.borderColor='rgba(192,132,252,.5)';this.style.transform='translateY(-4px)'"
-                onmouseout="this.style.borderColor='rgba(192,132,252,.2)';this.style.transform='translateY(0)'">
-                <div style="font-size:32px;margin-bottom:12px;">📦</div>
-                <div
-                  style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#C084FC;letter-spacing:.5px;margin-bottom:6px;">
-                  INVENTARIO WOMPI</div>
+            </div>
+            <div id="incump-resumen"></div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)">
+              <span style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">&#128100; Responsable</span>
+              <div id="incump-resp-filters" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+            </div>
+            <div style="overflow-x:auto">
+              <div class="table-wrap" id="incump-table-wrap" style="min-height:200px"><div class="loading"><div class="spinner"></div></div></div>
+            </div>
+            <div class="table-footer">
+              <span class="table-count" id="incump-count">0 registros</span>
+              <div class="table-pagination" id="incump-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: ROLLOS WOMPI -->
+        <div id="panel-rollos" style="display:none">
+          <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
+            <div class="filters-title" style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:18px">⚙️</span>
+              <span>Filtros Globales — aplican a KPIs, gráficas y tablas</span>
+            </div>
+            <div class="filters-row">
+              <div class="filter-group filter-group--date-range">
+                <label>📅 Fecha Plan Fin</label>
+                <div class="date-range-inputs">
+                  <input type="date" id="rg-fecha-desde"><span class="date-range-sep">→</span><input type="date" id="rg-fecha-hasta">
+                </div>
               </div>
+              <div class="filter-group"><label>Estado</label><div id="rg-estado" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Departamento</label><div id="rg-departamento" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Tipo Flujo</label><div id="rg-tipo-flujo" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Material</label><div id="rg-material" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filter-group"><label>Proyecto</label><div id="rg-proyecto" class="ms-container" data-placeholder="Todos"></div></div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="applyRollosGlobalFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="resetRollosGlobalFilters()">↺ Reset</button>
+              </div>
+            </div>
+            <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(176,242,174,.1);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)" id="rg-filter-summary">Sin filtros activos — mostrando todos los datos</div>
+          </div>
+
+          <!-- KPIs Rollos Wompi — tracking oculto, reemplazado por stock actual de inventario -->
+          <div id="rollos-kpi-grid" style="display:none"></div>
+          <div id="rollos-kpi-tareas-grid" style="display:none"></div>
+
+          <!-- KPIs Stock Actual Rollos desde Inventario Wompi -->
+          <div id="rollos-inv-bodega-kpis" style="margin-bottom:32px;"></div>
+
+          <div class="section-label">Cumplimiento Tiempos de Entrega (ANS)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="rollos-ans-row"></div>
+
+          <div class="section-label">Distribución y Tendencias</div>
+          <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Estado de Rollos</div><div class="chart-sub">Distribución por estado lógico</div></div>
+              <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-estados"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Por Tipo de Envío</div><div class="chart-sub">Distribución tipo_flujo · solo rollos_TRIM</div></div>
+              <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-tipo-flujo"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">ANS Oportunidad</div><div class="chart-sub">% Cumple / No Cumple</div></div>
+              <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-sla"></canvas></div>
             </div>
           </div>
 
-          <!-- PANEL: TRACKING GENERAL -->
-          <div id="panel-tracking" style="display:none">
-            <div class="filters-bar">
-              <div class="filters-title">Filtros de búsqueda</div>
-              <div class="filters-row">
-                <div class="filter-group"><label>Estado Datafono</label><select id="f-estado">
-                    <option value="">Todos</option>
-                  </select></div>
-                <div class="filter-group"><label>Tipo Envío</label><select id="f-tipo-envio">
-                    <option value="">Todos</option>
-                  </select></div>
-                <div class="filter-group"><label>Material / Datafono</label><select id="f-material">
-                    <option value="">Todos</option>
-                  </select></div>
-                <div class="filter-group"><label>Departamento</label><select id="f-departamento">
-                    <option value="">Todos</option>
-                  </select></div>
-                <div class="filter-group"><label>Ciudad</label><select id="f-ciudad">
-                    <option value="">Todos</option>
-                  </select></div>
-                <div class="filter-group"><label>Transportadora</label><select id="f-transportadora">
-                    <option value="">Todas</option>
-                  </select></div>
-              </div>
-              <div class="filters-row">
-                <div class="filter-group"><label>Nro. Guía</label><input type="text" id="f-guia"
-                    placeholder="Número de guía..."></div>
-                <div class="filter-group"><label>ID Sitio / Merchant</label><input type="text" id="f-idsitio"
-                    placeholder="ID Sitio..."></div>
-                <div class="filter-group"><label>Mes Solicitud</label><select id="f-mes">
-                    <option value="">Todos</option>
-                  </select></div>
-                <div class="filter-group filter-group--date-range">
-                  <label>📅 Fecha Solicitud</label>
-                  <div class="date-range-inputs">
-                    <input type="date" id="f-fecha-desde"><span class="date-range-sep">→</span><input type="date"
-                      id="f-fecha-hasta">
-                  </div>
-                </div>
-                <div class="filter-group filter-group--date-range">
-                  <label>⏰ Fecha Límite Entrega</label>
-                  <div class="date-range-inputs">
-                    <input type="date" id="f-limite-desde"><span class="date-range-sep">→</span><input type="date"
-                      id="f-limite-hasta">
-                  </div>
-                </div>
-                <div class="filters-actions">
-                  <button class="btn-apply" onclick="applyFilters()">✦ Aplicar filtros</button>
-                  <button class="btn-reset" onclick="resetFilters()">↺ Reset</button>
-                </div>
-              </div>
+          <div class="charts-grid" style="grid-template-columns:2fr 1fr;margin-bottom:24px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Rollos y Tareas por Departamento</div><div class="chart-sub">Top 15 — Rollos (eje izq.) · Tareas (eje der.)</div></div>
+              <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-depto"></canvas></div>
             </div>
-
-            <div class="section-label fade-up fade-up-1">KPIs Principales</div>
-            <div class="kpi-grid fade-up fade-up-2" id="kpi-grid">
-              <div class="loading">
-                <div class="spinner"></div><span>Cargando datos...</span>
-              </div>
-            </div>
-
-            <div class="charts-grid" id="charts-general">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Estado de Envíos</div>
-                  <div class="chart-sub">Distribución por estado actual</div>
-                </div>
-                <div class="chart-wrap"><canvas id="chart-estados"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Cumplimiento ANS</div>
-                  <div class="chart-sub">% Oportunidad vs % Calidad</div>
-                </div>
-                <div class="chart-wrap"><canvas id="chart-ans"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Solicitudes por Día</div>
-                  <div class="chart-sub">Tendencia diaria de solicitudes</div>
-                </div>
-                <div class="chart-wrap"><canvas id="chart-dias"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Visita Técnica vs Operador Logístico</div>
-                  <div class="chart-sub">Total vs Entregado por tipo</div>
-                </div>
-                <div class="chart-wrap"><canvas id="chart-tipos"></canvas></div>
-              </div>
-              <div class="chart-card wide">
-                <div class="chart-header">
-                  <div class="chart-title">Distribución por Departamento</div>
-                  <div class="chart-sub">Top departamentos · Tipología Principal / Intermedia / Lejana</div>
-                </div>
-                <div class="chart-wrap" style="height:280px"><canvas id="chart-dept"></canvas></div>
-              </div>
-            </div>
-
-            <div class="section-label">Detalle por Departamento / Tipología</div>
-            <div class="table-section">
-              <div class="table-header">
-                <h3>Tabla Departamentos</h3>
-                <div class="table-actions"><button class="btn-export" onclick="exportDeptExcel()">⬇ Excel</button></div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Departamento</th>
-                      <th style="color:var(--azul-cielo)">Principal</th>
-                      <th style="color:var(--verde-menta)">Intermedia</th>
-                      <th style="color:var(--verde-lima)">Lejana</th>
-                      <th style="color:var(--warning)">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dept-tbody"></tbody>
-                </table>
-              </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Top Proyectos</div><div class="chart-sub">Rollos por proyecto</div></div>
+              <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-calidad"></canvas></div>
             </div>
           </div>
 
-          <!-- PANEL: DETALLE ANS -->
-          <div id="panel-detalle" style="display:none">
-            <div class="section-label">KPIs de Alerta ANS</div>
-            <div class="alerts-grid" id="ans-alerts-grid"></div>
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Tendencia Mensual</div><div class="chart-sub">Rollos y tareas por mes</div></div>
+              <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-mensual"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Cumplimiento de Entregas por Mes</div><div class="chart-sub">Entregados vs Devueltos vs En proceso</div></div>
+              <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-cumplimiento-mes"></canvas></div>
+            </div>
+          </div>
+        </div>
 
-            <div class="section-label">Backlog por Vencer</div>
-            <div class="filters-bar" style="margin-bottom:16px;padding:14px 20px">
+        <!-- PANEL: ROLLOS DETALLE -->
+        <div id="panel-rollos-detalle" style="display:none">
+          <style>
+            @keyframes rdt-pulse { 0%,100%{opacity:.3} 50%{opacity:1} }
+            /* Scroll bar horizontal visible y estilizada */
+            #rdt-hscroll-bar { overflow-x:auto; overflow-y:hidden; height:14px; }
+            #rdt-hscroll-inner { height:1px; }
+            #rdt-hscroll-bar::-webkit-scrollbar { height:8px; }
+            #rdt-hscroll-bar::-webkit-scrollbar-track { background:rgba(153,209,252,.06); border-radius:4px; }
+            #rdt-hscroll-bar::-webkit-scrollbar-thumb { background:rgba(153,209,252,.35); border-radius:4px; }
+            #rdt-hscroll-bar::-webkit-scrollbar-thumb:hover { background:rgba(153,209,252,.6); }
+            #rdt-hscroll-bar { scrollbar-width:thin; scrollbar-color:rgba(153,209,252,.35) rgba(153,209,252,.06); }
+            /* Scroll vertical de la tabla */
+            #rollos-detalle-wrap { scrollbar-width:thin; scrollbar-color:rgba(255,255,255,.15) rgba(255,255,255,.04); }
+            #rollos-detalle-wrap::-webkit-scrollbar { width:6px; height:0px; }
+            #rollos-detalle-wrap::-webkit-scrollbar-track { background:rgba(255,255,255,.04); }
+            #rollos-detalle-wrap::-webkit-scrollbar-thumb { background:rgba(255,255,255,.15); border-radius:3px; }
+            /* Sombra derecha */
+            .rdt-shadow-right { position:relative; }
+            .rdt-shadow-right::after { content:''; position:absolute; top:0; right:0; width:48px; height:100%; background:linear-gradient(to right,transparent,rgba(4,14,10,.92)); pointer-events:none; z-index:3; transition:opacity .25s; }
+            .rdt-shadow-right.at-end::after { opacity:0; }
+            /* Filtros compactos */
+            .rdf-group-label { font-size:9px; font-weight:800; letter-spacing:.7px; padding:2px 8px; border-radius:4px; white-space:nowrap; line-height:1; }
+            .rdf-sep { width:1px; background:rgba(255,255,255,.08); align-self:stretch; margin:0 2px; flex-shrink:0; }
+          </style>
+
+          <div style="margin-bottom:14px;">
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.2px;margin-bottom:3px;">📋 Tabla Detalles de Tareas</div>
+            <div style="font-size:11px;color:#475569;">Todas las columnas de cada tarea con su MO, stock y datos logísticos</div>
+          </div>
+
+          <!-- ══ FILTROS COMPACTOS ══ -->
+          <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 16px;margin-bottom:14px;">
+            <!-- Fila 1: etiqueta + acciones -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px;">FILTROS</span>
+              <div style="display:flex;gap:6px;">
+                <button class="btn-apply" onclick="applyRollosDetalleSearch()" style="padding:4px 14px;font-size:11px;border-radius:7px;">✦ Aplicar</button>
+                <button class="btn-reset" onclick="resetRollosDetalleSearch()" style="padding:4px 12px;font-size:11px;border-radius:7px;">↺ Limpiar</button>
+              </div>
+            </div>
+            <!-- Fila 2: todos los filtros en cuadrícula sin solapamiento -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px 14px;align-items:start;overflow:visible;">
+
+              <!-- Código Tarea / MO -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Cód. Tarea / MO</label>
+                <input type="text" id="rf-codigo-tarea" placeholder="MO-12345..." style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
+              </div>
+
+              <!-- Plantilla Tarea -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Plantilla Tarea</label>
+                <div id="rf-plantilla-tarea-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Estado Tarea -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Estado Tarea</label>
+                <div id="rf-estado" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Tipo Flujo -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Tipo Flujo</label>
+                <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Año -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Año</label>
+                <div id="rf-anio" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Mes -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Mes</label>
+                <div id="rf-mes" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Cód. Sitio -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#B0F2AE;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🏪 Cód. Sitio</label>
+                <input type="text" id="rf-cod-sitio" placeholder="BOG-001..." style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
+              </div>
+
+              <!-- Departamento -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📍 Departamento</label>
+                <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Ciudad -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📍 Ciudad</label>
+                <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Proyecto -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#DFFF61;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📁 Proyecto</label>
+                <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Nombre Material -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#F49D6E;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📦 Material</label>
+                <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+              <!-- Guía -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#FFC04D;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🚚 Guía</label>
+                <input type="text" id="rf-guia" placeholder="Núm. guía..." style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
+              </div>
+
+              <!-- Estado Punto -->
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
+                <label style="font-size:9px;color:#FF5C5C;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📊 Estado Punto</label>
+                <div id="rf-estado-punto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ══ TABLA ══ -->
+          <div style="background:linear-gradient(145deg,rgba(6,18,14,.98),rgba(4,14,10,.95));border:1px solid rgba(153,209,252,.15);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 24px rgba(0,0,0,.45);">
+            <!-- Cabecera: título + buscador + export -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(153,209,252,.08);flex-wrap:wrap;gap:10px;">
+              <div>
+                <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Detalles de Tareas Rollos</div>
+                <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="rollos-detalle-count">0 registros</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="text" id="rdt-search-inline"
+                  placeholder="🔍 Buscar tarea, sitio, guía, material..."
+                  oninput="window._rdtSetSearch(this.value)"
+                  style="background:rgba(255,255,255,.05);border:1px solid rgba(153,209,252,.2);border-radius:8px;color:#f1f5f9;padding:6px 12px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;width:260px;transition:border-color .2s;"
+                  onfocus="this.style.borderColor='rgba(153,209,252,.5)'"
+                  onblur="this.style.borderColor='rgba(153,209,252,.2)'">
+                <button onclick="exportRollosDetalleExcel()"
+                  style="background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.25);color:#99D1FC;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;transition:all .2s;white-space:nowrap;">⬇ Excel</button>
+              </div>
+            </div>
+
+            <!-- Leyenda de grupos -->
+            <div style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.2);">
+              <span style="font-size:9px;color:#334155;font-weight:700;letter-spacing:.5px;align-self:center;">COLS:</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(153,209,252,.1);color:#99D1FC;border:1px solid rgba(153,209,252,.25);">🔖 TAREA</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(176,242,174,.08);color:#B0F2AE;border:1px solid rgba(176,242,174,.25);">🏪 SITIO</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,255,255,.04);color:#94a3b8;border:1px solid rgba(255,255,255,.1);">📍 UBIC.</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(223,255,97,.07);color:#DFFF61;border:1px solid rgba(223,255,97,.2);">📁 PROYECTO</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(244,157,110,.08);color:#F49D6E;border:1px solid rgba(244,157,110,.25);">📦 MATERIAL</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(192,132,252,.07);color:#C084FC;border:1px solid rgba(192,132,252,.25);">📅 FECHAS</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,192,77,.07);color:#FFC04D;border:1px solid rgba(255,192,77,.2);">🚚 LOGÍST.</span>
+              <span style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,92,92,.07);color:#FF5C5C;border:1px solid rgba(255,92,92,.2);">📊 STOCK</span>
+              <!-- Indicador scroll -->
+              <div id="rdt-scroll-hint" style="display:none;margin-left:auto;align-items:center;gap:5px;font-size:9px;color:#99D1FC;font-weight:700;letter-spacing:.3px;animation:rdt-pulse 2s ease-in-out infinite;">
+                ◀ scroll horizontal ▶
+              </div>
+            </div>
+
+            <!-- Scroll horizontal VISIBLE ARRIBA (barra espejo) -->
+            <div id="rdt-hscroll-bar" style="padding:0 0 2px 0;border-bottom:1px solid rgba(153,209,252,.08);">
+              <div id="rdt-hscroll-inner" style="height:1px;"></div>
+            </div>
+
+            <!-- Tabla -->
+            <div class="rdt-shadow-right" id="rdt-scroll-container">
+              <div id="rollos-detalle-wrap" style="overflow-x:auto;overflow-y:auto;max-height:420px;"></div>
+            </div>
+
+            <script>
+              (function(){
+                function initRdtScroll(){
+                  const wrap = document.getElementById('rollos-detalle-wrap');
+                  const topBar = document.getElementById('rdt-hscroll-bar');
+                  const inner = document.getElementById('rdt-hscroll-inner');
+                  const hint = document.getElementById('rdt-scroll-hint');
+                  const shadow = document.getElementById('rdt-scroll-container');
+                  if (!wrap || !topBar) return;
+
+                  // Sincronizar scroll entre barra superior y tabla
+                  let syncing = false;
+                  topBar.addEventListener('scroll', () => {
+                    if (syncing) return; syncing = true;
+                    wrap.scrollLeft = topBar.scrollLeft;
+                    syncing = false;
+                  });
+                  wrap.addEventListener('scroll', () => {
+                    if (syncing) return; syncing = true;
+                    topBar.scrollLeft = wrap.scrollLeft;
+                    // sombra derecha
+                    const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 10;
+                    if (shadow) shadow.classList.toggle('at-end', atEnd);
+                    syncing = false;
+                  });
+
+                  // Actualizar ancho del inner cuando cambie el contenido
+                  function syncWidth() {
+                    const tw = wrap.scrollWidth;
+                    if (inner) inner.style.width = tw + 'px';
+                    const canH = tw > wrap.clientWidth + 4;
+                    if (hint) hint.style.display = canH ? 'flex' : 'none';
+                    if (shadow) shadow.classList.toggle('at-end', !canH || wrap.scrollLeft + wrap.clientWidth >= tw - 10);
+                    // init topBar scroll position
+                    topBar.scrollLeft = wrap.scrollLeft;
+                  }
+                  const obs = new MutationObserver(() => setTimeout(syncWidth, 60));
+                  obs.observe(wrap, { childList: true, subtree: false });
+                  window.addEventListener('resize', syncWidth);
+                  setTimeout(syncWidth, 400);
+                }
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initRdtScroll);
+                else initRdtScroll();
+              })();
+            </script>
+
+            <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 18px;border-top:1px solid rgba(153,209,252,.07);">
+              <div id="rollos-detalle-pagination" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PANEL: ROLLOS COMERCIO -->
+        <!-- PANEL: DETALLE POR COMERCIO — v2 (rollos_comercio_v2.js) -->
+        <div id="panel-rollos-comercio" style="display:none">
+          <!-- Contenido inyectado por window.initRollosComercioV2() -->
+          <!-- Incluye: buscador autocomplete · ficha por corresponsal · KPIs cobertura -->
+          <!-- consumo real vs proyectado · alertas SLA/quiebre/reorden · historial MOs -->
+          <!-- tabla global de todos los corresponsales ordenada por criticidad -->
+        </div>
+
+
+        <!-- PANEL: ROLLOS INVENTARIO -->
+        <div id="panel-rollos-inventario" style="display:none; padding: 20px 0;">
+          <div class="section-label" style="font-size:22px; margin-bottom:8px;">📦 Cobertura e Inventario de Rollos</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:28px;">Análisis detallado de stock, consumo y alertas de quiebre por corresponsal</div>
+          
+          <!-- KPIs Inventario -->
+          <div id="ri-kpi-strip" style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:32px;"></div>
+
+          <!-- Alertas -->
+          <div id="ri-alerts-container" style="margin-bottom:32px;"></div>
+
+          <!-- Gráficas Principales -->
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:24px;">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Distribución de Cobertura</div><div class="chart-sub">Corresponsales por rango de meses</div></div>
+              <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-cobertura-buckets"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Consumo Real vs Proyectado</div><div class="chart-sub">Top corresponsales (rollos/mes)</div></div>
+              <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-consumo-vs-proy"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Rotación de Inventario</div><div class="chart-sub">Índice de rotación</div></div>
+              <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-rotacion"></canvas></div>
+            </div>
+          </div>
+
+          <div class="charts-grid" style="grid-template-columns:1.5fr 1fr 1fr; gap:20px; margin-bottom:32px;">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Top 15 Saldos de Inventario</div><div class="chart-sub">Corresponsales con mayor stock disponible</div></div>
+              <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-top-saldos"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Cumplimiento SLA</div><div class="chart-sub">Cobertura ≥ 3 meses</div></div>
+              <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-sla"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Histograma de Cobertura</div><div class="chart-sub">Densidad de corresponsales vs tiempo</div></div>
+              <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-cobertura-hist"></canvas></div>
+            </div>
+          </div>
+
+          <!-- Tabla Detalle por Corresponsal -->
+          <div class="table-section">
+            <div class="table-header">
+              <h3 style="color:var(--verde-menta)">Detalle de Inventario por Corresponsal</h3>
+              <div style="display:flex;gap:12px;align-items:center;">
+                <input type="text" id="ri-search" placeholder="🔍 Buscar corresponsal, depto, ciudad..." oninput="riApplySearch(this.value)" 
+                  style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);border-radius:8px;padding:8px 16px;color:#fff;font-size:13px;width:300px;outline:none;">
+                <button class="btn-export" onclick="exportRIExcel()">⬇ Excel</button>
+              </div>
+            </div>
+            <div class="table-wrap" id="ri-table-wrap" style="max-height:600px; min-height:200px;">
+              <div class="loading"><div class="spinner"></div><span>Procesando datos de inventario...</span></div>
+            </div>
+            <div class="table-footer">
+              <span class="table-count" id="ri-table-count">0 corresponsales</span>
+              <div class="table-pagination" id="ri-table-pagination"></div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- PANEL: INVENTARIO PRINCIPAL -->
+        <div id="panel-inv-principal" style="display:none">
+
+          <!-- Filtros -->
+          <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
+            <div class="filters-title" style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:18px">📦</span>
+              <span>Filtros Inventario — aplican a todos los KPIs</span>
+            </div>
+            <div class="filters-row">
               <div class="filter-group">
-                <label>Ventana de riesgo</label>
-                <select id="f-backlog-window">
-                  <option value="24">Próximas 24h</option>
-                  <option value="48">Próximas 48h</option>
+                <label>Tipo de Negocio</label>
+                <select id="inv-f-negocio">
+                  <option value="Todos">Todos</option>
+                  <option value="CB">CB (Wompi)</option>
+                  <option value="VP">VP</option>
                 </select>
               </div>
-              <button class="btn-apply" onclick="renderBacklog()">Aplicar</button>
-            </div>
-            <div class="table-section accent-warn">
-              <div class="table-header">
-                <h3>Solicitudes en Riesgo ANS</h3>
-                <div class="table-actions"><button class="btn-export" onclick="exportBacklogExcel()">⬇ Excel</button>
-                </div>
+              <div class="filter-group">
+                <label>Categoría</label>
+                <select id="inv-f-categoria"><option value="Todas">Todas</option></select>
               </div>
-              <div class="table-wrap" id="backlog-wrap">
-                <div class="empty-state">
-                  <div class="icon">✅</div>
-                  <p>Sin registros en riesgo</p>
-                </div>
+              <div class="filter-group" style="position:relative">
+                <label>Referencia</label>
+                <input type="text" id="inv-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off" data-inv-ac="inv-f-referencia-list" style="width:100%;box-sizing:border-box;">
+                <ul id="inv-f-referencia-list" class="inv-ac-list" style="display:none"></ul>
               </div>
-            </div>
-
-            <div class="section-label">Guías sin Cambios &gt; 24h</div>
-            <div class="table-section accent-blue">
-              <div class="table-header">
-                <h3>Guías sin Cambios</h3>
+              <div class="filter-group" style="position:relative">
+                <label>Bodega</label>
+                <input type="text" id="inv-f-bodega" placeholder="🔍 Escribir bodega..." autocomplete="off" data-inv-ac="inv-f-bodega-list" style="width:100%;box-sizing:border-box;">
+                <ul id="inv-f-bodega-list" class="inv-ac-list" style="display:none"></ul>
               </div>
-              <div class="table-wrap" id="guias-estancadas-wrap">
-                <div class="empty-state">
-                  <div class="icon">✅</div>
-                  <p>Sin guías sin cambios</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="section-label">Guías con Intento Fallido</div>
-            <div class="table-section accent-danger">
-              <div class="table-header">
-                <h3>Intentos Fallidos</h3>
-              </div>
-              <div class="table-wrap" id="fallidos-wrap">
-                <div class="empty-state">
-                  <div class="icon">✅</div>
-                  <p>Sin intentos fallidos</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="section-label">Devoluciones</div>
-            <div class="charts-grid">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Devoluciones por Transportadora</div>
-                  <div class="chart-sub">Cantidad por operador logístico</div>
-                </div>
-                <div class="chart-wrap"><canvas id="chart-dev-transp"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Motivos de Devolución</div>
-                  <div class="chart-sub">Causal / motivo estándar</div>
-                </div>
-                <div class="chart-wrap"><canvas id="chart-dev-motivo"></canvas></div>
+              <div class="filters-actions">
+                <button class="btn-apply" onclick="invApplyFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="invResetFilters()">↺ Reset</button>
               </div>
             </div>
           </div>
 
-          <!-- PANEL: TABLA COMPLETA -->
-          <div id="panel-tabla" style="display:none">
-            <div class="table-section">
-              <div class="table-header">
-                <h3>Detalle Completo de Registros</h3>
-                <div class="table-actions">
-                  <button class="btn-export-pdf" onclick="exportPDF()">📄 PDF</button>
-                  <button class="btn-export" onclick="exportMainExcel()">⬇ Exportar Excel</button>
-                </div>
+          <div class="section-label fade-up fade-up-1">KPIs Inventario</div>
+          <div id="inv-kpi-grid" class="kpi-grid fade-up fade-up-2" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));">
+            <div class="loading"><div class="spinner"></div><span>Cargando inventario...</span></div>
+          </div>
+
+          <!-- Gráficas -->
+          <div class="section-label fade-up" style="margin-top:32px">Gráficas de Inventario</div>
+          <div id="inv-charts-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
+            <div class="loading"><div class="spinner"></div><span>Cargando gráficas...</span></div>
+          </div>
+
+          <!-- Top Referencias -->
+          <div class="section-label fade-up">Top 20 Referencias por Stock</div>
+          <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));border:1px solid rgba(176,242,174,.1);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
+              <div>
+                <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Top 20 Referencias</div>
+                <div style="font-size:11px;color:#7A7674;margin-top:2px;">Referencias con mayor stock en el inventario filtrado</div>
               </div>
-              <div class="table-search-wrap">
-                <input type="text" class="table-search" id="table-search" placeholder="🔍 Buscar en tabla..."
-                  oninput="tableSearch(this.value)">
-              </div>
-              <div class="table-wrap" id="main-table-wrap">
-                <div class="loading">
-                  <div class="spinner"></div>
-                </div>
-              </div>
-              <div class="table-footer">
-                <span class="table-count" id="table-count">0 registros</span>
-                <div class="table-pagination" id="table-pagination"></div>
-              </div>
+              <button onclick="invExportTopExcel()" style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
+            </div>
+            <div id="inv-table-container" style="overflow-x:auto;max-height:480px;">
+              <div class="loading"><div class="spinner"></div><span>Cargando tabla...</span></div>
             </div>
           </div>
 
-          <!-- PANEL: INCUMPLIMIENTOS ANS -->
-          <div id="panel-incump" style="display:none">
-            <div class="table-section">
-              <div class="table-header" style="margin-bottom:8px">
-                <div>
-                  <h3 style="margin:0">📛 Incumplimientos ANS — Histórico Completo</h3>
-                  <p style="margin:4px 0 0;color:var(--muted);font-size:13px">Cualquier datafono entregado después de su
-                    fecha límite, más los aún sin entregar con ANS vencido</p>
-                </div>
-                <div class="table-actions">
-                  <button class="btn-export" onclick="exportIncumpExcel()">⬇ Exportar Excel</button>
-                </div>
-              </div>
-              <div id="incump-resumen"></div>
-              <div
-                style="display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(0,0,0,.15)">
-                <span
-                  style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;white-space:nowrap">&#128100;
-                  Responsable</span>
-                <div id="incump-resp-filters" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
-              </div>
-              <div style="overflow-x:auto">
-                <div class="table-wrap" id="incump-table-wrap" style="min-height:200px">
-                  <div class="loading">
-                    <div class="spinner"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="table-footer">
-                <span class="table-count" id="incump-count">0 registros</span>
-                <div class="table-pagination" id="incump-pagination"></div>
-              </div>
-            </div>
+        </div>
+
+        <!-- ════ PANEL: INVENTARIO DETALLES ════ -->
+        <div id="panel-inv-detalles" style="display:none">
+
+          <!-- Loading state -->
+          <div id="det-loading" style="display:flex;align-items:center;justify-content:center;padding:80px;gap:16px;">
+            <div class="spinner"></div>
+            <span style="color:var(--muted);font-family:'Outfit',sans-serif;">Cargando datos de inventario...</span>
           </div>
 
-          <!-- PANEL: ROLLOS WOMPI -->
-          <div id="panel-rollos" style="display:none">
-            <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
+          <!-- Contenido principal -->
+          <div id="det-content" style="display:none">
+
+            <!-- ── Filtros ────────────────────────────────────── -->
+            <div class="filters-bar" style="border-left:3px solid #DFFF61;margin-bottom:28px">
               <div class="filters-title" style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:18px">⚙️</span>
-                <span>Filtros Globales — aplican a KPIs, gráficas y tablas</span>
+                <span style="font-size:18px">🔍</span>
+                <span>Filtros Detalles — Alertas & Trazabilidad</span>
               </div>
-              <div class="filters-row">
-                <div class="filter-group"><label>Estado</label>
-                  <div id="rg-estado" class="ms-container" data-placeholder="Todos"></div>
-                </div>
-                <div class="filter-group"><label>Departamento</label>
-                  <div id="rg-departamento" class="ms-container" data-placeholder="Todos"></div>
-                </div>
-                <div class="filter-group"><label>Tipo Flujo</label>
-                  <div id="rg-tipo-flujo" class="ms-container" data-placeholder="Todos"></div>
-                </div>
-                <div class="filter-group"><label>Material</label>
-                  <div id="rg-material" class="ms-container" data-placeholder="Todos"></div>
-                </div>
-                <div class="filter-group"><label>Proyecto</label>
-                  <div id="rg-proyecto" class="ms-container" data-placeholder="Todos"></div>
-                </div>
-                <div class="filters-actions">
-                  <button class="btn-apply" onclick="applyRollosGlobalFilters()">✦ Aplicar</button>
-                  <button class="btn-reset" onclick="resetRollosGlobalFilters()">↺ Reset</button>
-                </div>
-              </div>
-              <div
-                style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(176,242,174,.1);font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted)"
-                id="rg-filter-summary">Sin filtros activos — mostrando todos los datos</div>
-            </div>
-
-            <!-- KPIs Rollos Wompi — tracking oculto, reemplazado por stock actual de inventario -->
-            <div id="rollos-kpi-grid" style="display:none"></div>
-            <div id="rollos-kpi-tareas-grid" style="display:none"></div>
-
-            <!-- KPIs Stock Actual Rollos desde Inventario Wompi -->
-            <div id="rollos-inv-bodega-kpis" style="margin-bottom:32px;"></div>
-
-            <div class="section-label">Cumplimiento Tiempos de Entrega (ANS)</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:28px" id="rollos-ans-row">
-            </div>
-
-            <div class="section-label">Distribución y Tendencias</div>
-            <div class="charts-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:24px">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Estado de Rollos</div>
-                  <div class="chart-sub">Distribución por estado lógico</div>
-                </div>
-                <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-estados"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Por Tipo de Envío</div>
-                  <div class="chart-sub">Distribución tipo_flujo · solo rollos_TRIM</div>
-                </div>
-                <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-tipo-flujo"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">ANS Oportunidad</div>
-                  <div class="chart-sub">% Cumple / No Cumple</div>
-                </div>
-                <div class="chart-wrap" style="height:240px"><canvas id="chart-rollos-sla"></canvas></div>
-              </div>
-            </div>
-
-            <div class="charts-grid" style="grid-template-columns:2fr 1fr;margin-bottom:24px">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Rollos y Tareas por Departamento</div>
-                  <div class="chart-sub">Top 15 — Rollos (eje izq.) · Tareas (eje der.)</div>
-                </div>
-                <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-depto"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Top Proyectos</div>
-                  <div class="chart-sub">Rollos por proyecto</div>
-                </div>
-                <div class="chart-wrap" style="height:320px"><canvas id="chart-rollos-calidad"></canvas></div>
-              </div>
-            </div>
-
-            <div class="charts-grid" style="grid-template-columns:1fr 1fr;margin-bottom:24px">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Tendencia Mensual</div>
-                  <div class="chart-sub">Rollos y tareas por mes</div>
-                </div>
-                <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-mensual"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Cumplimiento de Entregas por Mes</div>
-                  <div class="chart-sub">Entregados vs Devueltos vs En proceso</div>
-                </div>
-                <div class="chart-wrap" style="height:260px"><canvas id="chart-rollos-cumplimiento-mes"></canvas></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- PANEL: ROLLOS DETALLE -->
-          <div id="panel-rollos-detalle" style="display:none">
-            <style>
-              @keyframes rdt-pulse {
-
-                0%,
-                100% {
-                  opacity: .3
-                }
-
-                50% {
-                  opacity: 1
-                }
-              }
-
-              /* Scroll bar horizontal visible y estilizada */
-              #rdt-hscroll-bar {
-                overflow-x: auto;
-                overflow-y: hidden;
-                height: 14px;
-              }
-
-              #rdt-hscroll-inner {
-                height: 1px;
-              }
-
-              #rdt-hscroll-bar::-webkit-scrollbar {
-                height: 8px;
-              }
-
-              #rdt-hscroll-bar::-webkit-scrollbar-track {
-                background: rgba(153, 209, 252, .06);
-                border-radius: 4px;
-              }
-
-              #rdt-hscroll-bar::-webkit-scrollbar-thumb {
-                background: rgba(153, 209, 252, .35);
-                border-radius: 4px;
-              }
-
-              #rdt-hscroll-bar::-webkit-scrollbar-thumb:hover {
-                background: rgba(153, 209, 252, .6);
-              }
-
-              #rdt-hscroll-bar {
-                scrollbar-width: thin;
-                scrollbar-color: rgba(153, 209, 252, .35) rgba(153, 209, 252, .06);
-              }
-
-              /* Scroll vertical de la tabla */
-              #rollos-detalle-wrap {
-                scrollbar-width: thin;
-                scrollbar-color: rgba(255, 255, 255, .15) rgba(255, 255, 255, .04);
-              }
-
-              #rollos-detalle-wrap::-webkit-scrollbar {
-                width: 6px;
-                height: 0px;
-              }
-
-              #rollos-detalle-wrap::-webkit-scrollbar-track {
-                background: rgba(255, 255, 255, .04);
-              }
-
-              #rollos-detalle-wrap::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, .15);
-                border-radius: 3px;
-              }
-
-              /* Sombra derecha */
-              .rdt-shadow-right {
-                position: relative;
-              }
-
-              .rdt-shadow-right::after {
-                content: '';
-                position: absolute;
-                top: 0;
-                right: 0;
-                width: 48px;
-                height: 100%;
-                background: linear-gradient(to right, transparent, rgba(4, 14, 10, .92));
-                pointer-events: none;
-                z-index: 3;
-                transition: opacity .25s;
-              }
-
-              .rdt-shadow-right.at-end::after {
-                opacity: 0;
-              }
-
-              /* Filtros compactos */
-              .rdf-group-label {
-                font-size: 9px;
-                font-weight: 800;
-                letter-spacing: .7px;
-                padding: 2px 8px;
-                border-radius: 4px;
-                white-space: nowrap;
-                line-height: 1;
-              }
-
-              .rdf-sep {
-                width: 1px;
-                background: rgba(255, 255, 255, .08);
-                align-self: stretch;
-                margin: 0 2px;
-                flex-shrink: 0;
-              }
-            </style>
-
-            <div style="margin-bottom:14px;">
-              <div
-                style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:.2px;margin-bottom:3px;">
-                📋 Tabla Detalles de Tareas</div>
-              <div style="font-size:11px;color:#475569;">Todas las columnas de cada tarea con su MO, stock y datos
-                logísticos</div>
-            </div>
-
-            <!-- ══ FILTROS COMPACTOS ══ -->
-            <div
-              style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 16px;margin-bottom:14px;">
-              <!-- Fila 1: etiqueta + acciones -->
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                <span style="font-size:10px;font-weight:700;color:#64748b;letter-spacing:.5px;">FILTROS</span>
-                <div style="display:flex;gap:6px;">
-                  <button class="btn-apply" onclick="applyRollosDetalleSearch()"
-                    style="padding:4px 14px;font-size:11px;border-radius:7px;">✦ Aplicar</button>
-                  <button class="btn-reset" onclick="resetRollosDetalleSearch()"
-                    style="padding:4px 12px;font-size:11px;border-radius:7px;">↺ Limpiar</button>
-                </div>
-              </div>
-              <!-- Fila 2: todos los filtros en cuadrícula sin solapamiento -->
-              <div
-                style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px 14px;align-items:start;overflow:visible;">
-
-                <!-- Código Tarea / MO -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖
-                    Cód. Tarea / MO</label>
-                  <input type="text" id="rf-codigo-tarea" placeholder="MO-12345..."
-                    style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
-                </div>
-
-                <!-- Plantilla Tarea -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖
-                    Plantilla Tarea</label>
-                  <div id="rf-plantilla-tarea-det" class="ms-container" data-placeholder="Todas"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Estado Tarea -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖
-                    Estado Tarea</label>
-                  <div id="rf-estado" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Tipo Flujo -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖
-                    Tipo Flujo</label>
-                  <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Año -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖
-                    Año</label>
-                  <div id="rf-anio" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Mes -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖
-                    Mes</label>
-                  <div id="rf-mes" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Cód. Sitio -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#B0F2AE;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🏪
-                    Cód. Sitio</label>
-                  <input type="text" id="rf-cod-sitio" placeholder="BOG-001..."
-                    style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
-                </div>
-
-                <!-- Departamento -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📍
-                    Departamento</label>
-                  <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Ciudad -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📍
-                    Ciudad</label>
-                  <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Proyecto -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#DFFF61;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📁
-                    Proyecto</label>
-                  <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Nombre Material -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#F49D6E;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📦
-                    Material</label>
-                  <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-                <!-- Guía -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#FFC04D;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🚚
-                    Guía</label>
-                  <input type="text" id="rf-guia" placeholder="Núm. guía..."
-                    style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
-                </div>
-
-                <!-- Estado Punto -->
-                <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
-                  <label
-                    style="font-size:9px;color:#FF5C5C;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📊
-                    Estado Punto</label>
-                  <div id="rf-estado-punto-det" class="ms-container" data-placeholder="Todos"
-                    style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
-                </div>
-
-              </div>
-            </div>
-
-            <!-- ══ TABLA ══ -->
-            <div
-              style="background:linear-gradient(145deg,rgba(6,18,14,.98),rgba(4,14,10,.95));border:1px solid rgba(153,209,252,.15);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 24px rgba(0,0,0,.45);">
-              <!-- Cabecera: título + buscador + export -->
-              <div
-                style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(153,209,252,.08);flex-wrap:wrap;gap:10px;">
-                <div>
-                  <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Detalles de
-                    Tareas Rollos</div>
-                  <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="rollos-detalle-count">0 registros</div>
-                </div>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                  <input type="text" id="rdt-search-inline" placeholder="🔍 Buscar tarea, sitio, guía, material..."
-                    oninput="window._rdtSetSearch(this.value)"
-                    style="background:rgba(255,255,255,.05);border:1px solid rgba(153,209,252,.2);border-radius:8px;color:#f1f5f9;padding:6px 12px;font-size:11px;font-family:'Outfit',sans-serif;outline:none;width:260px;transition:border-color .2s;"
-                    onfocus="this.style.borderColor='rgba(153,209,252,.5)'"
-                    onblur="this.style.borderColor='rgba(153,209,252,.2)'">
-                  <button onclick="exportRollosDetalleExcel()"
-                    style="background:rgba(153,209,252,.08);border:1px solid rgba(153,209,252,.25);color:#99D1FC;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:11px;font-family:'Outfit',sans-serif;transition:all .2s;white-space:nowrap;">⬇
-                    Excel</button>
-                </div>
-              </div>
-
-              <!-- Leyenda de grupos -->
-              <div
-                style="display:flex;flex-wrap:wrap;gap:5px;padding:8px 18px;border-bottom:1px solid rgba(255,255,255,.05);background:rgba(0,0,0,.2);">
-                <span
-                  style="font-size:9px;color:#334155;font-weight:700;letter-spacing:.5px;align-self:center;">COLS:</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(153,209,252,.1);color:#99D1FC;border:1px solid rgba(153,209,252,.25);">🔖
-                  TAREA</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(176,242,174,.08);color:#B0F2AE;border:1px solid rgba(176,242,174,.25);">🏪
-                  SITIO</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,255,255,.04);color:#94a3b8;border:1px solid rgba(255,255,255,.1);">📍
-                  UBIC.</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(223,255,97,.07);color:#DFFF61;border:1px solid rgba(223,255,97,.2);">📁
-                  PROYECTO</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(244,157,110,.08);color:#F49D6E;border:1px solid rgba(244,157,110,.25);">📦
-                  MATERIAL</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(192,132,252,.07);color:#C084FC;border:1px solid rgba(192,132,252,.25);">📅
-                  FECHAS</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,192,77,.07);color:#FFC04D;border:1px solid rgba(255,192,77,.2);">🚚
-                  LOGÍST.</span>
-                <span
-                  style="font-size:9px;padding:1px 7px;border-radius:10px;background:rgba(255,92,92,.07);color:#FF5C5C;border:1px solid rgba(255,92,92,.2);">📊
-                  STOCK</span>
-                <!-- Indicador scroll -->
-                <div id="rdt-scroll-hint"
-                  style="display:none;margin-left:auto;align-items:center;gap:5px;font-size:9px;color:#99D1FC;font-weight:700;letter-spacing:.3px;animation:rdt-pulse 2s ease-in-out infinite;">
-                  ◀ scroll horizontal ▶
-                </div>
-              </div>
-
-              <!-- Scroll horizontal VISIBLE ARRIBA (barra espejo) -->
-              <div id="rdt-hscroll-bar" style="padding:0 0 2px 0;border-bottom:1px solid rgba(153,209,252,.08);">
-                <div id="rdt-hscroll-inner" style="height:1px;"></div>
-              </div>
-
-              <!-- Tabla -->
-              <div class="rdt-shadow-right" id="rdt-scroll-container">
-                <div id="rollos-detalle-wrap" style="overflow-x:auto;overflow-y:auto;max-height:420px;"></div>
-              </div>
-
-              <script>
-                (function () {
-                  function initRdtScroll() {
-                    const wrap = document.getElementById('rollos-detalle-wrap');
-                    const topBar = document.getElementById('rdt-hscroll-bar');
-                    const inner = document.getElementById('rdt-hscroll-inner');
-                    const hint = document.getElementById('rdt-scroll-hint');
-                    const shadow = document.getElementById('rdt-scroll-container');
-                    if (!wrap || !topBar) return;
-
-                    // Sincronizar scroll entre barra superior y tabla
-                    let syncing = false;
-                    topBar.addEventListener('scroll', () => {
-                      if (syncing) return; syncing = true;
-                      wrap.scrollLeft = topBar.scrollLeft;
-                      syncing = false;
-                    });
-                    wrap.addEventListener('scroll', () => {
-                      if (syncing) return; syncing = true;
-                      topBar.scrollLeft = wrap.scrollLeft;
-                      // sombra derecha
-                      const atEnd = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 10;
-                      if (shadow) shadow.classList.toggle('at-end', atEnd);
-                      syncing = false;
-                    });
-
-                    // Actualizar ancho del inner cuando cambie el contenido
-                    function syncWidth() {
-                      const tw = wrap.scrollWidth;
-                      if (inner) inner.style.width = tw + 'px';
-                      const canH = tw > wrap.clientWidth + 4;
-                      if (hint) hint.style.display = canH ? 'flex' : 'none';
-                      if (shadow) shadow.classList.toggle('at-end', !canH || wrap.scrollLeft + wrap.clientWidth >= tw - 10);
-                      // init topBar scroll position
-                      topBar.scrollLeft = wrap.scrollLeft;
-                    }
-                    const obs = new MutationObserver(() => setTimeout(syncWidth, 60));
-                    obs.observe(wrap, { childList: true, subtree: false });
-                    window.addEventListener('resize', syncWidth);
-                    setTimeout(syncWidth, 400);
-                  }
-                  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initRdtScroll);
-                  else initRdtScroll();
-                })();
-              </script>
-
-              <div
-                style="display:flex;align-items:center;justify-content:flex-end;padding:10px 18px;border-top:1px solid rgba(153,209,252,.07);">
-                <div id="rollos-detalle-pagination" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- PANEL: ROLLOS COMERCIO -->
-          <!-- PANEL: DETALLE POR COMERCIO — v2 (rollos_comercio_v2.js) -->
-          <div id="panel-rollos-comercio" style="display:none">
-            <!-- Contenido inyectado por window.initRollosComercioV2() -->
-            <!-- Incluye: buscador autocomplete · ficha por corresponsal · KPIs cobertura -->
-            <!-- consumo real vs proyectado · alertas SLA/quiebre/reorden · historial MOs -->
-            <!-- tabla global de todos los corresponsales ordenada por criticidad -->
-          </div>
-
-
-          <!-- PANEL: ROLLOS INVENTARIO -->
-          <div id="panel-rollos-inventario" style="display:none; padding: 20px 0;">
-            <div class="section-label" style="font-size:22px; margin-bottom:8px;">📦 Cobertura e Inventario de Rollos
-            </div>
-            <div style="font-size:13px;color:var(--muted);margin-bottom:28px;">Análisis detallado de stock, consumo y
-              alertas de quiebre por corresponsal</div>
-
-            <!-- KPIs Inventario -->
-            <div id="ri-kpi-strip" style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:32px;"></div>
-
-            <!-- Alertas -->
-            <div id="ri-alerts-container" style="margin-bottom:32px;"></div>
-
-            <!-- Gráficas Principales -->
-            <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:24px;">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Distribución de Cobertura</div>
-                  <div class="chart-sub">Corresponsales por rango de meses</div>
-                </div>
-                <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-cobertura-buckets"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Consumo Real vs Proyectado</div>
-                  <div class="chart-sub">Top corresponsales (rollos/mes)</div>
-                </div>
-                <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-consumo-vs-proy"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Rotación de Inventario</div>
-                  <div class="chart-sub">Índice de rotación</div>
-                </div>
-                <div class="chart-wrap" style="height:250px"><canvas id="ri-chart-rotacion"></canvas></div>
-              </div>
-            </div>
-
-            <div class="charts-grid" style="grid-template-columns:1.5fr 1fr 1fr; gap:20px; margin-bottom:32px;">
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Top 15 Saldos de Inventario</div>
-                  <div class="chart-sub">Corresponsales con mayor stock disponible</div>
-                </div>
-                <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-top-saldos"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Cumplimiento SLA</div>
-                  <div class="chart-sub">Cobertura ≥ 3 meses</div>
-                </div>
-                <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-sla"></canvas></div>
-              </div>
-              <div class="chart-card">
-                <div class="chart-header">
-                  <div class="chart-title">Histograma de Cobertura</div>
-                  <div class="chart-sub">Densidad de corresponsales vs tiempo</div>
-                </div>
-                <div class="chart-wrap" style="height:350px"><canvas id="ri-chart-cobertura-hist"></canvas></div>
-              </div>
-            </div>
-
-            <!-- Tabla Detalle por Corresponsal -->
-            <div class="table-section">
-              <div class="table-header">
-                <h3 style="color:var(--verde-menta)">Detalle de Inventario por Corresponsal</h3>
-                <div style="display:flex;gap:12px;align-items:center;">
-                  <input type="text" id="ri-search" placeholder="🔍 Buscar corresponsal, depto, ciudad..."
-                    oninput="riApplySearch(this.value)"
-                    style="background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);border-radius:8px;padding:8px 16px;color:#fff;font-size:13px;width:300px;outline:none;">
-                  <button class="btn-export" onclick="exportRIExcel()">⬇ Excel</button>
-                </div>
-              </div>
-              <div class="table-wrap" id="ri-table-wrap" style="max-height:600px; min-height:200px;">
-                <div class="loading">
-                  <div class="spinner"></div><span>Procesando datos de inventario...</span>
-                </div>
-              </div>
-              <div class="table-footer">
-                <span class="table-count" id="ri-table-count">0 corresponsales</span>
-                <div class="table-pagination" id="ri-table-pagination"></div>
-              </div>
-            </div>
-          </div>
-
-
-          <!-- PANEL: INVENTARIO PRINCIPAL -->
-          <div id="panel-inv-principal" style="display:none">
-
-            <!-- Filtros -->
-            <div class="filters-bar" style="border-left:3px solid var(--verde-menta);margin-bottom:28px">
-              <div class="filters-title" style="display:flex;align-items:center;gap:10px">
-                <span style="font-size:18px">📦</span>
-                <span>Filtros Inventario — aplican a todos los KPIs</span>
-              </div>
-              <div class="filters-row">
+              <div class="filters-row" style="flex-wrap:wrap;gap:12px;">
                 <div class="filter-group">
                   <label>Tipo de Negocio</label>
-                  <select id="inv-f-negocio">
+                  <select id="det-f-negocio">
                     <option value="Todos">Todos</option>
                     <option value="CB">CB (Wompi)</option>
                     <option value="VP">VP</option>
@@ -1162,282 +869,162 @@
                 </div>
                 <div class="filter-group">
                   <label>Categoría</label>
-                  <select id="inv-f-categoria">
-                    <option value="Todas">Todas</option>
+                  <select id="det-f-categoria"><option value="Todas">Todas</option>
+                    <option>Rollos</option><option>Pin pad</option><option>Forros</option>
+                    <option>Accesorios</option><option>SIM</option><option>KIT POP VP</option><option>Datáfonos</option>
+                  </select>
+                </div>
+                <div class="filter-group">
+                  <label>Ubicación (V3)</label>
+                  <select id="det-f-ubicacion"><option value="Todas">Todas</option></select>
+                </div>
+                <div class="filter-group" style="position:relative">
+                  <label>Nombre de Ubicación</label>
+                  <input type="text" id="det-f-nombre-ubic" placeholder="🔍 Escribir ubicación..." autocomplete="off" data-inv-ac="det-f-nombre-ubic-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-nombre-ubic-list" class="inv-ac-list" style="display:none"></ul>
+                </div>
+                <div class="filter-group" style="position:relative">
+                  <label>Código de Comercio</label>
+                  <input type="text" id="det-f-cod-comercio" placeholder="🔍 Escribir código..." autocomplete="off" data-inv-ac="det-f-cod-comercio-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-cod-comercio-list" class="inv-ac-list" style="display:none"></ul>
+                </div>
+                <div class="filter-group">
+                  <label>Estado de Alerta</label>
+                  <select id="det-f-alerta">
+                    <option value="">Todos</option>
+                    <option value="con_alerta">🚨 Con alerta (&gt;8d)</option>
+                    <option value="sin_alerta">✅ Sin alerta</option>
                   </select>
                 </div>
                 <div class="filter-group" style="position:relative">
-                  <label>Referencia</label>
-                  <input type="text" id="inv-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off"
-                    data-inv-ac="inv-f-referencia-list" style="width:100%;box-sizing:border-box;">
-                  <ul id="inv-f-referencia-list" class="inv-ac-list" style="display:none"></ul>
+                  <label>Número de Serie</label>
+                  <input type="text" id="det-f-serial" placeholder="🔍 Escribir serial..." autocomplete="off" data-inv-ac="det-f-serial-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-serial-list" class="inv-ac-list" style="display:none"></ul>
                 </div>
                 <div class="filter-group" style="position:relative">
-                  <label>Bodega</label>
-                  <input type="text" id="inv-f-bodega" placeholder="🔍 Escribir bodega..." autocomplete="off"
-                    data-inv-ac="inv-f-bodega-list" style="width:100%;box-sizing:border-box;">
-                  <ul id="inv-f-bodega-list" class="inv-ac-list" style="display:none"></ul>
+                  <label>Referencia</label>
+                  <input type="text" id="det-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off" data-inv-ac="det-f-referencia-list" style="width:100%;box-sizing:border-box;">
+                  <ul id="det-f-referencia-list" class="inv-ac-list" style="display:none"></ul>
                 </div>
-                <div class="filters-actions">
-                  <button class="btn-apply" onclick="invApplyFilters()">✦ Aplicar</button>
-                  <button class="btn-reset" onclick="invResetFilters()">↺ Reset</button>
-                </div>
+              </div>
+              <div class="filters-actions" style="margin-top:12px;">
+                <button class="btn-apply" onclick="detApplyFilters()">✦ Aplicar</button>
+                <button class="btn-reset" onclick="detResetFilters()">↺ Reset</button>
               </div>
             </div>
 
-            <div class="section-label fade-up fade-up-1">KPIs Inventario</div>
-            <div id="inv-kpi-grid" class="kpi-grid fade-up fade-up-2"
-              style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));">
-              <div class="loading">
-                <div class="spinner"></div><span>Cargando inventario...</span>
-              </div>
+            <!-- ── KPI Strip ──────────────────────────────────── -->
+            <div id="det-kpi-strip" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
+
+            <!-- ── Gráficas ───────────────────────────────────── -->
+            <div class="section-label fade-up" style="color:#DFFF61;">Gráficas de Detalles</div>
+            <div id="det-charts-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
+              <div class="loading"><div class="spinner"></div><span>Cargando...</span></div>
             </div>
 
-            <!-- Gráficas -->
-            <div class="section-label fade-up" style="margin-top:32px">Gráficas de Inventario</div>
-            <div id="inv-charts-grid"
-              style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
-              <div class="loading">
-                <div class="spinner"></div><span>Cargando gráficas...</span>
-              </div>
-            </div>
-
-            <!-- Top Referencias -->
-            <div class="section-label fade-up">Top 20 Referencias por Stock</div>
-            <div
-              style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));border:1px solid rgba(176,242,174,.1);border-radius:18px;overflow:hidden;margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
-              <div
-                style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
-                <div>
-                  <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">Top 20
-                    Referencias</div>
-                  <div style="font-size:11px;color:#7A7674;margin-top:2px;">Referencias con mayor stock en el inventario
-                    filtrado</div>
-                </div>
-                <button onclick="invExportTopExcel()"
-                  style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇
-                  Excel</button>
-              </div>
-              <div id="inv-table-container" style="overflow-x:auto;max-height:480px;">
-                <div class="loading">
-                  <div class="spinner"></div><span>Cargando tabla...</span>
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- ════ PANEL: INVENTARIO DETALLES ════ -->
-          <div id="panel-inv-detalles" style="display:none">
-
-            <!-- Loading state -->
-            <div id="det-loading" style="display:flex;align-items:center;justify-content:center;padding:80px;gap:16px;">
-              <div class="spinner"></div>
-              <span style="color:var(--muted);font-family:'Outfit',sans-serif;">Cargando datos de inventario...</span>
-            </div>
-
-            <!-- Contenido principal -->
-            <div id="det-content" style="display:none">
-
-              <!-- ── Filtros ────────────────────────────────────── -->
-              <div class="filters-bar" style="border-left:3px solid #DFFF61;margin-bottom:28px">
-                <div class="filters-title" style="display:flex;align-items:center;gap:10px">
-                  <span style="font-size:18px">🔍</span>
-                  <span>Filtros Detalles — Alertas & Trazabilidad</span>
-                </div>
-                <div class="filters-row" style="flex-wrap:wrap;gap:12px;">
-                  <div class="filter-group">
-                    <label>Tipo de Negocio</label>
-                    <select id="det-f-negocio">
-                      <option value="Todos">Todos</option>
-                      <option value="CB">CB (Wompi)</option>
-                      <option value="VP">VP</option>
-                    </select>
-                  </div>
-                  <div class="filter-group">
-                    <label>Categoría</label>
-                    <select id="det-f-categoria">
-                      <option value="Todas">Todas</option>
-                      <option>Rollos</option>
-                      <option>Pin pad</option>
-                      <option>Forros</option>
-                      <option>Accesorios</option>
-                      <option>SIM</option>
-                      <option>KIT POP VP</option>
-                      <option>Datáfonos</option>
-                    </select>
-                  </div>
-                  <div class="filter-group">
-                    <label>Ubicación (V3)</label>
-                    <select id="det-f-ubicacion">
-                      <option value="Todas">Todas</option>
-                    </select>
-                  </div>
-                  <div class="filter-group" style="position:relative">
-                    <label>Nombre de Ubicación</label>
-                    <input type="text" id="det-f-nombre-ubic" placeholder="🔍 Escribir ubicación..." autocomplete="off"
-                      data-inv-ac="det-f-nombre-ubic-list" style="width:100%;box-sizing:border-box;">
-                    <ul id="det-f-nombre-ubic-list" class="inv-ac-list" style="display:none"></ul>
-                  </div>
-                  <div class="filter-group" style="position:relative">
-                    <label>Código de Comercio</label>
-                    <input type="text" id="det-f-cod-comercio" placeholder="🔍 Escribir código..." autocomplete="off"
-                      data-inv-ac="det-f-cod-comercio-list" style="width:100%;box-sizing:border-box;">
-                    <ul id="det-f-cod-comercio-list" class="inv-ac-list" style="display:none"></ul>
-                  </div>
-                  <div class="filter-group">
-                    <label>Estado de Alerta</label>
-                    <select id="det-f-alerta">
-                      <option value="">Todos</option>
-                      <option value="con_alerta">🚨 Con alerta (&gt;8d)</option>
-                      <option value="sin_alerta">✅ Sin alerta</option>
-                    </select>
-                  </div>
-                  <div class="filter-group" style="position:relative">
-                    <label>Número de Serie</label>
-                    <input type="text" id="det-f-serial" placeholder="🔍 Escribir serial..." autocomplete="off"
-                      data-inv-ac="det-f-serial-list" style="width:100%;box-sizing:border-box;">
-                    <ul id="det-f-serial-list" class="inv-ac-list" style="display:none"></ul>
-                  </div>
-                  <div class="filter-group" style="position:relative">
-                    <label>Referencia</label>
-                    <input type="text" id="det-f-referencia" placeholder="🔍 Escribir referencia..." autocomplete="off"
-                      data-inv-ac="det-f-referencia-list" style="width:100%;box-sizing:border-box;">
-                    <ul id="det-f-referencia-list" class="inv-ac-list" style="display:none"></ul>
-                  </div>
-                </div>
-                <div class="filters-actions" style="margin-top:12px;">
-                  <button class="btn-apply" onclick="detApplyFilters()">✦ Aplicar</button>
-                  <button class="btn-reset" onclick="detResetFilters()">↺ Reset</button>
-                </div>
-              </div>
-
-              <!-- ── KPI Strip ──────────────────────────────────── -->
-              <div id="det-kpi-strip" style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px;"></div>
-
-              <!-- ── Gráficas ───────────────────────────────────── -->
-              <div class="section-label fade-up" style="color:#DFFF61;">Gráficas de Detalles</div>
-              <div id="det-charts-grid"
-                style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:32px;">
-                <div class="loading">
-                  <div class="spinner"></div><span>Cargando...</span>
-                </div>
-              </div>
-
-              <!-- ── Tabla 1: Resumen por Referencia ───────────── -->
-              <div class="section-label fade-up" style="color:#DFFF61;">Resumen por Referencia</div>
-              <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
+            <!-- ── Tabla 1: Resumen por Referencia ───────────── -->
+            <div class="section-label fade-up" style="color:#DFFF61;">Resumen por Referencia</div>
+            <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
               border:1px solid rgba(223,255,97,.12);border-radius:18px;overflow:hidden;
               margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
-                <div
-                  style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(223,255,97,.08);">
-                  <div>
-                    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">
-                      Tabla 1 — Referencia / Unidades / Alertas</div>
-                    <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="det-tabla1-count">0 referencias</div>
-                  </div>
-                  <button onclick="detExportTabla1Excel()"
-                    style="background:rgba(223,255,97,.08);border:1px solid rgba(223,255,97,.2);color:#DFFF61;
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(223,255,97,.08);">
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">
+                    Tabla 1 — Referencia / Unidades / Alertas</div>
+                  <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="det-tabla1-count">0 referencias</div>
+                </div>
+                <button onclick="detExportTabla1Excel()"
+                  style="background:rgba(223,255,97,.08);border:1px solid rgba(223,255,97,.2);color:#DFFF61;
                   padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
-                </div>
-                <div style="padding:10px 20px;border-bottom:1px solid rgba(223,255,97,.07);background:rgba(0,0,0,.15);">
-                  <input type="text" oninput="detT1Search(this.value)" placeholder="🔍 Buscar referencia o categoría..."
-                    style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(223,255,97,.2);
-                  border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
-                </div>
-                <div id="det-tabla1-wrap" style="overflow-x:auto;max-height:460px;">
-                  <div class="loading">
-                    <div class="spinner"></div>
-                  </div>
-                </div>
-                <div
-                  style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(223,255,97,.07);">
-                  <div id="det-tabla1-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-                </div>
               </div>
+              <div style="padding:10px 20px;border-bottom:1px solid rgba(223,255,97,.07);background:rgba(0,0,0,.15);">
+                <input type="text" oninput="detT1Search(this.value)" placeholder="🔍 Buscar referencia o categoría..."
+                  style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(223,255,97,.2);
+                  border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
+              </div>
+              <div id="det-tabla1-wrap" style="overflow-x:auto;max-height:460px;">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(223,255,97,.07);">
+                <div id="det-tabla1-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+              </div>
+            </div>
 
-              <!-- ── Tabla 2: Detalle por Serial ────────────────── -->
-              <div class="section-label fade-up" style="color:#B0F2AE;">Detalle por Serial</div>
-              <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
+            <!-- ── Tabla 2: Detalle por Serial ────────────────── -->
+            <div class="section-label fade-up" style="color:#B0F2AE;">Detalle por Serial</div>
+            <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));
               border:1px solid rgba(176,242,174,.12);border-radius:18px;overflow:hidden;
               margin-bottom:32px;box-shadow:0 4px 20px rgba(0,0,0,.4);">
-                <div
-                  style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
-                  <div>
-                    <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">
-                      Tabla 2 — Cód. Ubic · Nombre · Serial · Cantidad · Fecha · Alerta</div>
-                    <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="det-tabla2-count">0 registros</div>
-                  </div>
-                  <button onclick="detExportTabla2Excel()"
-                    style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(176,242,174,.08);">
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#f1f5f9;">
+                    Tabla 2 — Cód. Ubic · Nombre · Serial · Cantidad · Fecha · Alerta</div>
+                  <div style="font-size:11px;color:#7A7674;margin-top:2px;" id="det-tabla2-count">0 registros</div>
+                </div>
+                <button onclick="detExportTabla2Excel()"
+                  style="background:rgba(176,242,174,.08);border:1px solid rgba(176,242,174,.2);color:#B0F2AE;
                   padding:7px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Outfit',sans-serif;transition:all .2s;">⬇ Excel</button>
-                </div>
-                <div
-                  style="padding:10px 20px;border-bottom:1px solid rgba(176,242,174,.07);background:rgba(0,0,0,.15);">
-                  <input type="text" oninput="detT2Search(this.value)"
-                    placeholder="🔍 Buscar serial, código, nombre de ubicación, referencia..."
-                    style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);
-                  border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
-                </div>
-                <div id="det-tabla2-wrap" style="overflow-x:auto;max-height:500px;">
-                  <div class="loading">
-                    <div class="spinner"></div>
-                  </div>
-                </div>
-                <div
-                  style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(176,242,174,.07);">
-                  <div id="det-tabla2-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-                </div>
               </div>
+              <div style="padding:10px 20px;border-bottom:1px solid rgba(176,242,174,.07);background:rgba(0,0,0,.15);">
+                <input type="text" oninput="detT2Search(this.value)" placeholder="🔍 Buscar serial, código, nombre de ubicación, referencia..."
+                  style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.05);border:1px solid rgba(176,242,174,.2);
+                  border-radius:8px;color:#FAFAFA;padding:8px 14px;font-size:13px;font-family:'Outfit',sans-serif;outline:none;">
+              </div>
+              <div id="det-tabla2-wrap" style="overflow-x:auto;max-height:500px;">
+                <div class="loading"><div class="spinner"></div></div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:flex-end;padding:10px 20px;border-top:1px solid rgba(176,242,174,.07);">
+                <div id="det-tabla2-pag" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+              </div>
+            </div>
 
-            </div><!-- /det-content -->
-          </div><!-- /panel-inv-detalles -->
+          </div><!-- /det-content -->
+        </div><!-- /panel-inv-detalles -->
 
-          <!-- ════ PANEL: ESTADO DE MATERIALES ════ -->
-          <div id="panel-estado-materiales" style="display:none;padding:4px 0 40px;">
-          </div>
+        <!-- ════ PANEL: ESTADO DE MATERIALES ════ -->
+        <div id="panel-estado-materiales" style="display:none;padding:4px 0 40px;">
+        </div>
 
-          <!-- ════ PANEL: GARANTÍA INVENTARIO ════ -->
-          <div id="panel-garantia-inventario" style="display:none;padding:4px 0 40px;">
-          </div>
+        <!-- ════ PANEL: GARANTÍA INVENTARIO ════ -->
+        <div id="panel-garantia-inventario" style="display:none;padding:4px 0 40px;">
+        </div>
 
-          <!-- ════ PANEL: PUNTOS DE REORDEN ════ -->
-          <div id="panel-puntos-reorden" style="display:none;padding:4px 0 40px;">
-          </div>
+        <!-- ════ PANEL: PUNTOS DE REORDEN ════ -->
+        <div id="panel-puntos-reorden" style="display:none;padding:4px 0 40px;">
+        </div>
 
-        </div><!-- /main -->
-      </div><!-- /content-area -->
-    </div><!-- /app-body -->
+      </div><!-- /main -->
+    </div><!-- /content-area -->
+  </div><!-- /app-body -->
 
-    <div class="footer">
-      <div class="footer-logos">
-        <img src="logo_wompi.png" alt="Wompi" class="footer-logo-wompi">
-        <span>×</span>
-        <img src="logo_linea.png" alt="Linea" class="footer-logo-linea">
-      </div>
-      <span>Dashboard Tracking VP · <span id="footer-date">—</span></span>
-      <span style="font-family:'JetBrains Mono',monospace;font-size:10px">v2.0</span>
+  <div class="footer">
+    <div class="footer-logos">
+      <img src="logo_wompi.png" alt="Wompi" class="footer-logo-wompi">
+      <span>×</span>
+      <img src="logo_linea.png" alt="Linea" class="footer-logo-linea">
     </div>
+    <span>Dashboard Tracking VP · <span id="footer-date">—</span></span>
+    <span style="font-family:'JetBrains Mono',monospace;font-size:10px">v2.0</span>
   </div>
+</div>
 
-  <!-- ════ SCRIPTS ════ -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <script src="auth.js"></script>
-  <script>
-    // Proxies para sidebar — llamados desde HTML antes de que cargue dashboard.js
-    function toggleSidebar() { if (window._sidebarReady) window._toggleSidebar(); }
-    function selectBoard(b) { if (window._sidebarReady) window._selectBoard(b); }
-    function selectBoardTab(b, t) { if (window._sidebarReady) window._selectBoardTab(b, t); }
-  </script>
-  <script src="dashboard.js"></script>
-  <script src="inventario.js"></script>
-  <script src="inventario_detalles.js"></script>
-  <script src="estado_materiales.js"></script>
-  <script src="garantia_inventario.js"></script>
-  <script src="puntos_reorden.js"></script>
-  <script src="rollos_inventario.js"></script>
-  <script src="rollos_comercio_v2.js"></script>
+<!-- ════ SCRIPTS ════ -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="auth.js"></script>
+<script>
+// Proxies para sidebar — llamados desde HTML antes de que cargue dashboard.js
+function toggleSidebar()         { if(window._sidebarReady) window._toggleSidebar(); }
+function selectBoard(b)          { if(window._sidebarReady) window._selectBoard(b); }
+function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardTab(b,t); }
+</script>
+<script src="dashboard.js"></script>
+<script src="inventario.js"></script>
+<script src="inventario_detalles.js"></script>
+<script src="estado_materiales.js"></script>
+<script src="garantia_inventario.js"></script>
+<script src="puntos_reorden.js"></script>
+<script src="rollos_inventario.js"></script>
+<script src="rollos_comercio_v2.js"></script>
 </body>
-
 </html>

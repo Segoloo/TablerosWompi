@@ -397,9 +397,9 @@ function rcv2Render(key, sitio) {
       <div style="font-size:10px;color:#475569;margin-top:2px;">${rcv2FmtI(cal.saldo_dias)} días</div>
     </div>
     <div style="${kpiStyle('#99D1FC')}">
-      <div style="font-size:9px;color:#64748b;letter-spacing:.5px;margin-bottom:6px;">CONSUMO MENSUAL</div>
+      <div style="font-size:9px;color:#64748b;letter-spacing:.5px;margin-bottom:6px;">TRX MENSUAL</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:#99D1FC;">${rcv2Fmt(cal.prom_mensual)}</div>
-      <div style="font-size:10px;color:#475569;margin-top:2px;">proyectado / mes</div>
+      <div style="font-size:10px;color:#475569;margin-top:2px;">transacciones proy. / mes</div>
     </div>
     <div style="${kpiStyle('#DFFF61')}">
       <div style="font-size:9px;color:#64748b;letter-spacing:.5px;margin-bottom:6px;">REAL ÚLTIMOS 30d</div>
