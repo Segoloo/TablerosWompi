@@ -518,20 +518,6 @@ function rcv2RenderSearchUI() {
   const conDatos     = [...RCV2_SITIOS.values()].filter(s=>s._calSet).length;
   const ahora        = new Date().toLocaleString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
-  // Calcular stats globales para los mini-KPIs del header
-  const allRows = [...RCV2_SITIOS.entries()]
-    .map(([key,s])=>({key,...s,meses:s._calSet?s.cal.saldo_dias/30:null}));
-  const conMeses   = allRows.filter(r=>r.meses!==null);
-  const criticos   = conMeses.filter(r=>r.meses<1).length;
-  const alertasN   = conMeses.filter(r=>r.meses>=1&&r.meses<2).length;
-  const warnsN     = conMeses.filter(r=>r.meses>=2&&r.meses<3).length;
-  const oksN       = conMeses.filter(r=>r.meses>=3).length;
-  const slaIncN    = criticos+alertasN+warnsN;
-  const pctSla     = conMeses.length>0 ? (oksN/conMeses.length*100).toFixed(0) : '—';
-  const promCob    = conMeses.length>0 ? (conMeses.reduce((s,r)=>s+r.meses,0)/conMeses.length).toFixed(1) : '—';
-  const totalRollos= conMeses.reduce((s,r)=>s+(r.cal.saldo_rollos||0),0);
-  const totalProm  = conMeses.reduce((s,r)=>s+(r.cal.prom_mensual||0),0);
-
   panel.innerHTML = `
   <!-- ══ HEADER DEL PANEL ══ -->
   <div style="margin-bottom:28px;">
@@ -550,54 +536,13 @@ function rcv2RenderSearchUI() {
       </div>
     </div>
 
-    <!-- ── KPIs panorámicos del header ── -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px;">
-
-      <!-- Total corresponsales -->
-      <div style="background:rgba(153,209,252,.06);border:1px solid rgba(153,209,252,.15);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">🏪</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Corresponsales</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#99D1FC;line-height:1;">${conDatos.toLocaleString('es-CO')}</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">con datos de stock</div>
-        <div style="font-size:10px;color:#334155;margin-top:2px;">${totalSitios.toLocaleString('es-CO')} sitios totales</div>
+    <!-- ── Contador de corresponsales ── -->
+    <div style="display:inline-flex;align-items:center;gap:10px;margin-top:16px;padding:10px 16px;background:rgba(153,209,252,.06);border:1px solid rgba(153,209,252,.12);border-radius:12px;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:#99D1FC;">${conDatos.toLocaleString('es-CO')}</span>
+      <div>
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;color:#64748b;">corresponsales con datos de stock</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#334155;">${totalSitios.toLocaleString('es-CO')} sitios totales indexados</div>
       </div>
-
-      <!-- Rollos disponibles -->
-      <div style="background:rgba(176,242,174,.06);border:1px solid rgba(176,242,174,.15);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">📦</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Rollos disponibles</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#B0F2AE;line-height:1;">${totalRollos.toLocaleString('es-CO')}</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">inventario total</div>
-        <div style="font-size:10px;color:#334155;margin-top:2px;">${totalProm.toLocaleString('es-CO',{maximumFractionDigits:0})} prom/mes total</div>
-      </div>
-
-      <!-- Cobertura promedio -->
-      <div style="background:rgba(223,255,97,.05);border:1px solid rgba(223,255,97,.14);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">📅</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Cobertura promedio</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#DFFF61;line-height:1;">${promCob}<span style="font-size:13px;font-weight:400;"> m</span></div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">meses promedio red</div>
-        <div style="font-size:10px;color:#334155;margin-top:2px;">SLA mínimo: 3 meses</div>
-      </div>
-
-      <!-- Cumplimiento SLA -->
-      <div style="background:${oksN/Math.max(conMeses.length,1)>.7?'rgba(176,242,174,.06)':'rgba(255,92,92,.06)'};border:1px solid ${oksN/Math.max(conMeses.length,1)>.7?'rgba(176,242,174,.15)':'rgba(255,92,92,.15)'};border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.07;">✅</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">Cumplimiento SLA</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:${parseInt(pctSla)>=70?'#B0F2AE':'#FF5C5C'};line-height:1;">${pctSla}<span style="font-size:13px;font-weight:400;">%</span></div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">${oksN} de ${conMeses.length} cumplen ≥3m</div>
-        <div style="font-size:10px;color:#FF5C5C;margin-top:2px;">${slaIncN} incumpliendo</div>
-      </div>
-
-      <!-- Críticos -->
-      <div style="background:rgba(255,92,92,.06);border:1px solid rgba(255,92,92,.2);border-radius:14px;padding:14px 18px;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-8px;font-size:36px;opacity:.1;">🚨</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:#64748b;letter-spacing:.8px;text-transform:uppercase;margin-bottom:6px;">En riesgo quiebre</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:#FF5C5C;line-height:1;">${criticos}</div>
-        <div style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-top:4px;">cobertura &lt; 1 mes</div>
-        <div style="font-size:10px;color:#FFC04D;margin-top:2px;">${alertasN} en alerta (&lt;2m)</div>
-      </div>
-
     </div>
   </div>
 
@@ -915,6 +860,8 @@ window.rcv2ModalExportExcel = rcv2ModalExportExcel;
 
 // ── Tabla global de cobertura ──────────────────────────────────────
 function rcv2RenderGlobalTable(filterTerm) {
+  _rcv2ActiveFilter = filterTerm ? _rcv2ActiveFilter : 'todos';
+  _rcv2SearchTerm   = filterTerm || '';
   const el = document.getElementById('rcv2-global-table');
   if (!el) return;
 
@@ -1003,8 +950,6 @@ function rcv2RenderGlobalTable(filterTerm) {
         detail:'Cumplen el estándar acordado' },
       { grp:'bajoPR',   icon:'📉', label:'Bajo Reorden',  sub:'Stock ≤ punto reorden', n:bajoPR,   col:'#C084FC',
         detail:'Deben generarse órdenes de compra' },
-      { grp:'sla',      icon:'✗',  label:'SLA Incumplido',sub:'Total fuera del SLA',   n:slaIncump,col:'#FF5C5C',
-        detail:'${slaIncump} de ${conMeses} corresponsales con datos' },
     ].map(k=>`
       <div onclick="rcv2OpenKpiModal('${k.label} (${k.n})', window._rcv2KpiGroups['${k.grp}'] || [])"
         title="${kpiDesc[k.grp]||''}"
@@ -1086,19 +1031,64 @@ function rcv2RenderGlobalTable(filterTerm) {
   </div>
 
   <!-- ══ CONTROLES DE TABLA ══ -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      <span style="font-family:'Outfit',sans-serif;font-size:12px;color:#475569;">${shown.length} de ${total} corresponsales</span>
-      ${rows.length > PAGE_SIZE ? `<span style="font-family:'Outfit',sans-serif;font-size:11px;color:#FFC04D;">Usa el filtro para ver más</span>` : ''}
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <div style="position:relative;">
-        <input type="text" placeholder="Filtrar tabla..." oninput="rcv2RenderGlobalTable(this.value)"
-          style="background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px 8px 34px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:12px;outline:none;width:220px;transition:border-color .2s;"
+  <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px 16px;margin-bottom:12px;">
+    <div style="display:flex;align-items:center;flex-wrap:wrap;gap:10px;">
+
+      <!-- Filtros rápidos por semáforo -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">
+        <button id="rcv2-filter-btn-todos"
+          onclick="rcv2SetFilter('todos')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);color:#f1f5f9;">
+          Todos <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.7;">(${total})</span>
+        </button>
+        <button id="rcv2-filter-btn-criticos"
+          onclick="rcv2SetFilter('criticos')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(255,92,92,.08);border:1.5px solid rgba(255,92,92,.25);color:#FF5C5C;">
+          🔴 Riesgo Quiebre <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8;">(${criticos})</span>
+        </button>
+        <button id="rcv2-filter-btn-alertas"
+          onclick="rcv2SetFilter('alertas')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(255,192,77,.08);border:1.5px solid rgba(255,192,77,.25);color:#FFC04D;">
+          🟠 En Alerta <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8;">(${alertas})</span>
+        </button>
+        <button id="rcv2-filter-btn-warns"
+          onclick="rcv2SetFilter('warns')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(223,255,97,.06);border:1.5px solid rgba(223,255,97,.2);color:#DFFF61;">
+          🟡 Bajo SLA <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8;">(${warns})</span>
+        </button>
+        <button id="rcv2-filter-btn-oks"
+          onclick="rcv2SetFilter('oks')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(176,242,174,.06);border:1.5px solid rgba(176,242,174,.2);color:#B0F2AE;">
+          🟢 SLA OK <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8;">(${oks})</span>
+        </button>
+        <button id="rcv2-filter-btn-bajoPR"
+          onclick="rcv2SetFilter('bajoPR')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(192,132,252,.07);border:1.5px solid rgba(192,132,252,.22);color:#C084FC;">
+          📉 Bajo Reorden <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8;">(${bajoPR})</span>
+        </button>
+        <button id="rcv2-filter-btn-sinDatos"
+          onclick="rcv2SetFilter('sinDatos')"
+          style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 14px;border-radius:20px;cursor:pointer;transition:all .15s;background:rgba(71,85,105,.12);border:1.5px solid rgba(71,85,105,.3);color:#64748b;">
+          ⚪ Sin datos <span style="font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.8;">(${sinDatos})</span>
+        </button>
+      </div>
+
+      <!-- Buscador de texto -->
+      <div style="position:relative;flex-shrink:0;">
+        <input id="rcv2-table-search" type="text" placeholder="Filtrar por nombre, código, ciudad..."
+          oninput="rcv2TableSearch(this.value)"
+          style="background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.08);border-radius:10px;padding:8px 12px 8px 34px;color:#f1f5f9;font-family:'Outfit',sans-serif;font-size:12px;outline:none;width:240px;transition:border-color .2s;"
           onfocus="this.style.borderColor='rgba(176,242,174,.4)'"
           onblur="this.style.borderColor='rgba(255,255,255,.08)'">
-        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.5;">🔍</span>
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;opacity:.4;">🔍</span>
       </div>
+
+    </div>
+
+    <!-- Línea de estado -->
+    <div id="rcv2-filter-status" style="margin-top:10px;font-family:'Outfit',sans-serif;font-size:11px;color:#475569;">
+      Mostrando <span style="color:#94a3b8;font-weight:600;">${shown.length}</span> de <span style="color:#94a3b8;">${total}</span> corresponsales
+      ${rows.length > PAGE_SIZE ? `<span style="color:#FFC04D;margin-left:8px;">· Solo se muestran los primeros ${PAGE_SIZE} — usa los filtros para acotar</span>` : ''}
     </div>
   </div>
 
@@ -1196,7 +1186,132 @@ function rcv2RenderGlobalTable(filterTerm) {
   </div>`;
 }
 
-// ── Limpiar búsqueda ───────────────────────────────────────────────
+// ── Estado de filtros de tabla global ─────────────────────────────
+let _rcv2ActiveFilter = 'todos';
+let _rcv2SearchTerm   = '';
+
+// ── Aplicar filtro por semáforo ────────────────────────────────────
+window.rcv2SetFilter = function(grupo) {
+  _rcv2ActiveFilter = grupo;
+  _rcv2SearchTerm   = '';
+  const inp = document.getElementById('rcv2-table-search');
+  if (inp) inp.value = '';
+  _rcv2ApplyFilters();
+  // Marcar botón activo
+  ['todos','criticos','alertas','warns','oks','bajoPR','sinDatos'].forEach(g => {
+    const btn = document.getElementById('rcv2-filter-btn-'+g);
+    if (!btn) return;
+    btn.style.outline = g === grupo ? '2px solid currentColor' : 'none';
+    btn.style.outlineOffset = '2px';
+    btn.style.opacity = g === grupo ? '1' : '.65';
+  });
+};
+
+// ── Filtrar por texto libre ────────────────────────────────────────
+window.rcv2TableSearch = function(term) {
+  _rcv2SearchTerm = term;
+  _rcv2ApplyFilters();
+};
+
+// ── Aplicar ambos filtros y re-renderizar filas ────────────────────
+function _rcv2ApplyFilters() {
+  const allRows = [...RCV2_SITIOS.entries()]
+    .map(([key, s]) => ({ key, ...s, meses: s._calSet ? s.cal.saldo_dias / 30 : null }))
+    .sort((a, b) => {
+      if (a.meses === null && b.meses === null) return 0;
+      if (a.meses === null) return 1;
+      if (b.meses === null) return -1;
+      return a.meses - b.meses;
+    });
+
+  const groups = window._rcv2KpiGroups || {};
+  let rows;
+  if (_rcv2ActiveFilter === 'todos') {
+    rows = allRows;
+  } else {
+    const keys = new Set((groups[_rcv2ActiveFilter] || []).map(r => r.key));
+    rows = allRows.filter(r => keys.has(r.key));
+  }
+
+  if (_rcv2SearchTerm) {
+    const t = _rcv2SearchTerm.toUpperCase();
+    rows = rows.filter(r =>
+      r.key.toUpperCase().includes(t) ||
+      r.meta.nombre_sitio.toUpperCase().includes(t) ||
+      (r.meta.ciudad||'').toUpperCase().includes(t) ||
+      (r.meta.departamento||'').toUpperCase().includes(t)
+    );
+  }
+
+  const PAGE_SIZE = 100;
+  const shown = rows.slice(0, PAGE_SIZE);
+  const tbody = document.querySelector('#rcv2-global-table table tbody');
+  const status = document.getElementById('rcv2-filter-status');
+
+  if (status) {
+    status.innerHTML = `Mostrando <span style="color:#94a3b8;font-weight:600;">${shown.length}</span> de <span style="color:#94a3b8;">${rows.length}</span> corresponsales${_rcv2ActiveFilter !== 'todos' ? ` <span style="color:#64748b;">· filtro activo</span>` : ''}${rows.length > PAGE_SIZE ? `<span style="color:#FFC04D;margin-left:8px;">· Solo se muestran los primeros ${PAGE_SIZE}</span>` : ''}`;
+  }
+
+  if (!tbody) { rcv2RenderGlobalTable(); return; }
+
+  tbody.innerHTML = shown.map((r, i) => {
+    const noData    = r.meses === null;
+    const sg        = noData ? { col:'#475569' } : rcv2Semaforo(r.meses);
+    const slaOk2    = !noData && r.meses >= 3;
+    const bajPR     = !noData && r.cal.saldo_rollos > 0 && r.cal.saldo_rollos <= r.cal.punto_reorden;
+    const stockZero = !noData && r.cal.saldo_rollos === 0;
+
+    const consReal30 = r.cal.rollos_consumidos > 0 && r.cal.trx_desde > 0
+      ? Math.round(r.cal.rollos_consumidos / (r.cal.trx_desde / 30)) : '—';
+    const varNum = (typeof consReal30 === 'number' && r.cal.prom_mensual > 0)
+      ? ((consReal30 - r.cal.prom_mensual) / r.cal.prom_mensual * 100) : null;
+    const varStr = varNum !== null ? (varNum>0?'+':'')+varNum.toFixed(0)+'%' : '—';
+    const varCol = varNum === null ? '#475569' : Math.abs(varNum)<10 ? '#B0F2AE' : Math.abs(varNum)<25 ? '#FFC04D' : '#FF5C5C';
+    const rotacion = r.cal.saldo_rollos > 0 && r.cal.prom_mensual > 0
+      ? (r.cal.rollos_consumidos / r.cal.saldo_rollos).toFixed(1) : '—';
+
+    const bgRow   = stockZero ? 'rgba(255,92,92,.04)' : bajPR ? 'rgba(255,192,77,.03)' : i%2 ? 'rgba(255,255,255,.013)' : 'transparent';
+    const cobCell = noData
+      ? `<span style="font-size:10px;color:#334155;font-style:italic;">Sin datos</span>`
+      : `<div style="display:flex;align-items:center;gap:7px;">
+          <div style="position:relative;width:48px;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${Math.min(r.meses/6*100,100).toFixed(0)}%;background:${sg.col};border-radius:3px;"></div>
+            ${r.meses < 3 ? `<div style="position:absolute;left:50%;top:0;height:100%;width:1px;background:rgba(255,255,255,.2);"></div>` : ''}
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${sg.col};">${r.meses.toFixed(1)}<span style="font-size:9px;font-weight:400;">m</span></span>
+         </div>`;
+    const slaCell = noData ? `<span style="color:#334155;">—</span>`
+      : `<span style="font-family:'Outfit',sans-serif;font-size:10px;font-weight:600;color:${slaOk2?'#B0F2AE':'#FF5C5C'};background:${slaOk2?'#B0F2AE':'#FF5C5C'}15;border:1px solid ${slaOk2?'#B0F2AE':'#FF5C5C'}30;border-radius:20px;padding:3px 9px;white-space:nowrap;">${slaOk2?'✓ OK':'✗ INC'}</span>`;
+    const prCell = noData ? '—'
+      : `<span style="font-family:'JetBrains Mono',monospace;color:${bajPR?'#FFC04D':'#475569'};">${rcv2FmtI(r.cal.punto_reorden)}</span>${bajPR?`<span style="font-size:9px;color:#FFC04D;display:block;margin-top:1px;">⬇ reordenar</span>`:''}`;
+    const estadoLabel = stockZero ? `<span style="font-size:9px;color:#FF5C5C;font-weight:700;">QUIEBRE</span>`
+      : bajPR ? `<span style="font-size:9px;color:#FFC04D;">BAJO PR</span>`
+      : noData ? '<span style="color:#334155;">—</span>'
+      : `<span style="font-size:10px;color:#64748b;">${r.cal.estado_punto||'—'}</span>`;
+
+    return `<tr style="border-bottom:1px solid rgba(255,255,255,.04);background:${bgRow};cursor:pointer;transition:background .12s;"
+      onclick="rcv2Select('${r.key}')"
+      onmouseover="this.style.background='rgba(176,242,174,.06)'"
+      onmouseout="this.style.background='${bgRow}'">
+      <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#334155;">${i+1}</td>
+      <td style="padding:9px 12px;min-width:160px;">
+        <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;color:#e2e8f0;line-height:1.3;">${r.meta.nombre_sitio}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#475569;margin-top:2px;">${r.key}</div>
+      </td>
+      <td style="padding:9px 10px;font-family:'Outfit',sans-serif;font-size:11px;color:#64748b;white-space:nowrap;">${r.meta.ciudad||'—'}</td>
+      <td style="padding:9px 12px;min-width:120px;">${cobCell}</td>
+      <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:${stockZero?'#FF5C5C':'#B0F2AE'};text-align:right;font-weight:${stockZero?700:400};">${noData?'—':rcv2FmtI(r.cal.saldo_rollos)}</td>
+      <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;text-align:right;">${noData?'—':rcv2Fmt(r.cal.prom_mensual)}</td>
+      <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#94a3b8;text-align:right;">${typeof consReal30==='number'?rcv2FmtI(consReal30):'—'}</td>
+      <td style="padding:9px 10px;text-align:right;"><span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:${varCol};">${varStr}</span></td>
+      <td style="padding:9px 10px;text-align:right;">${prCell}</td>
+      <td style="padding:9px 10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#F87171;text-align:right;">${rotacion !== '—'?rotacion+'x':'—'}</td>
+      <td style="padding:9px 10px;font-family:'Outfit',sans-serif;font-size:10px;color:#475569;white-space:nowrap;">${noData?'—':rcv2FmtDate(r.cal.fecha_abst)}</td>
+      <td style="padding:9px 12px;text-align:center;">${slaCell}</td>
+      <td style="padding:9px 10px;">${estadoLabel}</td>
+    </tr>`;
+  }).join('');
+}
 window.rcv2ClearSearch = function() {
   const inp = document.getElementById('rcv2-search-input');
   if (inp) inp.value = '';
