@@ -51,42 +51,42 @@ function rcv2BuildIndex() {
   const filas = window.TABLERO_ROLLOS_FILAS || [];
   RCV2_SITIOS.clear();
 
-  // Mapa auxiliar: codigo_sitio → cal_codigo_mo, para resolver alias entre claves.
-  // Cuando una fila tiene ambos campos, registramos que codigo_sitio es alias de cal_codigo_mo.
-  // Así evitamos crear entradas duplicadas (una por codigo_sitio, otra por cal_codigo_mo)
-  // para el mismo corresponsal físico, lo que inflaba los conteos de KPIs.
-  const aliasMap = new Map(); // codigo_sitio → cal_codigo_mo (clave canónica)
+  // Mapa auxiliar para deduplicar: si una fila tiene cal_codigo_sitio y cal_codigo_mo distintos,
+  // usamos cal_codigo_sitio como clave canónica (es el código real del corresponsal/sitio).
+  // cal_codigo_mo es el código de la MO, que NO identifica al sitio.
+  // También consideramos codigo_ubicacion_destino como código del sitio cuando no hay join.
+  const aliasMap = new Map(); // cal_codigo_mo → cal_codigo_sitio (clave canónica = sitio)
   filas.forEach(f => {
-    const codSitio = (f.codigo_sitio || f.cal_codigo_sitio || '').trim();
+    const codSitio = (f.cal_codigo_sitio || f.codigo_ubicacion_destino || '').trim();
     const codMO    = (f.cal_codigo_mo || '').trim();
-    if (codSitio && codMO && codSitio !== codMO && !aliasMap.has(codSitio)) {
-      aliasMap.set(codSitio, codMO);
+    if (codSitio && codMO && codSitio !== codMO && !aliasMap.has(codMO)) {
+      aliasMap.set(codMO, codSitio);
     }
   });
-  // Resuelve cualquier clave a su forma canónica (cal_codigo_mo tiene prioridad)
+  // Resuelve cualquier clave a su forma canónica (cal_codigo_sitio tiene prioridad)
   const canonical = k => aliasMap.get(k) || k;
 
-  // IMPORTANTE: se itera todo el array.
-  // Los cal_* solo se asignan desde filas con join_nivel > 0 Y cal_saldo_dias != 0,
-  // para evitar que sitios queden con saldo=0 por tomar una fila sin join match.
-  // La primera fila válida que aparezca por sitio gana; las siguientes se ignoran para cal.
-
   filas.forEach(f => {
-    const codSitio = (f.codigo_sitio || f.cal_codigo_sitio || '').trim();
+    // Clave canónica: priorizar cal_codigo_sitio (código real del sitio)
+    // Si no hay join (join_nivel=0), usar codigo_ubicacion_destino de la vista
+    const codSitio = (f.cal_codigo_sitio || f.codigo_ubicacion_destino || '').trim();
     const codMO    = (f.cal_codigo_mo || '').trim();
-    // Usar siempre la clave canónica: prioriza cal_codigo_mo para evitar duplicados
-    const key      = canonical(codMO || codSitio);
+    const key      = canonical(codSitio || codMO);
     if (!key) return;
 
     if (!RCV2_SITIOS.has(key)) {
       const meta = {
-        nombre_sitio : f.nombre_sitio || f.nombre_ubicacion_destino || key,
+        // nombre real del corresponsal = nombre_ubicacion_destino
+        // nombre_sitio de la vista = nombre de la tarea/operación (p.ej. "BARRIO CHAPINERO...")
+        nombre_sitio : f.nombre_ubicacion_destino || f.cal_nombre_sitio || f.nombre_sitio || key,
         departamento : f.departamento || '',
         ciudad       : f.Ciudad || f.ciudad || '',
         nit          : f.nit || '',
         tipologia    : f.tipologia || '',
         proyecto     : f.proyecto || '',
         red          : f.red_asociada || '',
+        // guardar codigo_ubicacion_destino para resolver match inverso desde _riNavToDetalle
+        codigo_ubic_destino: f.codigo_ubicacion_destino || '',
       };
       // cal vacío por defecto — se llenará cuando haya join_nivel > 0
       const calVacio = {
@@ -185,6 +185,7 @@ function rcv2BuildIndex() {
 
   RCV2_READY = true;
   _rcv2Initializing = false;
+  window.RCV2_SITIOS = RCV2_SITIOS; // exponer para _riNavToDetalle en rollos_inventario.js
   const conCal   = [...RCV2_SITIOS.values()].filter(s => s._calSet).length;
   const sinCal   = RCV2_SITIOS.size - conCal;
   console.log('[RCV2] Índice construido:', RCV2_SITIOS.size, 'sitios únicos |',

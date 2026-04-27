@@ -185,22 +185,7 @@ window.initRollosInventario = function () {
     }
     console.log('[Rollos-Inv] Filas a procesar:', calc.length);
 
-    // Merge with sitio metadata from detalle if needed
-    const detBySitio = new Map();
-    (ROLLOS_RAW.detalle || []).forEach(r => {
-        if (r.cod_sitio && !detBySitio.has(r.cod_sitio)) {
-            detBySitio.set(r.cod_sitio, {
-                nombre_sitio: r.nombre_sitio || '',
-                departamento: r.departamento || '',
-                ciudad: r.ciudad || '',
-                proyecto: r.proyecto || '',
-            });
-        }
-    });
-
     RI_DATA = calc.map(r => {
-        const sitId = r.codigo_sitio || r.cod_sitio || r.cod_comercio || '';
-        const meta = detBySitio.get(sitId) || {};
         const saldoDias = parseFloat(r.saldo_dias || r.cal_saldo_dias || 0);
         const saldoMeses = saldoDias / 30;
         const promMes = parseFloat(r.promedio_mensual || r.cal_promedio_mensual || 0);
@@ -241,15 +226,19 @@ window.initRollosInventario = function () {
 
         return {
             // IDs
-            id: r.id || '',
+            // codigo_sitio: campo real de wompi_tablero_rollos_calculos (cal_codigo_sitio),
+            // fallback a codigo_ubicacion_destino que es el código del corresponsal en la vista.
+            // NO usar cal_codigo_mo — ese es el código de la MO, no del sitio.
+            id: r.id || r.cal_id || '',
             tarea: r.tarea || '',
             codigo_mo: r.codigo_mo || r.cal_codigo_mo || '',
-            codigo_sitio: r.codigo_sitio || r.cal_codigo_mo || '',
-            // Metadata enriquecida
-            nombre_sitio: meta.nombre_sitio,
-            departamento: meta.departamento,
-            ciudad: meta.ciudad,
-            proyecto: meta.proyecto,
+            codigo_sitio: r.cal_codigo_sitio || r.codigo_ubicacion_destino || r.codigo_sitio || '',
+            // Metadata enriquecida — nombre real del corresponsal está en nombre_ubicacion_destino
+            // (nombre_sitio de la vista es el nombre operativo de la tarea, no del comercio)
+            nombre_sitio: r.nombre_ubicacion_destino || r.cal_nombre_sitio || r.nombre_sitio || '',
+            departamento: r.departamento || '',
+            ciudad: r.Ciudad || r.ciudad || '',
+            proyecto: r.proyecto || '',
             estado_punto: estadoPunto,
             fecha_apertura: fechaApertura,
             fecha_abst: fechaAbst,
@@ -681,9 +670,11 @@ function _renderRITableData(data) {
       </thead>
       <tbody>
         ${slice.map((r, i) => `
-          <tr style="border-bottom:1px solid rgba(255,255,255,.04);background:${i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)'};transition:background .15s;"
+          <tr style="border-bottom:1px solid rgba(255,255,255,.04);background:${i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)'};transition:background .15s;cursor:pointer;"
+              onclick="window._riNavToDetalle('${(r.codigo_sitio || '').replace(/'/g, "\\'")}')"
               onmouseover="this.style.background='rgba(153,209,252,.06)'"
               onmouseout="this.style.background='${i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)'}'"
+              title="Ver detalle: ${(r.nombre_sitio || r.codigo_sitio || '').replace(/'/g, "\\'")}"
           >
             <td style="padding:9px 12px;">
               <div style="color:#f1f5f9;font-weight:600;font-size:11px;">${r.codigo_sitio || r.codigo_mo || '—'}</div>
@@ -750,6 +741,37 @@ function _riPagBtnStyle(active) {
 }
 
 window.riGoPage = function (p) { riPage = p; riApplySearch(riSearchTerm); };
+
+// ── Navegar al detalle de un corresponsal desde la tabla de inventario ─
+// Busca por codigo_sitio real (cal_codigo_sitio / codigo_ubicacion_destino)
+// en RCV2_SITIOS, que indexa por ese mismo campo.
+window._riNavToDetalle = function(codigoSitio) {
+    if (!codigoSitio) return;
+    // Activar tab rollos-comercio
+    const tabBtn = document.querySelector('[data-tab="rollos-comercio"], [onclick*="rollos-comercio"]');
+    if (tabBtn) tabBtn.click();
+
+    const _trySelect = (attempts) => {
+        if (window.rcv2Select && window.RCV2_SITIOS && window.RCV2_SITIOS.size > 0) {
+            // Match exacto por codigo_sitio
+            if (window.RCV2_SITIOS.has(codigoSitio)) {
+                window.rcv2Select(codigoSitio);
+                return;
+            }
+            // Buscar también en meta.codigo_ubic_destino por si el key canónico difiere
+            for (const [k, v] of window.RCV2_SITIOS) {
+                if (v.meta.codigo_ubic_destino === codigoSitio) {
+                    window.rcv2Select(k);
+                    return;
+                }
+            }
+            console.warn('[RI] Sitio no encontrado en RCV2_SITIOS:', codigoSitio);
+        } else if (attempts > 0) {
+            setTimeout(() => _trySelect(attempts - 1), 300);
+        }
+    };
+    setTimeout(() => _trySelect(15), 200);
+};
 
 // ──────────────────────────────────────────────────────────────────
 //  TOTAL ROLLOS POR COMERCIO — desde INV_RAW (inventario Wompi)
