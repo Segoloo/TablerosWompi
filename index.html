@@ -517,84 +517,84 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
               </div>
             </div>
             <!-- Fila 2: todos los filtros en cuadrícula sin solapamiento -->
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;align-items:start;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px 14px;align-items:start;overflow:visible;">
 
               <!-- Código Tarea / MO -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Cód. Tarea / MO</label>
                 <input type="text" id="rf-codigo-tarea" placeholder="MO-12345..." style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
               </div>
 
               <!-- Plantilla Tarea -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Plantilla Tarea</label>
-                <div id="rf-plantilla-tarea-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-plantilla-tarea-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Estado Tarea -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Estado Tarea</label>
-                <div id="rf-estado" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-estado" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Tipo Flujo -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Tipo Flujo</label>
-                <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-tipo-flujo-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Año -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Año</label>
-                <div id="rf-anio" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-anio" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Mes -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#99D1FC;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🔖 Mes</label>
-                <div id="rf-mes" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-mes" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Cód. Sitio -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#B0F2AE;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🏪 Cód. Sitio</label>
                 <input type="text" id="rf-cod-sitio" placeholder="BOG-001..." style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
               </div>
 
               <!-- Departamento -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📍 Departamento</label>
-                <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-departamento-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Ciudad -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📍 Ciudad</label>
-                <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-ciudad-det" class="ms-container" data-placeholder="Todas" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Proyecto -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#DFFF61;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📁 Proyecto</label>
-                <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-proyecto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Nombre Material -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#F49D6E;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📦 Material</label>
-                <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-nombre-material-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
               <!-- Guía -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#FFC04D;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">🚚 Guía</label>
                 <input type="text" id="rf-guia" placeholder="Núm. guía..." style="font-size:11px;padding:5px 8px;width:100%;box-sizing:border-box;">
               </div>
 
               <!-- Estado Punto -->
-              <div class="filter-group" style="margin:0;">
+              <div class="filter-group" style="margin:0;position:relative;overflow:visible;">
                 <label style="font-size:9px;color:#FF5C5C;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">📊 Estado Punto</label>
-                <div id="rf-estado-punto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;width:100%;box-sizing:border-box;"></div>
+                <div id="rf-estado-punto-det" class="ms-container" data-placeholder="Todos" style="font-size:11px;min-width:0;width:100%;box-sizing:border-box;"></div>
               </div>
 
             </div>

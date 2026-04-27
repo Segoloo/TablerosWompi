@@ -569,7 +569,7 @@ tbody td { padding:10px 16px; color:var(--blanco); white-space:nowrap; }
 }
 
 /* ── MULTI-SELECT CUSTOM ────────────────────────────────────────── */
-.ms-container { position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 160px; }
+.ms-container { position: relative; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .ms-trigger {
   background: var(--card-dark); border: 1px solid var(--border); border-radius: var(--radius-xs);
   padding: 9px 12px; color: var(--blanco); font-size: 13px; cursor: pointer;
