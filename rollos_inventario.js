@@ -42,36 +42,105 @@ window.TABLERO_ROLLOS_FILAS = [];   // array de filas listo para consultar
 
 /**
  * Carga data_tablero_rollos.json.gz y lo guarda en memoria.
- * No modifica ningún render ni funcionalidad existente.
+ * Usa un Web Worker inline para hacer fetch + decompress + JSON.parse
+ * en un hilo de fondo, evitando que el hilo principal se congele.
  * Expone window.TABLERO_ROLLOS_FILAS y window.TABLERO_ROLLOS_RAW.
  */
-async function _loadTablRollos() {
-    if (window.TABLERO_ROLLOS_RAW) return; // ya cargado
+
+// ── Web Worker inline (Blob URL) ──────────────────────────────────
+// El worker recibe la URL, descarga, descomprime y parsea el JSON.
+// Devuelve { ok, payload } o { ok: false, error } via postMessage.
+const _ROLLOS_WORKER_SRC = `
+self.onmessage = async function(e) {
+  const url = e.data;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const buf    = await res.arrayBuffer();
+    const ds     = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(new Uint8Array(buf));
+    writer.close();
+    const out    = await new Response(ds.readable).arrayBuffer();
+    // JSON.parse ocurre en el worker, nunca bloquea el hilo principal
+    const payload = JSON.parse(new TextDecoder().decode(out));
+    // Transferir el array de filas como Transferable para evitar copia de memoria
+    self.postMessage({ ok: true, payload });
+  } catch(err) {
+    self.postMessage({ ok: false, error: err.message });
+  }
+};
+`;
+
+function _loadTablRollos() {
+    if (window.TABLERO_ROLLOS_RAW) return Promise.resolve(); // ya cargado
+
+    return new Promise((resolve) => {
+        let workerBlob, workerUrl, worker;
+        try {
+            workerBlob = new Blob([_ROLLOS_WORKER_SRC], { type: 'application/javascript' });
+            workerUrl  = URL.createObjectURL(workerBlob);
+            worker     = new Worker(workerUrl);
+        } catch (workerErr) {
+            // Fallback si Blob Workers están bloqueados (CSP muy estricto)
+            console.warn('[TablRollos] Worker no disponible, usando hilo principal:', workerErr.message);
+            _loadTablRollosFallback().then(resolve);
+            return;
+        }
+
+        worker.onmessage = function(e) {
+            URL.revokeObjectURL(workerUrl);
+            worker.terminate();
+            if (e.data.ok) {
+                const payload = e.data.payload;
+                window.TABLERO_ROLLOS_RAW   = payload;
+                window.TABLERO_ROLLOS_FILAS = payload.filas || [];
+                console.log(
+                    '[TablRollos] Cargado:',
+                    window.TABLERO_ROLLOS_FILAS.length, 'filas |',
+                    'join_sitio:', payload.pct_join_sitio + '%',
+                    '| join_cal:', payload.pct_join_calculos + '%',
+                    '| cols/fila:', Object.keys(window.TABLERO_ROLLOS_FILAS[0] || {}).length
+                );
+            } else {
+                console.warn('[TablRollos] No se pudo cargar data_tablero_rollos.json.gz:', e.data.error);
+                window.TABLERO_ROLLOS_RAW   = { filas: [] };
+                window.TABLERO_ROLLOS_FILAS = [];
+            }
+            resolve();
+        };
+
+        worker.onerror = function(err) {
+            URL.revokeObjectURL(workerUrl);
+            worker.terminate();
+            console.warn('[TablRollos] Worker error:', err.message);
+            // Fallback al hilo principal si el worker falla
+            _loadTablRollosFallback().then(resolve);
+        };
+
+        // Pasar URL absoluta: dentro de un Blob Worker las URLs relativas
+        // se resuelven desde blob: y no desde el origen de la página.
+        const absUrl = new URL('data_tablero_rollos.json.gz?t=' + Date.now(), window.location.href).href;
+        worker.postMessage(absUrl);
+    });
+}
+
+// Fallback: carga en hilo principal (comportamiento anterior)
+async function _loadTablRollosFallback() {
     try {
         const res = await fetch('data_tablero_rollos.json.gz?t=' + Date.now());
         if (!res.ok) throw new Error('HTTP ' + res.status);
-
         const buf    = await res.arrayBuffer();
         const ds     = new DecompressionStream('gzip');
         const writer = ds.writable.getWriter();
         writer.write(new Uint8Array(buf));
         writer.close();
-        // Leer todo el stream en un solo ArrayBuffer (más rápido que chunks manuales)
         const out    = await new Response(ds.readable).arrayBuffer();
         const payload = JSON.parse(new TextDecoder().decode(out));
         window.TABLERO_ROLLOS_RAW   = payload;
         window.TABLERO_ROLLOS_FILAS = payload.filas || [];
-
-        console.log(
-            '[TablRollos] Cargado:',
-            window.TABLERO_ROLLOS_FILAS.length, 'filas |',
-            'join_sitio:', payload.pct_join_sitio + '%',
-            '| join_cal:', payload.pct_join_calculos + '%',
-            '| cols/fila:', Object.keys(window.TABLERO_ROLLOS_FILAS[0] || {}).length
-        );
+        console.log('[TablRollos] Fallback — cargado en hilo principal:', window.TABLERO_ROLLOS_FILAS.length, 'filas');
     } catch (e) {
-        // El archivo puede no existir aún en el servidor; silenciar para no
-        // interrumpir el dashboard existente.
         console.warn('[TablRollos] No se pudo cargar data_tablero_rollos.json.gz:', e.message);
         window.TABLERO_ROLLOS_RAW   = { filas: [] };
         window.TABLERO_ROLLOS_FILAS = [];
