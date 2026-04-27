@@ -523,10 +523,10 @@ function rcv2RenderSearchUI() {
   <div style="margin-bottom:28px;">
     <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
       <div>
-        <div style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#f1f5f9;letter-spacing:-.3px;line-height:1.1;">
+        <div style="font-family:'Syne',sans-serif;font-size:26px;font-weight:900;color:#f1f5f9;letter-spacing:-.5px;line-height:1.05;background:linear-gradient(135deg,#f1f5f9 60%,#B0F2AE);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
           Detalle por Comercio
         </div>
-        <div style="font-family:'Outfit',sans-serif;font-size:13px;color:#64748b;margin-top:5px;font-weight:400;">
+        <div style="font-family:'Outfit',sans-serif;font-size:13px;color:#94a3b8;margin-top:6px;font-weight:400;letter-spacing:.1px;">
           Análisis completo de cobertura, consumo y alertas por corresponsal
         </div>
       </div>
@@ -577,11 +577,16 @@ function rcv2RenderSearchUI() {
 
   <!-- ══ TABLA DETALLE GLOBAL ══ -->
   <div style="margin-top:40px;">
-    <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px;flex-wrap:wrap;">
-      <div style="font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#f1f5f9;letter-spacing:-.2px;">Tabla Detalle por Comercio</div>
-      <div style="font-family:'Outfit',sans-serif;font-size:12px;color:#475569;">KPIs de cobertura, SLA, reorden y alertas para toda la red</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:19px;font-weight:800;color:#f1f5f9;letter-spacing:-.3px;">Tabla Detalle por Comercio</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:12px;color:#64748b;margin-top:2px;">KPIs de cobertura, SLA, reorden y alertas para toda la red</div>
+      </div>
+      <button id="rcv2-export-btn" onclick="rcv2ExportCurrentFilters()"
+        style="display:flex;align-items:center;gap:7px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:8px 16px;border-radius:10px;cursor:pointer;background:rgba(176,242,174,.10);border:1.5px solid rgba(176,242,174,.30);color:#B0F2AE;transition:all .2s;"
+        onmouseover="this.style.background='rgba(176,242,174,.18)'" onmouseout="this.style.background='rgba(176,242,174,.10)'">&#8595; Exportar Excel</button>
     </div>
-    <div style="width:40px;height:2px;background:linear-gradient(90deg,#B0F2AE,transparent);border-radius:2px;margin-bottom:20px;"></div>
+    <div style="width:48px;height:3px;background:linear-gradient(90deg,#B0F2AE,rgba(176,242,174,.1));border-radius:3px;margin-bottom:20px;"></div>
     <div id="rcv2-global-table"></div>
   </div>`;
 
@@ -918,9 +923,12 @@ function rcv2RenderGlobalTable(filterTerm) {
     sinDatos: rows.filter(r => r.meses === null),
   };
 
-  const PAGE_SIZE = 100;
-  const maxShown  = Math.min(rows.length, PAGE_SIZE);
-  const shown     = rows.slice(0, maxShown);
+  _rcv2CurrentPage = 1;  // reset to page 1 on full re-render
+  const _totalFiltered = rows.length;
+  const _totalPages = Math.max(1, Math.ceil(_totalFiltered / RCV2_PAGE_SIZE));
+  const _startIdx = (_rcv2CurrentPage - 1) * RCV2_PAGE_SIZE;
+  const shown     = rows.slice(_startIdx, _startIdx + RCV2_PAGE_SIZE);
+  window._rcv2LastFilteredRows = rows; // store for pagination + export
 
   // ── Tooltip helper ─────────────────────────────────────────────────
   const kpiDesc = {
@@ -1085,10 +1093,35 @@ function rcv2RenderGlobalTable(filterTerm) {
 
     </div>
 
+    <!-- Filtros numéricos -->
+    <div id="rcv2-num-filters" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center;">
+      <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;font-weight:600;letter-spacing:.4px;text-transform:uppercase;">Filtros num.:</span>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#DFFF61;">Cob.</span>
+        <input id="rcv2-nf-cobmin" type="number" placeholder="min" min="0" step="0.1" oninput="rcv2ApplyNumFilters()"
+          style="width:56px;background:rgba(255,255,255,.04);border:1px solid rgba(223,255,97,.2);border-radius:7px;padding:4px 7px;color:#f1f5f9;font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;">
+        <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;">–</span>
+        <input id="rcv2-nf-cobmax" type="number" placeholder="max" min="0" step="0.1" oninput="rcv2ApplyNumFilters()"
+          style="width:56px;background:rgba(255,255,255,.04);border:1px solid rgba(223,255,97,.2);border-radius:7px;padding:4px 7px;color:#f1f5f9;font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;">
+        <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;margin-left:2px;">m</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#B0F2AE;">Saldo ≥</span>
+        <input id="rcv2-nf-saldo" type="number" placeholder="min" min="0" oninput="rcv2ApplyNumFilters()"
+          style="width:70px;background:rgba(255,255,255,.04);border:1px solid rgba(176,242,174,.2);border-radius:7px;padding:4px 7px;color:#f1f5f9;font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;">
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <span style="font-family:'Outfit',sans-serif;font-size:10px;color:#99D1FC;">Prom/mes ≥</span>
+        <input id="rcv2-nf-prom" type="number" placeholder="min" min="0" oninput="rcv2ApplyNumFilters()"
+          style="width:70px;background:rgba(255,255,255,.04);border:1px solid rgba(153,209,252,.2);border-radius:7px;padding:4px 7px;color:#f1f5f9;font-family:'JetBrains Mono',monospace;font-size:10px;outline:none;">
+      </div>
+      <button onclick="rcv2ClearNumFilters()" style="font-family:'Outfit',sans-serif;font-size:10px;color:#475569;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:7px;padding:4px 10px;cursor:pointer;">✕ Limpiar</button>
+    </div>
+
     <!-- Línea de estado -->
-    <div id="rcv2-filter-status" style="margin-top:10px;font-family:'Outfit',sans-serif;font-size:11px;color:#475569;">
-      Mostrando <span style="color:#94a3b8;font-weight:600;">${shown.length}</span> de <span style="color:#94a3b8;">${total}</span> corresponsales
-      ${rows.length > PAGE_SIZE ? `<span style="color:#FFC04D;margin-left:8px;">· Solo se muestran los primeros ${PAGE_SIZE} — usa los filtros para acotar</span>` : ''}
+    <div id="rcv2-filter-status" style="margin-top:10px;font-family:'Outfit',sans-serif;font-size:11px;color:#475569;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+      <span>Mostrando <span style="color:#94a3b8;font-weight:600;">${shown.length}</span> de <span style="color:#94a3b8;">${_totalFiltered}</span> corresponsales</span>
+      <div id="rcv2-pagination" style="display:flex;align-items:center;gap:4px;">${_totalPages > 1 ? rcv2BuildPager(_rcv2CurrentPage, _totalPages) : ''}</div>
     </div>
   </div>
 
@@ -1178,17 +1211,21 @@ function rcv2RenderGlobalTable(filterTerm) {
         }).join('')}
       </tbody>
     </table>
-    ${rows.length > PAGE_SIZE ? `
-    <div style="padding:12px 18px;font-family:'Outfit',sans-serif;font-size:11px;color:#475569;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;">
-      <span>Mostrando ${maxShown} de ${rows.length} registros.</span>
-      <span style="color:#64748b;">Usa el campo de filtro para encontrar corresponsales específicos</span>
-    </div>` : ''}
+    <div id="rcv2-table-footer" style="padding:10px 18px;font-family:'Outfit',sans-serif;font-size:11px;color:#475569;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+      <span>Página <span style="color:#94a3b8;font-weight:600;">${_rcv2CurrentPage}</span> de <span style="color:#94a3b8;">${_totalPages}</span> · ${_totalFiltered} registros totales</span>
+      ${_totalPages > 1 ? `<div style="display:flex;align-items:center;gap:4px;">${rcv2BuildPager(_rcv2CurrentPage, _totalPages)}</div>` : ''}
+    </div>
   </div>`;
 }
 
 // ── Estado de filtros de tabla global ─────────────────────────────
 let _rcv2ActiveFilter = 'todos';
 let _rcv2SearchTerm   = '';
+// ── Paginación ────────────────────────────────────────────────────
+const RCV2_PAGE_SIZE  = 30;
+let   _rcv2CurrentPage = 1;
+// ── Filtros numéricos ─────────────────────────────────────────────
+let _rcv2NumFilters = { cobMin:null, cobMax:null, saldoMin:null, saldoMax:null, promMin:null };
 
 // ── Aplicar filtro por semáforo ────────────────────────────────────
 window.rcv2SetFilter = function(grupo) {
@@ -1214,7 +1251,7 @@ window.rcv2TableSearch = function(term) {
 };
 
 // ── Aplicar ambos filtros y re-renderizar filas ────────────────────
-function _rcv2ApplyFilters() {
+function _rcv2GetFilteredRows() {
   const allRows = [...RCV2_SITIOS.entries()]
     .map(([key, s]) => ({ key, ...s, meses: s._calSet ? s.cal.saldo_dias / 30 : null }))
     .sort((a, b) => {
@@ -1243,18 +1280,42 @@ function _rcv2ApplyFilters() {
     );
   }
 
-  const PAGE_SIZE = 100;
-  const shown = rows.slice(0, PAGE_SIZE);
+  // Numeric filters
+  const nf = _rcv2NumFilters;
+  if (nf.cobMin !== null) rows = rows.filter(r => r.meses !== null && r.meses >= nf.cobMin);
+  if (nf.cobMax !== null) rows = rows.filter(r => r.meses !== null && r.meses <= nf.cobMax);
+  if (nf.saldoMin !== null) rows = rows.filter(r => r.meses !== null && r.cal.saldo_rollos >= nf.saldoMin);
+  if (nf.promMin !== null) rows = rows.filter(r => r.meses !== null && r.cal.prom_mensual >= nf.promMin);
+
+  return rows;
+}
+
+function _rcv2ApplyFilters(keepPage) {
+  if (!keepPage) _rcv2CurrentPage = 1;
+  const rows = _rcv2GetFilteredRows();
+  window._rcv2LastFilteredRows = rows;
+  const totalFiltered = rows.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / RCV2_PAGE_SIZE));
+  if (_rcv2CurrentPage > totalPages) _rcv2CurrentPage = totalPages;
+  const startIdx = (_rcv2CurrentPage - 1) * RCV2_PAGE_SIZE;
+  const shown = rows.slice(startIdx, startIdx + RCV2_PAGE_SIZE);
+
   const tbody = document.querySelector('#rcv2-global-table table tbody');
   const status = document.getElementById('rcv2-filter-status');
+  const footer = document.getElementById('rcv2-table-footer');
 
   if (status) {
-    status.innerHTML = `Mostrando <span style="color:#94a3b8;font-weight:600;">${shown.length}</span> de <span style="color:#94a3b8;">${rows.length}</span> corresponsales${_rcv2ActiveFilter !== 'todos' ? ` <span style="color:#64748b;">· filtro activo</span>` : ''}${rows.length > PAGE_SIZE ? `<span style="color:#FFC04D;margin-left:8px;">· Solo se muestran los primeros ${PAGE_SIZE}</span>` : ''}`;
+    const pagerHtml = totalPages > 1 ? `<div style="display:flex;align-items:center;gap:4px;">${rcv2BuildPager(_rcv2CurrentPage, totalPages)}</div>` : '';
+    status.innerHTML = `<span>Mostrando <span style="color:#94a3b8;font-weight:600;">${shown.length}</span> de <span style="color:#94a3b8;">${totalFiltered}</span>${_rcv2ActiveFilter !== 'todos' ? ' <span style="color:#64748b;">· filtro activo</span>' : ''}</span>${pagerHtml}`;
+  }
+  if (footer) {
+    footer.innerHTML = `<span>Página <span style="color:#94a3b8;font-weight:600;">${_rcv2CurrentPage}</span> de <span style="color:#94a3b8;">${totalPages}</span> · ${totalFiltered} registros totales</span>${totalPages > 1 ? `<div style="display:flex;align-items:center;gap:4px;">${rcv2BuildPager(_rcv2CurrentPage, totalPages)}</div>` : ''}`;
   }
 
   if (!tbody) { rcv2RenderGlobalTable(); return; }
 
   tbody.innerHTML = shown.map((r, i) => {
+    const globalIdx = startIdx + i;
     const noData    = r.meses === null;
     const sg        = noData ? { col:'#475569' } : rcv2Semaforo(r.meses);
     const slaOk2    = !noData && r.meses >= 3;
@@ -1293,7 +1354,7 @@ function _rcv2ApplyFilters() {
       onclick="rcv2Select('${r.key}')"
       onmouseover="this.style.background='rgba(176,242,174,.06)'"
       onmouseout="this.style.background='${bgRow}'">
-      <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#334155;">${i+1}</td>
+      <td style="padding:9px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;color:#334155;">${globalIdx+1}</td>
       <td style="padding:9px 12px;min-width:160px;">
         <div style="font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;color:#e2e8f0;line-height:1.3;">${r.meta.nombre_sitio}</div>
         <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#475569;margin-top:2px;">${r.key}</div>
@@ -1312,6 +1373,99 @@ function _rcv2ApplyFilters() {
     </tr>`;
   }).join('');
 }
+
+// ── Paginador HTML ────────────────────────────────────────────────
+function rcv2BuildPager(current, total) {
+  const btnStyle = (active) =>
+    `font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:${active?'700':'400'};padding:4px 9px;border-radius:6px;cursor:${active?'default':'pointer'};border:1px solid rgba(255,255,255,${active?'.18':'.07'});background:${active?'rgba(176,242,174,.15)':'rgba(255,255,255,.04)'};color:${active?'#B0F2AE':'#94a3b8'};transition:all .15s;`;
+  const navStyle = `font-family:'JetBrains Mono',monospace;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.04);color:#94a3b8;transition:all .15s;`;
+  let html = '';
+  if (current > 1) html += `<button style="${navStyle}" onclick="rcv2GoPage(${current-1})" title="Anterior">&#8249;</button>`;
+  // Show pages around current
+  const pages = new Set([1, total]);
+  for (let p = Math.max(1,current-2); p <= Math.min(total,current+2); p++) pages.add(p);
+  let prev = 0;
+  [...pages].sort((a,b)=>a-b).forEach(p => {
+    if (prev && p - prev > 1) html += `<span style="color:#334155;padding:0 3px;">…</span>`;
+    html += `<button style="${btnStyle(p===current)}" onclick="rcv2GoPage(${p})" ${p===current?'disabled':''}>` + p + `</button>`;
+    prev = p;
+  });
+  if (current < total) html += `<button style="${navStyle}" onclick="rcv2GoPage(${current+1})" title="Siguiente">&#8250;</button>`;
+  return html;
+}
+window.rcv2GoPage = function(page) {
+  _rcv2CurrentPage = page;
+  _rcv2ApplyFilters(true);
+  const el = document.getElementById('rcv2-global-table');
+  if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
+};
+
+// ── Filtros numéricos ─────────────────────────────────────────────
+window.rcv2ApplyNumFilters = function() {
+  const cobMin  = parseFloat(document.getElementById('rcv2-nf-cobmin')?.value);
+  const cobMax  = parseFloat(document.getElementById('rcv2-nf-cobmax')?.value);
+  const saldo   = parseFloat(document.getElementById('rcv2-nf-saldo')?.value);
+  const prom    = parseFloat(document.getElementById('rcv2-nf-prom')?.value);
+  _rcv2NumFilters = {
+    cobMin:  isNaN(cobMin)  ? null : cobMin,
+    cobMax:  isNaN(cobMax)  ? null : cobMax,
+    saldoMin:isNaN(saldo)   ? null : saldo,
+    promMin: isNaN(prom)    ? null : prom,
+  };
+  _rcv2ApplyFilters();
+};
+window.rcv2ClearNumFilters = function() {
+  ['rcv2-nf-cobmin','rcv2-nf-cobmax','rcv2-nf-saldo','rcv2-nf-prom'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  _rcv2NumFilters = { cobMin:null, cobMax:null, saldoMin:null, saldoMax:null, promMin:null };
+  _rcv2ApplyFilters();
+};
+
+// ── Exportar Excel con filtros actuales ───────────────────────────
+window.rcv2ExportCurrentFilters = function() {
+  const rows = window._rcv2LastFilteredRows || _rcv2GetFilteredRows();
+  if (!rows.length) { alert('Sin datos para exportar'); return; }
+  if (!window.XLSX) { alert('La librería XLSX no está disponible'); return; }
+  const wb = window.XLSX.utils.book_new();
+  const headers = ['#','Código','Corresponsal','Ciudad','Departamento','Cobertura (m)','Saldo Rollos','Prom/Mes','P.Reorden','SLA','Estado','Prox.Abast.'];
+  const data = rows.map((r, i) => {
+    const noData = r.meses === null;
+    const slaOk  = !noData && r.meses >= 3;
+    const bajPR  = !noData && r.cal.saldo_rollos > 0 && r.cal.saldo_rollos <= r.cal.punto_reorden;
+    const zero   = !noData && r.cal.saldo_rollos === 0;
+    return [
+      i+1,
+      r.key,
+      r.meta.nombre_sitio,
+      r.meta.ciudad||'—',
+      r.meta.departamento||'—',
+      noData ? null : parseFloat(r.meses.toFixed(2)),
+      noData ? null : r.cal.saldo_rollos,
+      noData ? null : parseFloat(r.cal.prom_mensual.toFixed(2)),
+      noData ? null : r.cal.punto_reorden,
+      noData ? '—' : slaOk ? 'OK' : 'INCUMPLE',
+      zero ? 'QUIEBRE' : bajPR ? 'BAJO PR' : noData ? '—' : (r.cal.estado_punto||'—'),
+      noData ? '—' : rcv2FmtDate(r.cal.fecha_abst),
+    ];
+  });
+  const ws = window.XLSX.utils.aoa_to_sheet([headers, ...data]);
+  // Column widths
+  ws['!cols'] = [5,14,32,18,18,12,12,12,12,10,12,14].map(w=>({wch:w}));
+  // Header style
+  const range = window.XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const addr = window.XLSX.utils.encode_cell({ r:0, c:C });
+    if (!ws[addr]) continue;
+    ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:'1E293B'}}, alignment:{horizontal:'center'} };
+  }
+  const filterLabel = _rcv2ActiveFilter !== 'todos' ? `_${_rcv2ActiveFilter}` : '';
+  const dateStr = new Date().toISOString().slice(0,10);
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Cobertura');
+  window.XLSX.writeFile(wb, `cobertura_rollos${filterLabel}_${dateStr}.xlsx`);
+};
+
 window.rcv2ClearSearch = function() {
   const inp = document.getElementById('rcv2-search-input');
   if (inp) inp.value = '';
