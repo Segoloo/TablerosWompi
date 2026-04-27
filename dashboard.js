@@ -2537,9 +2537,6 @@ function renderRollosCharts() {
   _destroyChart('rollos-calidad');
   _destroyChart('rollos-mensual');
   _destroyChart('rollos-cumplimiento-mes');
-  _destroyChart('rollos-oportunidad');
-  _destroyChart('rollos-funnel');
-  _destroyChart('rollos-t-mensual');
 
   // 1. DONA — Estados
   {
@@ -2728,122 +2725,6 @@ function renderRollosCharts() {
     }
   }
 
-  // 8. LÍNEA — Devoluciones por mes
-  {
-    const mesMap = {};
-    det.forEach(r => {
-      const fp = String(r.fecha_plan_fin || '');
-      if (fp.length < 7) return;
-      const mk = fp.substring(0, 7);
-      if (!mesMap[mk]) mesMap[mk] = { devueltos: 0, entregados: 0 };
-      const est = (r.estado || '').toUpperCase();
-      const qty = parseFloat(r.cantidad) || 0;
-      if (est.includes('DEVOLUC'))  mesMap[mk].devueltos  += qty;
-      else if (est === 'ENTREGADO') mesMap[mk].entregados += qty;
-    });
-    const periodos = Object.keys(mesMap).sort();
-    const canvas = document.getElementById('chart-rollos-oportunidad');
-    if (canvas && periodos.length) {
-      chartInstances['rollos-oportunidad'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: periodos,
-          datasets: [
-            { label:'Devueltos', data: periodos.map(p => Math.round(mesMap[p].devueltos)),
-              backgroundColor:'rgba(255,92,92,.6)', borderColor:'#FF5C5C', borderWidth:1, borderRadius:4 },
-            { label:'Entregados', data: periodos.map(p => Math.round(mesMap[p].entregados)),
-              backgroundColor:'rgba(176,242,174,.4)', borderColor:'#B0F2AE', borderWidth:1, borderRadius:4 },
-          ]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
-          scales: {
-            x: { ticks:{ color:'#7A7674', maxRotation:45, font:{size:10} }, grid:{ display:false } },
-            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-          }
-        }
-      });
-    } else if (canvas) {
-      _buildDona('chart-rollos-oportunidad', ['Sin datos'], [1], ['#3a3f4a'], 'Devoluciones');
-    }
-  }
-
-  // 10. EMBUDO — Proceso
-  {
-    const k = computeRollosKPIs();
-    const canvas = document.getElementById('chart-rollos-funnel');
-    if (canvas) {
-      const stages = [
-        { label:'Solicitados', value: k.total_rollos,          color:'rgba(176,242,174,.6)' },
-        { label:'Alistados',   value: k.total_rollos - k.rollos_alistamiento, color:'rgba(223,255,97,.6)' },
-        { label:'En Tránsito', value: k.rollos_transito,       color:'rgba(153,209,252,.6)' },
-        { label:'Entregados',  value: k.rollos_entregados,     color:'rgba(0,130,90,.7)' },
-      ];
-      chartInstances['rollos-funnel'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: stages.map(s=>s.label),
-          datasets: [{
-            data: stages.map(s=>s.value),
-            backgroundColor: stages.map(s=>s.color),
-            borderColor: stages.map(s=>s.color.replace(',.6)',',1)').replace(',.7)',',1)')),
-            borderWidth:1, borderRadius:8,
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend:{display:false}, tooltip: CHART_OPTS.tooltip },
-          scales: {
-            x: { ticks:{ color:'#FAFAFA' }, grid:{ display:false } },
-            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-          }
-        }
-      });
-    }
-  }
-
-  // ── GRÁFICA TENDENCIA MENSUAL TAREAS (movida a Row 4) ───────────
-
-  // T3. LÍNEA — Tendencia mensual por tareas únicas
-  {
-    const mesMap = {};
-    const seen = new Set();
-    det.forEach(r => {
-      const tarea = r.codigo_tarea;
-      const fp = String(r.fecha_plan_fin || '');
-      if (fp.length < 7) return;
-      const key = `${tarea}||${fp.substring(0,7)}`;
-      if (seen.has(key)) return; seen.add(key);
-      const k = fp.substring(0,7);
-      if (!mesMap[k]) mesMap[k] = 0;
-      mesMap[k]++;
-    });
-    const periodos = Object.keys(mesMap).sort();
-    const canvas = document.getElementById('chart-rollos-t-mensual');
-    if (canvas && periodos.length) {
-      chartInstances['rollos-t-mensual'] = new Chart(canvas, {
-        type: 'bar',
-        data: {
-          labels: periodos,
-          datasets: [{
-            label: 'Tareas',
-            data: periodos.map(p => mesMap[p]),
-            backgroundColor: 'rgba(153,209,252,.5)', borderColor: '#99D1FC',
-            borderWidth: 2, borderRadius: 4,
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend:{ labels:{ color:'#FAFAFA', font:{size:11} } }, tooltip: CHART_OPTS.tooltip },
-          scales: {
-            x: { ticks:{ color:'#7A7674', maxRotation:45 }, grid:{ display:false } },
-            y: { ticks:{ color:'#7A7674' }, grid:{ color:'rgba(255,255,255,.05)' } },
-          }
-        }
-      });
-    }
-  }
 
 }
 
