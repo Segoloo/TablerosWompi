@@ -1590,6 +1590,49 @@ function _selectBoardTab(board, tab) {
   _currentBoard = board;
   _currentTab   = tab;
 
+  // ── Guard: tabs de rollos bloqueados hasta que data_tablero_rollos cargue ──
+  const ROLLOS_TABS = ['rollos-main','rollos-detalle','rollos-comercio','rollos-inventario'];
+  if (board === 'rollos' && ROLLOS_TABS.includes(tab) && !window._rollosReady) {
+    _rollosPendingTab = tab;
+
+    // Activar sidebar visualmente
+    ['datafonos','rollos','inventario'].forEach(b => {
+      document.getElementById('sb-board-' + b)?.classList.remove('open');
+      document.getElementById('sb-btn-'   + b)?.classList.remove('active');
+    });
+    document.getElementById('sb-board-rollos')?.classList.add('open');
+    document.getElementById('sb-btn-rollos')?.classList.add('active');
+    document.querySelectorAll('.sidebar-tab').forEach(el => el.classList.remove('active'));
+    document.getElementById('sb-tab-' + tab)?.classList.add('active');
+    const lbl = document.getElementById('topbar-board-label');
+    if (lbl) lbl.textContent = 'Tracking Rollos Trim y VP';
+
+    _showAllPanels(tab);
+
+    const panelMap = {
+      'rollos-main'       : 'panel-rollos',
+      'rollos-detalle'    : 'panel-rollos-detalle',
+      'rollos-comercio'   : 'panel-rollos-comercio',
+      'rollos-inventario' : 'panel-rollos-inventario',
+    };
+    const targetPanel = document.getElementById(panelMap[tab]);
+    if (targetPanel && !document.getElementById('rollos-loading-guard')) {
+      const guard = document.createElement('div');
+      guard.id = 'rollos-loading-guard';
+      guard.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;min-height:320px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:rgba(13,12,11,.85);backdrop-filter:blur(4px);border-radius:inherit;z-index:50;';
+      guard.innerHTML = `
+        <style>@keyframes rg-spin{to{transform:rotate(360deg)}}</style>
+        <div style="width:44px;height:44px;border-radius:50%;border:3px solid rgba(176,242,174,.15);border-top-color:#B0F2AE;animation:rg-spin .8s linear infinite;"></div>
+        <div style="font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;color:#B0F2AE;">Cargando datos de rollos…</div>
+        <div style="font-family:'Outfit',sans-serif;font-size:12px;color:#64748b;max-width:300px;text-align:center;line-height:1.6;">
+          <code style="color:#DFFF61;font-size:11px;">data_tablero_rollos.json.gz</code> se está descomprimiendo en segundo plano.
+        </div>`;
+      if (getComputedStyle(targetPanel).position === 'static') targetPanel.style.position = 'relative';
+      targetPanel.prepend(guard);
+    }
+    return;
+  }
+
   // Ensure the board is expanded and marked active
   ['datafonos','rollos','inventario'].forEach(b => {
     document.getElementById('sb-board-' + b)?.classList.remove('open');
@@ -1695,7 +1738,12 @@ let _mainLoaded       = false;
 let _rollosLoaded     = false;
 let _inventarioLoaded = false;
 
-// Exponer para que inventario.js lo llame cuando termine su carga
+// Flag público: data_tablero_rollos.json.gz terminó de parsear.
+// Los tabs de rollos lo consultan antes de renderizar.
+window._rollosReady = false;
+
+// Exponer para que inventario.js lo llame cuando termine su carga.
+// Ya NO bloquea el overlay — solo actualiza el dot y el subtexto.
 window._setInventarioLoaded = function() {
   _inventarioLoaded = true;
   _updateLoadingUI();
@@ -1712,62 +1760,66 @@ function _updateLoadingUI() {
   const msg       = document.getElementById('dl-msg');
   const fill      = document.getElementById('dl-progress-fill');
 
-  // ── Dots ──────────────────────────────────────────────────────
+  // ── Dots (siguen actualizándose aunque no bloqueen) ──────────
   if (dotMain)   dotMain.className   = 'dl-item-dot ' + (mainDone   ? 'done' : 'loading');
   if (dotRollos) dotRollos.className = 'dl-item-dot ' + (rollosDone ? 'done' : 'loading');
   if (dotInv)    dotInv.className    = 'dl-item-dot ' + (invDone    ? 'done' : 'loading');
 
-  // ── Subtextos con filas reales ─────────────────────────────────
-  const subMain = document.getElementById('dl-sub-main');
+  // ── Subtextos informativos ────────────────────────────────────
+  const subMain   = document.getElementById('dl-sub-main');
   const subRollos = document.getElementById('dl-sub-rollos');
-  const subInv  = document.getElementById('dl-sub-inventario');
+  const subInv    = document.getElementById('dl-sub-inventario');
 
   if (subMain) {
-    if (mainDone) {
-      const n = (window.RAW_DATA || []).length;
-      subMain.textContent = n ? n.toLocaleString('es-CO') + ' registros ✓' : '✓';
-    } else {
-      subMain.textContent = 'descargando…';
-    }
+    subMain.textContent = mainDone
+      ? ((window.RAW_DATA || []).length.toLocaleString('es-CO') || '0') + ' registros ✓'
+      : 'descargando…';
   }
   if (subRollos) {
-    if (rollosDone) {
-      const n = (window.TABLERO_ROLLOS_FILAS || []).length;
-      subRollos.textContent = n ? n.toLocaleString('es-CO') + ' filas ✓' : '✓';
-    } else {
-      subRollos.textContent = 'descomprimiendo…';
-    }
+    subRollos.textContent = rollosDone
+      ? ((window.TABLERO_ROLLOS_FILAS || []).length.toLocaleString('es-CO') || '0') + ' filas ✓'
+      : 'cargando en segundo plano…';
   }
   if (subInv) {
-    if (invDone) {
-      const n = (window.INV_RAW || []).length;
-      subInv.textContent = n ? n.toLocaleString('es-CO') + ' filas ✓' : '✓';
-    } else {
-      subInv.textContent = 'descomprimiendo…';
-    }
+    subInv.textContent = invDone
+      ? ((window.INV_RAW || []).length.toLocaleString('es-CO') || '0') + ' filas ✓'
+      : 'cargando en segundo plano…';
   }
 
-  // ── Barra de progreso ─────────────────────────────────────────
-  const loaded = [mainDone, rollosDone, invDone].filter(Boolean).length;
-  if (fill) fill.style.width = Math.round(loaded / 3 * 100) + '%';
+  // ── Barra de progreso — solo refleja data.json ────────────────
+  if (fill) fill.style.width = mainDone ? '100%' : '10%';
 
-  // ── Mensaje central ───────────────────────────────────────────
-  const pending = [
-    !mainDone   && 'data.json',
-    !rollosDone && 'tablero_rollos',
-    !invDone    && 'inventario'
-  ].filter(Boolean);
-
-  const allDone = pending.length === 0;
-  if (allDone) {
-    if (msg) msg.textContent = '¡Listo! Iniciando dashboard...';
+  // ── El overlay se cierra en cuanto data.json esté listo ───────
+  // inventario y rollos se cargan en fondo; sus tabs muestran
+  // su propio spinner interno si el usuario llega antes de que terminen.
+  if (mainDone) {
+    if (msg) msg.textContent = '¡Listo! Iniciando dashboard…';
     setTimeout(() => {
       const overlay = document.getElementById('data-loading-overlay');
       if (overlay) overlay.classList.add('hidden');
-    }, 600);
+    }, 400);
   } else {
-    if (msg) msg.textContent = 'Cargando: ' + pending.join(', ') + '…';
+    if (msg) msg.textContent = 'Cargando datos principales…';
   }
+
+  // Cuando rollos termine, activar el flag y renderizar si el usuario
+  // ya está parado en algún tab de rollos (esperando en el guard spinner).
+  if (rollosDone && !window._rollosReady) {
+    window._rollosReady = true;
+    _rollosPendingTabRender();
+  }
+}
+
+// ── Tab de rollos pendiente (usuario navegó antes de que cargara) ──
+let _rollosPendingTab = null;
+
+function _rollosPendingTabRender() {
+  const tab = _rollosPendingTab;
+  if (!tab) return;
+  _rollosPendingTab = null;
+  const guardEl = document.getElementById('rollos-loading-guard');
+  if (guardEl) guardEl.remove();
+  _selectBoardTab('rollos', tab);
 }
 
 // ══════════════════════════════════════════════════════════════════
