@@ -1827,7 +1827,11 @@ function _rollosPendingTabRender() {
 //  INIT
 // ══════════════════════════════════════════════════════════════════
 function initDashboard() {
-  // Mark both as loading
+  // Mostrar overlay de carga
+  const overlay = document.getElementById('data-loading-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+
+  // Marcar dots como loading
   const dotMain   = document.getElementById('dl-dot-main');
   const dotRollos = document.getElementById('dl-dot-rollos');
   const dotInv    = document.getElementById('dl-dot-inventario');

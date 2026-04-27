@@ -32,7 +32,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
 <body>
 
 <!-- ════ DATA LOADING OVERLAY ════ -->
-<div id="data-loading-overlay">
+<div id="data-loading-overlay" class="hidden">
   <div class="dl-logo-row">
     <img src="logo_wompi.png" alt="Wompi" style="border-radius:10px;">
     <div class="dl-sep"></div>
@@ -474,7 +474,20 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
             </div>
           </div>
 
-
+          <div class="charts-grid" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:28px">
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Devoluciones vs Entregados por Mes</div><div class="chart-sub">Evolución mensual de devoluciones</div></div>
+              <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-oportunidad"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Tendencia Mensual (Tareas)</div><div class="chart-sub">Tareas únicas por mes plan</div></div>
+              <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-t-mensual"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-header"><div class="chart-title">Embudo de Proceso</div><div class="chart-sub">Solicitados → Entregados</div></div>
+              <div class="chart-wrap" style="height:220px"><canvas id="chart-rollos-funnel"></canvas></div>
+            </div>
+          </div>
         </div>
 
         <!-- PANEL: ROLLOS DETALLE -->
