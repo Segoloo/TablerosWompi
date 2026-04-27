@@ -2392,12 +2392,14 @@ function renderRollosKPIsTareas() {
 }
 
 // ── ANS Big Row ────────────────────────────────────────────────────
-// Solo muestra el card de Cumplimiento ANS (calculado con PLAN FIN vs FECHA ENTREGA).
-// Los cards de Tasa de Entrega y % Calidad fueron removidos.
+// Muestra el card de Cumplimiento ANS + tabla de rollos por almacén.
 function renderRollosANSRow() {
   const k   = computeRollosKPIs();
   const row = document.getElementById('rollos-ans-row');
   if (!row) return;
+
+  // ── Tabla de rollos por almacén desde INV_RAW ─────────────────
+  const bodHTML = _buildRollosBodegaTable();
 
   row.innerHTML = `
     <div class="ans-big-card" style="border-top:3px solid var(--azul-cielo);max-width:320px;margin:0 auto;">
@@ -2412,12 +2414,99 @@ function renderRollosANSRow() {
       <div style="font-size:10px;color:var(--muted);margin-top:10px;text-align:center;line-height:1.4;">
         Entregadas con <strong>FECHA ENTREGA &le; PLAN FIN</strong>
       </div>
-    </div>`;
+    </div>
+    ${bodHTML}`;
 
   // Dibujar mini donut
   requestAnimationFrame(() => {
     _miniDonut('ans-mini-sla', k.pct_sla, '#99D1FC', '#1a1f2a');
   });
+}
+
+// ── Tabla de rollos por almacén/bodega ────────────────────────────
+function _buildRollosBodegaTable() {
+  const raw = window.INV_RAW;
+  if (!raw || !raw.length) {
+    return `<div style="grid-column:span 2;display:flex;align-items:center;justify-content:center;color:#475569;font-size:12px;font-family:'Outfit',sans-serif;">
+      ⚠ Inventario no disponible aún.
+    </div>`;
+  }
+
+  const INV_BODEGAS_SET = (window.INV_BODEGAS instanceof Set && window.INV_BODEGAS.size > 0)
+    ? window.INV_BODEGAS
+    : new Set([
+        "ALMACEN WOMPI MEDELLIN","ALMACEN WOMPI BOGOTA","ALMACEN WOMPI BUCARAMANGA",
+        "ALMACEN WOMPI CALI","ALMACEN WOMPI VILLAVICENCIO","ALMACEN WOMPI CUCUTA",
+        "ALMACEN WOMPI PEREIRA","ALMACEN WOMPI NEIVA","ALMACEN WOMPI IBAGUE",
+        "ALMACEN WOMPI TUNJA","ALMACEN WOMPI MONTERIA","ALMACEN WOMPI SANTA MARTA",
+        "ALMACEN WOMPI VALLEDUPAR","ALMACEN WOMPI CARTAGENA","ALMACEN WOMPI FLORENCIA",
+        "ALMACEN WOMPI POPAYAN","ALMACEN WOMPI MANIZALES","ALMACEN WOMPI YOPAL",
+        "ALMACEN WOMPI APARTADO","ALMACEN WOMPI PASTO",
+        "ALMACEN WOMPI SINCELEJO","ALMACEN WOMPI BARRANQUILLA","ALMACEN WOMPI ARMENIA",
+        "ALMACEN BAJAS WOMPI","ALMACEN INGENICO - PROVEEDOR WOMPI",
+      ]);
+
+  const getCat = window.invCategoria || (n => (n||'').toUpperCase().includes('ROLLO') ? 'Rollos' : 'Otro');
+  const sumQty = rows => rows.reduce((s, r) => s + (parseInt(r['Cantidad']) || 0), 0);
+
+  // Solo rollos
+  const soloRollos = raw.filter(r => getCat(r['Nombre']) === 'Rollos');
+
+  // Agrupar por bodega (todas las de INV_BODEGAS, aunque tengan 0)
+  const bodMap = new Map();
+  INV_BODEGAS_SET.forEach(b => bodMap.set(b, 0));
+  soloRollos.forEach(r => {
+    const b = (r['Nombre de la ubicación'] || '').trim();
+    if (INV_BODEGAS_SET.has(b)) bodMap.set(b, (bodMap.get(b) || 0) + (parseInt(r['Cantidad']) || 0));
+  });
+
+  // Ordenar de mayor a menor
+  const lista = [...bodMap.entries()]
+    .map(([nombre, qty]) => ({ nombre, qty }))
+    .sort((a, b) => b.qty - a.qty);
+
+  const totalBod = lista.reduce((s, x) => s + x.qty, 0);
+  const maxQty   = lista[0]?.qty || 1;
+  const fmt      = n => n.toLocaleString('es-CO');
+
+  // Nombre corto: quitar "ALMACEN WOMPI " / "ALMACEN "
+  const shortName = n => n
+    .replace(/^ALMACEN WOMPI\s*/i, '')
+    .replace(/^ALMACEN\s*/i, '')
+    .trim();
+
+  const rows = lista.map(({ nombre, qty }) => {
+    const barW  = Math.round((qty / maxQty) * 100);
+    const isZero = qty === 0;
+    const color = isZero ? '#334155' : '#99D1FC';
+    const sn    = shortName(nombre);
+    return `
+      <tr style="border-bottom:1px solid rgba(255,255,255,.04);">
+        <td style="padding:5px 10px 5px 0;font-size:11px;color:${isZero ? '#475569' : '#cbd5e1'};font-family:'Outfit',sans-serif;white-space:nowrap;max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${nombre}">${sn}</td>
+        <td style="padding:5px 6px;width:100%;">
+          <div style="position:relative;height:8px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden;">
+            <div style="position:absolute;left:0;top:0;height:100%;width:${barW}%;background:${color};border-radius:4px;transition:width .5s ease;"></div>
+          </div>
+        </td>
+        <td style="padding:5px 0 5px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:${isZero ? '#475569' : '#99D1FC'};text-align:right;white-space:nowrap;">${fmt(qty)}</td>
+      </tr>`;
+  }).join('');
+
+  return `
+    <div style="grid-column:span 2;background:rgba(153,209,252,.04);border:1px solid rgba(153,209,252,.12);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;flex-shrink:0;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:13px;font-weight:700;color:#99D1FC;letter-spacing:.4px;">🏪 Rollos por Almacén</div>
+          <div style="font-size:10px;color:#475569;margin-top:2px;font-family:'Outfit',sans-serif;">${lista.length} bodegas Wompi · stock actual</div>
+        </div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#99D1FC;">${fmt(totalBod)}<span style="font-size:10px;color:#475569;margin-left:4px;">uds</span></div>
+      </div>
+      <div style="overflow-y:auto;max-height:260px;flex:1;">
+        <table style="width:100%;border-collapse:collapse;">
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 function _miniDonut(id, pct, color, bg) {
