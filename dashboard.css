@@ -536,6 +536,8 @@ tbody td { padding:10px 16px; color:var(--blanco); white-space:nowrap; }
 .dl-item-dot.done    { background:var(--verde-menta) !important; }
 .dl-item-dot.error   { background:var(--danger) !important; }
 .dl-item-text { color:var(--muted); }
+.dl-item-info { display:flex; flex-direction:column; gap:2px; }
+.dl-item-sub  { font-size:10px; color:rgba(255,255,255,.35); font-family:'JetBrains Mono',monospace; line-height:1; }
 
 /* LOADING / EMPTY */
 .loading { display:flex; align-items:center; justify-content:center; gap:12px; padding:60px; color:var(--muted); font-size:13px; }
@@ -610,4 +612,4 @@ tbody td { padding:10px 16px; color:var(--blanco); white-space:nowrap; }
   transition: all .15s;
 }
 .ms-btn:hover { border-color: var(--verde-menta); color: var(--verde-menta); }
-.ms-btn-apply { background: var(--verde-menta) !important; color: var(--negro-cib) !important; border-color: var(--verde-menta) !important; }
+.ms-btn-apply { background: var(--verde-menta) !important; color: var(--negro-cib) !important; border-color: var(--verde-menta) !important; }

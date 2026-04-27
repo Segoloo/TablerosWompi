@@ -56,20 +56,9 @@ async function _loadTablRollos() {
         const writer = ds.writable.getWriter();
         writer.write(new Uint8Array(buf));
         writer.close();
-
-        const reader = ds.readable.getReader();
-        const chunks = [];
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-        }
-        const total  = chunks.reduce((s, c) => s + c.length, 0);
-        const merged = new Uint8Array(total);
-        let off = 0;
-        for (const c of chunks) { merged.set(c, off); off += c.length; }
-
-        const payload = JSON.parse(new TextDecoder().decode(merged));
+        // Leer todo el stream en un solo ArrayBuffer (más rápido que chunks manuales)
+        const out    = await new Response(ds.readable).arrayBuffer();
+        const payload = JSON.parse(new TextDecoder().decode(out));
         window.TABLERO_ROLLOS_RAW   = payload;
         window.TABLERO_ROLLOS_FILAS = payload.filas || [];
 

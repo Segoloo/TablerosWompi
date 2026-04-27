@@ -1702,9 +1702,9 @@ window._setInventarioLoaded = function() {
 };
 
 function _updateLoadingUI() {
-  const mainDone  = _mainLoaded;
-  const rollosDone= _rollosLoaded;
-  const invDone   = _inventarioLoaded;
+  const mainDone   = _mainLoaded;
+  const rollosDone = _rollosLoaded;
+  const invDone    = _inventarioLoaded;
 
   const dotMain   = document.getElementById('dl-dot-main');
   const dotRollos = document.getElementById('dl-dot-rollos');
@@ -1712,26 +1712,61 @@ function _updateLoadingUI() {
   const msg       = document.getElementById('dl-msg');
   const fill      = document.getElementById('dl-progress-fill');
 
+  // ── Dots ──────────────────────────────────────────────────────
   if (dotMain)   dotMain.className   = 'dl-item-dot ' + (mainDone   ? 'done' : 'loading');
   if (dotRollos) dotRollos.className = 'dl-item-dot ' + (rollosDone ? 'done' : 'loading');
   if (dotInv)    dotInv.className    = 'dl-item-dot ' + (invDone    ? 'done' : 'loading');
 
+  // ── Subtextos con filas reales ─────────────────────────────────
+  const subMain = document.getElementById('dl-sub-main');
+  const subRollos = document.getElementById('dl-sub-rollos');
+  const subInv  = document.getElementById('dl-sub-inventario');
+
+  if (subMain) {
+    if (mainDone) {
+      const n = (window.RAW_DATA || []).length;
+      subMain.textContent = n ? n.toLocaleString('es-CO') + ' registros ✓' : '✓';
+    } else {
+      subMain.textContent = 'descargando…';
+    }
+  }
+  if (subRollos) {
+    if (rollosDone) {
+      const n = (window.TABLERO_ROLLOS_FILAS || []).length;
+      subRollos.textContent = n ? n.toLocaleString('es-CO') + ' filas ✓' : '✓';
+    } else {
+      subRollos.textContent = 'descomprimiendo…';
+    }
+  }
+  if (subInv) {
+    if (invDone) {
+      const n = (window.INV_RAW || []).length;
+      subInv.textContent = n ? n.toLocaleString('es-CO') + ' filas ✓' : '✓';
+    } else {
+      subInv.textContent = 'descomprimiendo…';
+    }
+  }
+
+  // ── Barra de progreso ─────────────────────────────────────────
   const loaded = [mainDone, rollosDone, invDone].filter(Boolean).length;
   if (fill) fill.style.width = Math.round(loaded / 3 * 100) + '%';
 
-  const allDone = mainDone && rollosDone && invDone;
-  if (!mainDone) {
-    if (msg) msg.textContent = 'Cargando datos principales...';
-  } else if (!rollosDone) {
-    if (msg) msg.textContent = 'data.json ✓ · Descomprimiendo rollos...';
-  } else if (!invDone) {
-    if (msg) msg.textContent = 'Rollos ✓ · Cargando inventario Wompi...';
-  } else {
+  // ── Mensaje central ───────────────────────────────────────────
+  const pending = [
+    !mainDone   && 'data.json',
+    !rollosDone && 'tablero_rollos',
+    !invDone    && 'inventario'
+  ].filter(Boolean);
+
+  const allDone = pending.length === 0;
+  if (allDone) {
     if (msg) msg.textContent = '¡Listo! Iniciando dashboard...';
     setTimeout(() => {
       const overlay = document.getElementById('data-loading-overlay');
       if (overlay) overlay.classList.add('hidden');
     }, 600);
+  } else {
+    if (msg) msg.textContent = 'Cargando: ' + pending.join(', ') + '…';
   }
 }
 
@@ -1809,76 +1844,23 @@ let rollosComercioPage = 1;
 const ROLLOS_PAGE_SIZE = 50;
 
 // ── Carga y descompresión ─────────────────────────────────────────
+// data_rollos.json.gz fue descontinuado. Los datos vienen directamente de
+// data_tablero_rollos.json.gz cuya promesa ya está en vuelo desde rollos_inventario.js.
 async function loadRollosData() {
-  try {
-    const res = await fetch(`data_rollos.json.gz?t=${Date.now()}`);
-    if (!res.ok) throw new Error('no file');
-    const buf  = await res.arrayBuffer();
-    const ds   = new DecompressionStream('gzip');
-    const writer = ds.writable.getWriter();
-    writer.write(new Uint8Array(buf));
-    writer.close();
-    const out  = await new Response(ds.readable).arrayBuffer();
-    const text = new TextDecoder().decode(out);
-    ROLLOS_RAW = JSON.parse(text);
-
-    // ── EXCLUSIÓN PERMANENTE REDEBAN (Requerimiento) ──────────────
-    if (ROLLOS_RAW.detalle) {
-      // Exclusión Redeban
-      ROLLOS_RAW.detalle = ROLLOS_RAW.detalle.filter(r => 
-        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
-      );
-      // Transformación Tipo Flujo
-      ROLLOS_RAW.detalle.forEach(r => {
-        if (r.tipo_flujo) {
-          r.tipo_flujo = String(r.tipo_flujo).replace(/P-TA-/gi, '').trim();
-        }
-      });
-    }
-    if (ROLLOS_RAW.comercio) {
-      ROLLOS_RAW.comercio = ROLLOS_RAW.comercio.filter(r => 
-        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
-      );
-    }
-    if (ROLLOS_RAW.calculos) {
-      ROLLOS_RAW.calculos = ROLLOS_RAW.calculos.filter(r => 
-        !(r.proyecto || '').toUpperCase().includes('REDEBAN')
-      );
-    }
-    // ──────────────────────────────────────────────────────────────
-
-    console.log('[Rollos] Cargado OK — detalle filtrado:', ROLLOS_RAW.detalle?.length, 'filas');
-    initRollosGlobalFilters();
-    applyRollosGlobalFilters();
-    if (document.getElementById('tab-rollos')?.classList.contains('active')) renderRollosTab();
-    _rollosLoaded = true;
-    console.log('[Rollos] Llamando a initRollosInventario...');
-    if (typeof window.initRollosInventario === 'function') window.initRollosInventario();
-    else console.warn('[Rollos] window.initRollosInventario no es una función!');
-    _updateLoadingUI();
-  } catch(e) {
-    console.warn('[Rollos] No se pudo cargar data_rollos.json.gz:', e.message);
-
-    // ── Fallback: construir ROLLOS_RAW desde data_tablero_rollos.json.gz ──
-    // data_rollos.json.gz fue descontinuado. Los datos equivalentes están en
-    // TABLERO_ROLLOS_FILAS, cargado por rollos_inventario.js via _loadTablRollos().
-    // Esperamos que esa carga termine (puede estar aún en vuelo) antes de continuar.
-    console.log('[Rollos] Esperando data_tablero_rollos.json.gz...');
-    if (typeof window.loadTablRollos === 'function') {
-      await window.loadTablRollos();   // no-op si ya cargó; espera si está en vuelo
-    } else {
-      // rollos_inventario.js aún no parseado — esperar hasta 30 s
+  {
+    // Esperar la promesa que rollos_inventario.js lanzó en paralelo al parsear.
+    // Polling de 50 ms solo si el script aún no se parseó (máx 10 s).
+    if (!window._tablRollosPromise) {
       await new Promise(resolve => {
         const t0 = Date.now();
         const poll = () => {
-          if (typeof window.loadTablRollos === 'function' || Date.now() - t0 > 30000)
-            return resolve();
-          setTimeout(poll, 300);
+          if (window._tablRollosPromise || Date.now() - t0 > 10000) return resolve();
+          setTimeout(poll, 50);
         };
         poll();
       });
-      if (typeof window.loadTablRollos === 'function') await window.loadTablRollos();
     }
+    if (window._tablRollosPromise) await window._tablRollosPromise;
 
     const filas = window.TABLERO_ROLLOS_FILAS || [];
 
