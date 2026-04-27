@@ -1786,20 +1786,21 @@ function _updateLoadingUI() {
       : 'cargando en segundo plano…';
   }
 
-  // ── Barra de progreso — solo refleja data.json ────────────────
-  if (fill) fill.style.width = mainDone ? '100%' : '10%';
+  // ── Barra de progreso — data.json + inventario (2 requisitos) ──
+  const loaded = [mainDone, invDone].filter(Boolean).length;
+  if (fill) fill.style.width = Math.round(loaded / 2 * 100) + '%';
 
-  // ── El overlay se cierra en cuanto data.json esté listo ───────
-  // inventario y rollos se cargan en fondo; sus tabs muestran
-  // su propio spinner interno si el usuario llega antes de que terminen.
-  if (mainDone) {
+  // ── El overlay se cierra cuando data.json + inventario estén listos ──
+  // data_tablero_rollos carga en fondo; sus tabs muestran su propio spinner.
+  const pending = [!mainDone && 'data.json', !invDone && 'inventario'].filter(Boolean);
+  if (pending.length === 0) {
     if (msg) msg.textContent = '¡Listo! Iniciando dashboard…';
     setTimeout(() => {
       const overlay = document.getElementById('data-loading-overlay');
       if (overlay) overlay.classList.add('hidden');
     }, 400);
   } else {
-    if (msg) msg.textContent = 'Cargando datos principales…';
+    if (msg) msg.textContent = 'Cargando: ' + pending.join(', ') + '…';
   }
 
   // Cuando rollos termine, activar el flag y renderizar si el usuario
