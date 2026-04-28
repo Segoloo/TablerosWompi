@@ -1869,6 +1869,11 @@ function _updateLoadingUI() {
   // ya está parado en algún tab de rollos (esperando en el guard spinner).
   if (rollosDone && !window._rollosReady) {
     window._rollosReady = true;
+    // Pre-construir RCV2_SITIOS aunque el tab de Comercio no haya sido visitado,
+    // para que Consulta Masiva (y otros tabs) siempre encuentren los datos.
+    if (typeof window.initRollosComercioV2 === 'function' && !window.RCV2_SITIOS) {
+      try { window.initRollosComercioV2(); } catch(e) { console.warn('[Dashboard] initRollosComercioV2 (auto):', e); }
+    }
     _rollosPendingTabRender();
   }
 }
@@ -1882,6 +1887,9 @@ function _rollosPendingTabRender() {
   _rollosPendingTab = null;
   const guardEl = document.getElementById('rollos-loading-guard');
   if (guardEl) guardEl.remove();
+  // Ocultar panel-home explícitamente antes de navegar (defensa extra)
+  const home = document.getElementById('panel-home');
+  if (home) home.style.display = 'none';
   _selectBoardTab('rollos', tab);
 }
 

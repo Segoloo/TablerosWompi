@@ -801,8 +801,17 @@ window.cmrLimpiar = function () {
 //  INIT — llamado al activar el tab
 // ──────────────────────────────────────────────────────────────────
 window.renderConsultaMasivaRollos = function () {
-  // Nada que inicializar — la data ya debería estar en RCV2_SITIOS si el tablero cargó.
-  // Solo re-renderizar resultados si hay.
+  // Asegurar que el panel esté visible (defensa ante race conditions de navegación)
+  const panel = document.getElementById('panel-rollos-consulta-masiva');
+  if (panel && panel.style.display === 'none') panel.style.display = 'block';
+
+  // Si RCV2_SITIOS no fue construido (el tab de Comercio nunca fue visitado),
+  // iniciarlo ahora para que las búsquedas funcionen.
+  if (!window.RCV2_SITIOS && typeof window.initRollosComercioV2 === 'function') {
+    try { window.initRollosComercioV2(); } catch(e) { console.warn('[CMR] initRollosComercioV2:', e); }
+  }
+
+  // Re-renderizar resultados si hay consulta previa.
   if (CMR_RESULTS.length) {
     _cmrRenderKPIs();
     _cmrRenderTable();
