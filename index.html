@@ -165,6 +165,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
           <div class="sidebar-tab" id="sb-tab-rollos-main"     onclick="selectBoardTab('rollos','rollos-main')"><span class="sidebar-tab-icon">📊</span> Rollos Wompi</div>
           <div class="sidebar-tab" id="sb-tab-rollos-detalle"  onclick="selectBoardTab('rollos','rollos-detalle')"><span class="sidebar-tab-icon">📋</span> Detalles por Movimientos</div>
           <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')"><span class="sidebar-tab-icon">🏪</span> DetalleS por Comercio</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-consulta-masiva" onclick="selectBoardTab('rollos','rollos-consulta-masiva')"><span class="sidebar-tab-icon">🔍</span> Consulta Masiva</div>
         </div>
       </div>
 
@@ -993,6 +994,112 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         <div id="panel-puntos-reorden" style="display:none;padding:4px 0 40px;">
         </div>
 
+        <!-- ════ PANEL: CONSULTA MASIVA ROLLOS ════ -->
+        <div id="panel-rollos-consulta-masiva" style="display:none;padding:20px 0 60px;">
+
+          <!-- Header -->
+          <div style="margin-bottom:28px;">
+            <div class="section-label" style="font-size:22px;margin-bottom:6px;">🔍 Consulta Masiva de Rollos</div>
+            <div style="font-size:13px;color:var(--muted);">Carga un Excel con códigos de punto para obtener toda la información de rollos: inventario, KPIs, cobertura, MOs y más.</div>
+          </div>
+
+          <!-- Upload zone -->
+          <div style="background:rgba(176,242,174,.04);border:2px dashed rgba(176,242,174,.25);border-radius:16px;padding:32px 28px;margin-bottom:28px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:border-color .2s;"
+               id="cmr-drop-zone"
+               ondragover="event.preventDefault();this.style.borderColor='rgba(176,242,174,.6)';this.style.background='rgba(176,242,174,.08)'"
+               ondragleave="this.style.borderColor='rgba(176,242,174,.25)';this.style.background='rgba(176,242,174,.04)'"
+               ondrop="event.preventDefault();this.style.borderColor='rgba(176,242,174,.25)';this.style.background='rgba(176,242,174,.04)';if(event.dataTransfer.files[0]){const fakeInput={files:event.dataTransfer.files};window.cmrHandleFile(fakeInput);}">
+
+            <!-- Left: upload -->
+            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+              <div style="width:52px;height:52px;background:rgba(176,242,174,.1);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">📂</div>
+              <div>
+                <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#f1f5f9;margin-bottom:4px;">Subir archivo de códigos</div>
+                <div style="font-size:12px;color:#64748b;margin-bottom:8px;">Formatos: <code style="color:#DFFF61;background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;">.xlsx</code> <code style="color:#DFFF61;background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;">.xls</code> <code style="color:#DFFF61;background:rgba(255,255,255,.06);padding:1px 6px;border-radius:4px;">.csv</code> · Columna: <code style="color:#B0F2AE;background:rgba(176,242,174,.08);padding:1px 6px;border-radius:4px;">CODIGO_PUNTO</code> · Máx 500 códigos</div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <label style="padding:8px 18px;background:rgba(176,242,174,.12);border:1px solid rgba(176,242,174,.4);border-radius:10px;color:#B0F2AE;font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;"
+                         onmouseover="this.style.background='rgba(176,242,174,.22)'"
+                         onmouseout="this.style.background='rgba(176,242,174,.12)'">
+                    📤 Seleccionar archivo
+                    <input type="file" id="cmr-file-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="window.cmrHandleFile(this)">
+                  </label>
+                  <span id="cmr-file-status" style="font-size:12px;color:#64748b;font-family:'Outfit',sans-serif;"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: actions -->
+            <div style="display:flex;flex-direction:column;gap:10px;align-items:flex-end;flex-shrink:0;">
+              <button onclick="window.cmrDescargarPlantilla()"
+                style="padding:9px 18px;background:rgba(223,255,97,.1);border:1px solid rgba(223,255,97,.35);border-radius:10px;color:#DFFF61;font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;white-space:nowrap;"
+                onmouseover="this.style.background='rgba(223,255,97,.2)'"
+                onmouseout="this.style.background='rgba(223,255,97,.1)'">
+                ⬇️ Descargar plantilla
+              </button>
+              <button onclick="window.cmrExportExcel()"
+                style="padding:9px 18px;background:rgba(153,209,252,.1);border:1px solid rgba(153,209,252,.35);border-radius:10px;color:#99D1FC;font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;display:flex;align-items:center;gap:8px;white-space:nowrap;"
+                onmouseover="this.style.background='rgba(153,209,252,.2)'"
+                onmouseout="this.style.background='rgba(153,209,252,.1)'">
+                📊 Exportar reporte completo
+              </button>
+              <button onclick="window.cmrLimpiar()"
+                style="padding:9px 18px;background:rgba(255,92,92,.07);border:1px solid rgba(255,92,92,.2);border-radius:10px;color:#FF5C5C;font-size:12px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;"
+                onmouseover="this.style.background='rgba(255,92,92,.15)'"
+                onmouseout="this.style.background='rgba(255,92,92,.07)'">
+                🗑 Limpiar
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Instrucciones rápidas -->
+          <div style="background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:16px 20px;margin-bottom:28px;display:flex;gap:20px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:flex-start;gap:10px;min-width:200px;flex:1;">
+              <span style="font-size:18px;">1️⃣</span>
+              <div style="font-size:11px;color:#94a3b8;font-family:'Outfit',sans-serif;line-height:1.6;">Descarga la <strong style="color:#DFFF61;">plantilla Excel</strong> de demostración. Verás un ejemplo de los primeros 5 códigos del sistema.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;min-width:200px;flex:1;">
+              <span style="font-size:18px;">2️⃣</span>
+              <div style="font-size:11px;color:#94a3b8;font-family:'Outfit',sans-serif;line-height:1.6;">Completa la columna <code style="color:#B0F2AE;background:rgba(176,242,174,.08);padding:1px 5px;border-radius:3px;">CODIGO_PUNTO</code> con los códigos a consultar y sube el archivo.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;min-width:200px;flex:1;">
+              <span style="font-size:18px;">3️⃣</span>
+              <div style="font-size:11px;color:#94a3b8;font-family:'Outfit',sans-serif;line-height:1.6;">Obtén KPIs, saldos, cobertura, MOs y stock por cada punto. Expande cada fila para ver el detalle completo de MOs.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:10px;min-width:200px;flex:1;">
+              <span style="font-size:18px;">4️⃣</span>
+              <div style="font-size:11px;color:#94a3b8;font-family:'Outfit',sans-serif;line-height:1.6;">Descarga el <strong style="color:#99D1FC;">reporte Excel completo</strong> con hojas de resumen, detalle de MOs, stock y no encontrados.</div>
+            </div>
+          </div>
+
+          <!-- SECCIÓN DE RESULTADOS (oculta hasta que haya query) -->
+          <div id="cmr-results-section" style="display:none;">
+
+            <!-- KPI Strip -->
+            <div id="cmr-kpi-strip" style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:28px;"></div>
+
+            <!-- Tabla -->
+            <div style="background:rgba(13,12,11,.6);border:1px solid rgba(255,255,255,.08);border-radius:16px;overflow:hidden;">
+              <div style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:#f1f5f9;">Resultados de la Consulta</div>
+                  <div id="cmr-table-count" style="font-size:11px;color:#64748b;margin-top:2px;font-family:'Outfit',sans-serif;"></div>
+                </div>
+                <button onclick="window.cmrExportExcel()"
+                  style="padding:7px 16px;background:rgba(153,209,252,.1);border:1px solid rgba(153,209,252,.3);border-radius:8px;color:#99D1FC;font-size:11px;font-weight:600;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;"
+                  onmouseover="this.style.background='rgba(153,209,252,.2)'"
+                  onmouseout="this.style.background='rgba(153,209,252,.1)'">
+                  📊 Exportar Excel
+                </button>
+              </div>
+              <div id="cmr-table-wrap" style="min-height:120px;"></div>
+              <div id="cmr-table-pagination" style="padding:12px 20px;display:flex;align-items:center;flex-wrap:wrap;gap:4px;border-top:1px solid rgba(255,255,255,.06);"></div>
+            </div>
+
+          </div>
+
+        </div><!-- /panel-rollos-consulta-masiva -->
+
       </div><!-- /main -->
     </div><!-- /content-area -->
   </div><!-- /app-body -->
@@ -1026,5 +1133,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="puntos_reorden.js"></script>
 <script src="rollos_inventario.js"></script>
 <script src="rollos_comercio_v2.js"></script>
+<script src="consulta_masiva_rollos.js"></script>
 </body>
 </html>

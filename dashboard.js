@@ -1650,7 +1650,7 @@ function _selectBoardTab(board, tab) {
   _currentTab = tab;
 
   // ── Guard: tabs de rollos bloqueados hasta que data_tablero_rollos cargue ──
-  const ROLLOS_TABS = ['rollos-main', 'rollos-detalle', 'rollos-comercio', 'rollos-inventario'];
+  const ROLLOS_TABS = ['rollos-main', 'rollos-detalle', 'rollos-comercio', 'rollos-inventario', 'rollos-consulta-masiva'];
   if (board === 'rollos' && ROLLOS_TABS.includes(tab) && !window._rollosReady) {
     _rollosPendingTab = tab;
 
@@ -1673,6 +1673,7 @@ function _selectBoardTab(board, tab) {
       'rollos-detalle': 'panel-rollos-detalle',
       'rollos-comercio': 'panel-rollos-comercio',
       'rollos-inventario': 'panel-rollos-inventario',
+      'rollos-consulta-masiva': 'panel-rollos-consulta-masiva',
     };
     const targetPanel = document.getElementById(panelMap[tab]);
     if (targetPanel && !document.getElementById('rollos-loading-guard')) {
@@ -1735,6 +1736,7 @@ function _selectBoardTab(board, tab) {
     if (typeof window.renderRollosInvComercio === 'function') window.renderRollosInvComercio();
   }
   if (tab === 'rollos-inventario') { if (typeof window.renderRollosInventario === 'function') window.renderRollosInventario(); }
+  if (tab === 'rollos-consulta-masiva') { if (typeof window.renderConsultaMasivaRollos === 'function') window.renderConsultaMasivaRollos(); }
   if (tab === 'inv-principal') renderInventarioPrincipal();
   if (tab === 'inv-detalles') renderInventarioDetalles();
   if (tab === 'estado-materiales' && typeof window.renderEstadoMateriales === 'function') window.renderEstadoMateriales();
@@ -1752,6 +1754,7 @@ function _showAllPanels(activeTab) {
     'rollos-detalle': 'panel-rollos-detalle',
     'rollos-comercio': 'panel-rollos-comercio',
     'rollos-inventario': 'panel-rollos-inventario',
+    'rollos-consulta-masiva': 'panel-rollos-consulta-masiva',
     'inv-principal': 'panel-inv-principal',
     'inv-detalles': 'panel-inv-detalles',
     'estado-materiales': 'panel-estado-materiales',
@@ -1760,7 +1763,7 @@ function _showAllPanels(activeTab) {
   };
   // Hide all
   ['panel-home', 'panel-tracking', 'panel-detalle', 'panel-tabla', 'panel-incump',
-    'panel-rollos', 'panel-rollos-detalle', 'panel-rollos-comercio', 'panel-rollos-inventario', 'panel-inv-principal', 'panel-inv-detalles',
+    'panel-rollos', 'panel-rollos-detalle', 'panel-rollos-comercio', 'panel-rollos-inventario', 'panel-rollos-consulta-masiva', 'panel-inv-principal', 'panel-inv-detalles',
     'panel-estado-materiales', 'panel-garantia-inventario', 'panel-puntos-reorden'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
