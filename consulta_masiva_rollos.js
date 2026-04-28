@@ -141,7 +141,175 @@ window.cmrHandleFile = function (input) {
 };
 
 // ──────────────────────────────────────────────────────────────────
-//  EJECUTAR CONSULTA
+//  OVERLAY DE PROGRESO ANIMADO
+// ──────────────────────────────────────────────────────────────────
+function _cmrShowProgressOverlay(total) {
+  // Inyectar estilos de animación si no existen
+  if (!document.getElementById('cmr-anim-styles')) {
+    const s = document.createElement('style');
+    s.id = 'cmr-anim-styles';
+    s.textContent = `
+      @keyframes cmr-spin   { to { transform: rotate(360deg); } }
+      @keyframes cmr-pulse  { 0%,100%{opacity:.4} 50%{opacity:1} }
+      @keyframes cmr-bar-glow { 0%,100%{box-shadow:0 0 8px rgba(176,242,174,.3)} 50%{box-shadow:0 0 20px rgba(176,242,174,.7)} }
+      @keyframes cmr-step-in { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:none} }
+      @keyframes cmr-fade-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+      @keyframes cmr-count-up { from{opacity:0;transform:scale(.85)} to{opacity:1;transform:scale(1)} }
+      @keyframes cmr-scan    { 0%{top:0%} 100%{top:100%} }
+      .cmr-step-row          { animation: cmr-step-in .3s ease both; }
+      .cmr-kpi-card          { animation: cmr-fade-in .4s ease both; }
+      .cmr-table-row         { animation: cmr-fade-in .25s ease both; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  // Remover overlay previo si existe
+  const prev = document.getElementById('cmr-progress-overlay');
+  if (prev) prev.remove();
+
+  const panel = document.getElementById('panel-rollos-consulta-masiva');
+  if (!panel) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'cmr-progress-overlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    background:rgba(4,10,8,.92);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;
+  `;
+
+  overlay.innerHTML = `
+    <div style="
+      background:linear-gradient(145deg,rgba(10,28,18,.98),rgba(6,18,12,.98));
+      border:1px solid rgba(176,242,174,.2);border-radius:24px;
+      padding:40px 48px;width:520px;max-width:90vw;
+      box-shadow:0 24px 64px rgba(0,0,0,.7),0 0 0 1px rgba(176,242,174,.05);
+      position:relative;overflow:hidden;
+    ">
+      <!-- Scan line decorativa -->
+      <div style="
+        position:absolute;left:0;right:0;height:2px;
+        background:linear-gradient(90deg,transparent,rgba(176,242,174,.4),transparent);
+        animation:cmr-scan 2s linear infinite;pointer-events:none;
+      "></div>
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:28px;">
+        <div style="
+          width:44px;height:44px;border-radius:50%;flex-shrink:0;
+          border:2.5px solid rgba(176,242,174,.2);border-top-color:#B0F2AE;
+          animation:cmr-spin .9s linear infinite;
+        "></div>
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#f1f5f9;letter-spacing:-.3px;">
+            Procesando Consulta
+          </div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px;font-family:'Outfit',sans-serif;" id="cmr-prog-subtitle">
+            Inicializando…
+          </div>
+        </div>
+        <!-- Contador animado -->
+        <div style="margin-left:auto;text-align:right;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:#B0F2AE;line-height:1;" id="cmr-prog-counter">0</div>
+          <div style="font-size:10px;color:#475569;font-family:'Outfit',sans-serif;">de ${total}</div>
+        </div>
+      </div>
+
+      <!-- Barra de progreso -->
+      <div style="background:rgba(255,255,255,.06);border-radius:8px;height:8px;overflow:hidden;margin-bottom:20px;">
+        <div id="cmr-prog-bar" style="
+          height:100%;width:0%;border-radius:8px;
+          background:linear-gradient(90deg,#4ade80,#B0F2AE,#DFFF61);
+          transition:width .15s ease;
+          animation:cmr-bar-glow 1.5s ease-in-out infinite;
+        "></div>
+      </div>
+
+      <!-- Porcentaje -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#64748b;" id="cmr-prog-pct">0%</div>
+        <div style="font-size:11px;color:#475569;font-family:'Outfit',sans-serif;" id="cmr-prog-eta"></div>
+      </div>
+
+      <!-- Pasos -->
+      <div id="cmr-prog-steps" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+      <!-- Mini stats en tiempo real -->
+      <div style="
+        display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;
+        margin-top:24px;padding-top:20px;
+        border-top:1px solid rgba(255,255,255,.06);
+      ">
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#B0F2AE;" id="cmr-live-found">0</div>
+          <div style="font-size:9px;color:#475569;margin-top:2px;text-transform:uppercase;letter-spacing:.5px;">Encontrados</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#FF5C5C;" id="cmr-live-nf">0</div>
+          <div style="font-size:9px;color:#475569;margin-top:2px;text-transform:uppercase;letter-spacing:.5px;">No encontrados</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#DFFF61;" id="cmr-live-rollos">0</div>
+          <div style="font-size:9px;color:#475569;margin-top:2px;text-transform:uppercase;letter-spacing:.5px;">Saldo rollos</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+}
+
+function _cmrUpdateProgress(done, total, foundSoFar, nfSoFar, rollosSoFar) {
+  const pct = Math.round(done / total * 100);
+  const bar = document.getElementById('cmr-prog-bar');
+  const counter = document.getElementById('cmr-prog-counter');
+  const pctEl = document.getElementById('cmr-prog-pct');
+  const liveF = document.getElementById('cmr-live-found');
+  const liveN = document.getElementById('cmr-live-nf');
+  const liveR = document.getElementById('cmr-live-rollos');
+  const sub = document.getElementById('cmr-prog-subtitle');
+  if (bar) bar.style.width = pct + '%';
+  if (counter) counter.textContent = done;
+  if (pctEl) pctEl.textContent = pct + '%';
+  if (liveF) liveF.textContent = foundSoFar;
+  if (liveN) liveN.textContent = nfSoFar;
+  if (liveR) liveR.textContent = Math.round(rollosSoFar).toLocaleString('es-CO');
+  if (sub) sub.textContent = done < total
+    ? `Procesando código ${done + 1} de ${total}…`
+    : '¡Consulta completada!';
+}
+
+function _cmrAddStep(text, color, icon) {
+  const steps = document.getElementById('cmr-prog-steps');
+  if (!steps) return;
+  // Máximo 4 pasos visibles (desplazar)
+  while (steps.children.length >= 4) steps.removeChild(steps.firstChild);
+  const row = document.createElement('div');
+  row.className = 'cmr-step-row';
+  row.style.cssText = `
+    display:flex;align-items:center;gap:10px;
+    padding:7px 12px;border-radius:8px;
+    background:rgba(255,255,255,.03);
+    border-left:3px solid ${color};
+  `;
+  row.innerHTML = `
+    <span style="font-size:14px;">${icon}</span>
+    <span style="font-family:'Outfit',sans-serif;font-size:12px;color:#94a3b8;">${text}</span>
+    <span style="margin-left:auto;font-size:10px;color:${color};font-family:'JetBrains Mono',monospace;">✓</span>
+  `;
+  steps.appendChild(row);
+}
+
+function _cmrHideProgressOverlay() {
+  const overlay = document.getElementById('cmr-progress-overlay');
+  if (!overlay) return;
+  overlay.style.transition = 'opacity .4s ease';
+  overlay.style.opacity = '0';
+  setTimeout(() => overlay.remove(), 420);
+}
+
+// ──────────────────────────────────────────────────────────────────
+//  EJECUTAR CONSULTA (con progreso animado async)
 // ──────────────────────────────────────────────────────────────────
 function _cmrRunQuery(codes, fileName) {
   if (!codes.length) {
@@ -156,12 +324,59 @@ function _cmrRunQuery(codes, fileName) {
   const statusEl = document.getElementById('cmr-file-status');
   if (statusEl) statusEl.innerHTML = `<span style="color:#B0F2AE;">✓ ${fileName}</span> · <strong style="color:#DFFF61;">${codes.length}</strong> códigos leídos`;
 
-  CMR_CODES = [...new Set(codes)]; // deduplicar
+  CMR_CODES = [...new Set(codes)];
   cmrPage = 1;
   cmrDetailPage = {};
-  CMR_RESULTS = CMR_CODES.map(code => _cmrBuildRecord(code));
+  CMR_RESULTS = [];
 
-  _cmrRenderAll();
+  _cmrShowProgressOverlay(CMR_CODES.length);
+
+  // Paso 1: validar fuentes
+  setTimeout(() => {
+    _cmrAddStep('Fuentes de datos verificadas', '#B0F2AE', '🗄️');
+    _cmrUpdateProgress(0, CMR_CODES.length, 0, 0, 0);
+  }, 80);
+
+  // Paso 2: procesar en chunks con animación
+  const CHUNK = 30;
+  let idx = 0;
+  let foundCount = 0, nfCount = 0, rollosTotal = 0;
+  const startTime = Date.now();
+
+  function processChunk() {
+    const end = Math.min(idx + CHUNK, CMR_CODES.length);
+    for (let i = idx; i < end; i++) {
+      const rec = _cmrBuildRecord(CMR_CODES[i]);
+      CMR_RESULTS.push(rec);
+      if (rec.found) { foundCount++; rollosTotal += rec.saldo_rollos; }
+      else nfCount++;
+    }
+    idx = end;
+    _cmrUpdateProgress(idx, CMR_CODES.length, foundCount, nfCount, rollosTotal);
+
+    // Agregar pasos destacados
+    if (idx === CHUNK) _cmrAddStep(`Primer lote procesado (${CHUNK} códigos)`, '#99D1FC', '⚡');
+    if (idx >= Math.floor(CMR_CODES.length / 2) && idx - CHUNK < Math.floor(CMR_CODES.length / 2)) {
+      _cmrAddStep(`50% completado — ${foundCount} encontrados`, '#DFFF61', '📊');
+    }
+
+    if (idx < CMR_CODES.length) {
+      setTimeout(processChunk, 12);
+    } else {
+      // Finalizado
+      const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      _cmrAddStep(`${foundCount} encontrados · ${nfCount} no encontrados`, '#B0F2AE', '✅');
+      setTimeout(() => {
+        _cmrAddStep(`Consulta completada en ${elapsed}s`, '#B0F2AE', '🎉');
+      }, 120);
+      setTimeout(() => {
+        _cmrHideProgressOverlay();
+        _cmrRenderAllAnimated();
+      }, 700);
+    }
+  }
+
+  setTimeout(processChunk, 300);
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -306,25 +521,40 @@ function _cmrBuildRecord(code) {
 }
 
 // ──────────────────────────────────────────────────────────────────
-//  RENDER COMPLETO
+//  RENDER COMPLETO (con animaciones de entrada)
 // ──────────────────────────────────────────────────────────────────
 function _cmrRenderAll() {
   _cmrRenderKPIs();
   _cmrRenderTable();
-  // Mostrar sección de resultados
   const resultSection = document.getElementById('cmr-results-section');
   if (resultSection) resultSection.style.display = 'block';
+  setTimeout(() => resultSection?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+}
 
-  // Scroll suave a resultados
-  setTimeout(() => {
-    resultSection?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 120);
+function _cmrRenderAllAnimated() {
+  _cmrRenderKPIs(true);
+  _cmrRenderTable(true);
+
+  const resultSection = document.getElementById('cmr-results-section');
+  if (resultSection) {
+    resultSection.style.opacity = '0';
+    resultSection.style.transform = 'translateY(20px)';
+    resultSection.style.transition = 'opacity .5s ease, transform .5s ease';
+    resultSection.style.display = 'block';
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        resultSection.style.opacity = '1';
+        resultSection.style.transform = '';
+      }, 30);
+    });
+  }
+  setTimeout(() => resultSection?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
 }
 
 // ──────────────────────────────────────────────────────────────────
 //  KPIs AGREGADOS
 // ──────────────────────────────────────────────────────────────────
-function _cmrRenderKPIs() {
+function _cmrRenderKPIs(animated = false) {
   const el = document.getElementById('cmr-kpi-strip');
   if (!el) return;
 
@@ -344,35 +574,68 @@ function _cmrRenderKPIs() {
   const totalConsumoMes = found.reduce((s, r) => s + r.prom_mensual, 0);
 
   const kpis = [
-    { label: 'Puntos Consultados',   value: total.toLocaleString('es-CO'),            icon: '🔍', color: '#99D1FC',  bg: 'rgba(153,209,252,.1)' },
-    { label: 'Puntos Encontrados',   value: `${found.length}/${total}`,               icon: '✅', color: '#B0F2AE',  bg: 'rgba(176,242,174,.1)' },
-    { label: 'No Encontrados',       value: notFound.length.toLocaleString('es-CO'),  icon: '❓', color: notFound.length > 0 ? '#FFC04D' : '#B0F2AE', bg: 'rgba(255,192,77,.08)' },
-    { label: 'Saldo Total Rollos',   value: cmrFmtI(totalRollos),                     icon: '📦', color: '#B0F2AE',  bg: 'rgba(176,242,174,.08)' },
-    { label: 'Stock Inventario',     value: cmrFmtI(totalInvStock),                   icon: '🏭', color: '#C084FC',  bg: 'rgba(192,132,252,.08)' },
-    { label: 'Cobertura Promedio',   value: avgMeses.toFixed(1) + ' meses',           icon: '📅', color: '#DFFF61',  bg: 'rgba(223,255,97,.08)' },
-    { label: 'Consumo Mensual Total',value: cmrFmtI(totalConsumoMes) + ' rollos',    icon: '📊', color: '#F49D6E',  bg: 'rgba(244,157,110,.08)' },
-    { label: 'SLA ≥3 Meses',         value: pctSla + '%', sub: `${slaOk}/${found.length}`, icon: '🎯', color: pctSla >= 70 ? '#B0F2AE' : pctSla >= 50 ? '#DFFF61' : '#FF5C5C', pct: pctSla, bg: 'rgba(176,242,174,.06)' },
-    { label: 'Críticos <1 Mes',      value: criticos.toLocaleString('es-CO'),         icon: '🚨', color: criticos > 0 ? '#FF5C5C' : '#B0F2AE', bg: 'rgba(255,92,92,.08)' },
-    { label: 'Bajo Punto Reorden',   value: bajoPR.toLocaleString('es-CO'),           icon: '⚠️', color: bajoPR > 0 ? '#FFC04D' : '#B0F2AE', bg: 'rgba(255,192,77,.08)' },
-    { label: 'Total MOs Asociadas',  value: totalMOs.toLocaleString('es-CO'),         icon: '📋', color: '#7B8CDE',  bg: 'rgba(123,140,222,.08)' },
+    { label: 'Puntos Consultados',   value: total,                   display: total.toLocaleString('es-CO'),            icon: '🔍', color: '#99D1FC',  bg: 'rgba(153,209,252,.1)',  border: 'rgba(153,209,252,.25)' },
+    { label: 'Puntos Encontrados',   value: found.length,            display: `${found.length}/${total}`,               icon: '✅', color: '#B0F2AE',  bg: 'rgba(176,242,174,.1)',  border: 'rgba(176,242,174,.3)' },
+    { label: 'No Encontrados',       value: notFound.length,         display: notFound.length.toLocaleString('es-CO'),  icon: '❓', color: notFound.length > 0 ? '#FFC04D' : '#B0F2AE', bg: 'rgba(255,192,77,.08)', border: 'rgba(255,192,77,.2)' },
+    { label: 'Saldo Total Rollos',   value: totalRollos,             display: cmrFmtI(totalRollos),                     icon: '📦', color: '#B0F2AE',  bg: 'rgba(176,242,174,.08)', border: 'rgba(176,242,174,.2)' },
+    { label: 'Stock Inventario',     value: totalInvStock,           display: cmrFmtI(totalInvStock),                   icon: '🏭', color: '#C084FC',  bg: 'rgba(192,132,252,.08)', border: 'rgba(192,132,252,.2)' },
+    { label: 'Cobertura Promedio',   value: avgMeses,                display: avgMeses.toFixed(1) + ' meses',           icon: '📅', color: '#DFFF61',  bg: 'rgba(223,255,97,.08)',  border: 'rgba(223,255,97,.2)' },
+    { label: 'Consumo Mensual Total',value: totalConsumoMes,         display: cmrFmtI(totalConsumoMes) + ' rollos',    icon: '📊', color: '#F49D6E',  bg: 'rgba(244,157,110,.08)', border: 'rgba(244,157,110,.2)' },
+    { label: 'SLA ≥3 Meses',         value: pctSla,                  display: pctSla + '%', sub: `${slaOk}/${found.length}`, icon: '🎯', color: pctSla >= 70 ? '#B0F2AE' : pctSla >= 50 ? '#DFFF61' : '#FF5C5C', pct: pctSla, bg: 'rgba(176,242,174,.06)', border: 'rgba(176,242,174,.15)' },
+    { label: 'Críticos <1 Mes',      value: criticos,                display: criticos.toLocaleString('es-CO'),         icon: '🚨', color: criticos > 0 ? '#FF5C5C' : '#B0F2AE', bg: 'rgba(255,92,92,.08)', border: 'rgba(255,92,92,.2)' },
+    { label: 'Bajo Punto Reorden',   value: bajoPR,                  display: bajoPR.toLocaleString('es-CO'),           icon: '⚠️', color: bajoPR > 0 ? '#FFC04D' : '#B0F2AE', bg: 'rgba(255,192,77,.08)', border: 'rgba(255,192,77,.2)' },
+    { label: 'Total MOs Asociadas',  value: totalMOs,                display: totalMOs.toLocaleString('es-CO'),         icon: '📋', color: '#7B8CDE',  bg: 'rgba(123,140,222,.08)', border: 'rgba(123,140,222,.2)' },
   ];
 
-  el.innerHTML = kpis.map(k => `
-    <div style="background:${k.bg};border:1px solid ${k.color}22;border-radius:14px;padding:14px 16px;min-width:140px;flex:1;position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;"
-         onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 8px 24px rgba(0,0,0,.4)'"
-         onmouseout="this.style.transform='';this.style.boxShadow=''">
-      <div style="font-size:18px;margin-bottom:5px;">${k.icon}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;color:${k.color};line-height:1;">${k.value}</div>
-      ${k.sub ? `<div style="font-size:10px;color:#64748b;margin-top:2px;">${k.sub}</div>` : ''}
-      ${k.pct !== undefined ? `<div style="margin-top:7px;background:rgba(255,255,255,.06);border-radius:4px;height:3px;overflow:hidden;"><div style="width:${k.pct}%;height:100%;background:${k.color};border-radius:4px;transition:width .6s ease;"></div></div>` : ''}
-      <div style="font-size:10px;color:#7A7674;margin-top:5px;font-family:'Outfit',sans-serif;">${k.label}</div>
+  el.innerHTML = kpis.map((k, i) => `
+    <div class="cmr-kpi-card" style="
+      background:${k.bg};
+      border:1px solid ${k.border};
+      border-radius:16px;padding:16px 18px;min-width:140px;flex:1;
+      position:relative;overflow:hidden;
+      transition:transform .2s,box-shadow .2s;
+      animation-delay:${animated ? i * 60 : 0}ms;
+      cursor:default;
+    "
+    onmouseover="this.style.transform='translateY(-3px) scale(1.02)';this.style.boxShadow='0 12px 32px rgba(0,0,0,.5),0 0 0 1px ${k.border}'"
+    onmouseout="this.style.transform='';this.style.boxShadow=''">
+      <!-- Glow top border -->
+      <div style="position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,${k.color}55,transparent);"></div>
+      <div style="font-size:20px;margin-bottom:6px;">${k.icon}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:${k.color};line-height:1;"
+           id="cmr-kpi-val-${i}">${k.display}</div>
+      ${k.sub ? `<div style="font-size:10px;color:#64748b;margin-top:2px;font-family:'Outfit',sans-serif;">${k.sub}</div>` : ''}
+      ${k.pct !== undefined ? `
+        <div style="margin-top:8px;background:rgba(255,255,255,.06);border-radius:6px;height:4px;overflow:hidden;">
+          <div id="cmr-kpi-bar-${i}" style="width:0%;height:100%;background:${k.color};border-radius:6px;transition:width .8s cubic-bezier(.4,0,.2,1);"></div>
+        </div>` : ''}
+      <div style="font-size:10px;color:#7A7674;margin-top:6px;font-family:'Outfit',sans-serif;letter-spacing:.2px;">${k.label}</div>
     </div>`).join('');
+
+  // Animar barras de progreso después del render
+  if (animated) {
+    kpis.forEach((k, i) => {
+      if (k.pct !== undefined) {
+        setTimeout(() => {
+          const bar = document.getElementById(`cmr-kpi-bar-${i}`);
+          if (bar) bar.style.width = k.pct + '%';
+        }, i * 60 + 400);
+      }
+    });
+  } else {
+    kpis.forEach((k, i) => {
+      if (k.pct !== undefined) {
+        const bar = document.getElementById(`cmr-kpi-bar-${i}`);
+        if (bar) bar.style.width = k.pct + '%';
+      }
+    });
+  }
 }
 
 // ──────────────────────────────────────────────────────────────────
 //  TABLA DE RESULTADOS
 // ──────────────────────────────────────────────────────────────────
-function _cmrRenderTable() {
+function _cmrRenderTable(animated = false) {
   const wrap = document.getElementById('cmr-table-wrap');
   const pagEl = document.getElementById('cmr-table-pagination');
   const countEl = document.getElementById('cmr-table-count');
@@ -416,8 +679,9 @@ function _cmrRenderTable() {
     <tbody>
       ${slice.map((r, i) => {
         const idx = start + i + 1;
+        const animDelay = animated ? `animation:cmr-fade-in .3s ease ${i * 40}ms both;` : '';
         if (!r.found) {
-          return `<tr style="background:rgba(255,92,92,.04);">
+          return `<tr class="cmr-table-row" style="background:rgba(255,92,92,.04);${animDelay}">
             <td style="${tdStyle('#475569')}">${idx}</td>
             <td style="${tdStyle('#FF5C5C')};font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;">${r.code}</td>
             <td colspan="16" style="${tdStyle('#64748b')}"><span style="background:rgba(255,92,92,.12);color:#FF5C5C;border-radius:6px;padding:2px 10px;font-size:11px;">❌ No encontrado en el sistema</span></td>
@@ -427,7 +691,7 @@ function _cmrRenderTable() {
         const bgRow = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.012)';
         const slaCol = r.sla_cumple ? '#B0F2AE' : '#FF5C5C';
         const riesgoCol = r.ind_riesgo === 'ALTO' ? '#FF5C5C' : r.ind_riesgo === 'CRÍTICO' ? '#FF0000' : r.ind_riesgo ? '#FFC04D' : '#64748b';
-        return `<tr style="background:${bgRow};transition:background .12s;"
+        return `<tr class="cmr-table-row" style="background:${bgRow};transition:background .12s;${animDelay}"
                     onmouseover="this.style.background='rgba(176,242,174,.04)'"
                     onmouseout="this.style.background='${bgRow}'">
           <td style="${tdStyle('#475569')};font-size:10px;">${idx}</td>
@@ -558,14 +822,23 @@ function _cmrRenderDetail(code) {
         <table style="width:100%;border-collapse:collapse;font-size:11px;">
           <thead>
             <tr style="background:rgba(0,0,0,.4);border-bottom:1px solid rgba(176,242,174,.12);">
-              <th style="padding:8px 12px;text-align:left;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.4px;">TAREA / MO</th>
-              <th style="padding:8px 10px;text-align:right;color:#64748b;font-weight:600;font-size:10px;">ROLLOS</th>
-              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;">ESTADO</th>
-              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;">FLUJO</th>
-              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;">MATERIAL</th>
-              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;">FECHA</th>
-              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;">GUÍA</th>
-              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;">ORIGEN</th>
+              <th style="padding:8px 12px;text-align:left;color:#64748b;font-weight:600;font-size:10px;letter-spacing:.4px;white-space:nowrap;">TAREA / MO</th>
+              <th style="padding:8px 10px;text-align:right;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">ROLLOS</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">ESTADO</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">FLUJO</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">CÓD. MATERIAL</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">MATERIAL</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">F. CONFIRMACIÓN</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">F. FIN</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">PLAN INICIO</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">PLAN FIN</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">GUÍA</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">TRANSPORTADORA</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">ORIGEN</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">DESTINO</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">PLANTILLA</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">SUBPROYECTO</th>
+              <th style="padding:8px 10px;text-align:left;color:#64748b;font-weight:600;font-size:10px;white-space:nowrap;">CÓD. OPERACIÓN</th>
             </tr>
           </thead>
           <tbody>
@@ -573,39 +846,49 @@ function _cmrRenderDetail(code) {
               const lastMov = moData.movs[0];
               const bgRow = ii % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.01)';
               // Si hay múltiples movimientos, mostrar la primera fila con rowspan y las demás
+              const _moTd  = (val, col, extra) => `<td style="padding:6px 10px;color:${col||'#94a3b8'};font-size:10px;white-space:nowrap;${extra||''}">${val || '—'}</td>`;
+              const _moTdE = (val, col, title) => `<td style="padding:6px 10px;color:${col||'#94a3b8'};font-size:10px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${(title||val||'').replace(/"/g,'&quot;')}">${val || '—'}</td>`;
+              const _moRow = (m, isSubRow) => {
+                const label = isSubRow
+                  ? `<td style="padding:5px 12px 5px 24px;color:#475569;font-size:10px;white-space:nowrap;">└ mov ${isSubRow}</td>`
+                  : `<td style="padding:7px 12px;color:#DFFF61;font-family:'JetBrains Mono',monospace;font-size:10px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${tarea.replace(/"/g,'&quot;')}">${tarea}</td>`;
+                return `
+                  ${label}
+                  <td style="padding:6px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:#B0F2AE;white-space:nowrap;">${cmrFmtI(isSubRow ? m.cantidad : moData.total)}</td>
+                  ${_moTd(m.estado,   '#94a3b8')}
+                  ${_moTd(m.flujo,    '#7B8CDE')}
+                  ${_moTdE(m.codigo_material, '#DFFF61')}
+                  ${_moTdE(m.material, '#f1f5f9', m.material)}
+                  ${_moTd(cmrFmtDate(m.fecha),     '#64748b')}
+                  ${_moTd(cmrFmtDate(m.fecha_fin),  '#64748b')}
+                  ${_moTd(cmrFmtDate(m.plan_inicio),'#64748b')}
+                  ${_moTd(cmrFmtDate(m.plan_fin),   '#64748b')}
+                  ${_moTdE(m.guia,          '#99D1FC', m.guia)}
+                  ${_moTdE(m.transportadora,'#f1f5f9', m.transportadora)}
+                  ${_moTdE(m.origen,        '#64748b', m.origen)}
+                  ${_moTdE(m.destino,       '#64748b', m.destino)}
+                  ${_moTdE(m.plantilla,     '#C084FC', m.plantilla)}
+                  ${_moTdE(m.subproyecto,   '#F49D6E', m.subproyecto)}
+                  ${_moTdE(m.cod_op,        '#64748b', m.cod_op)}`;
+              };
               if (moData.movs.length <= 1) {
                 const m = moData.movs[0] || {};
                 return `<tr style="background:${bgRow};border-bottom:1px solid rgba(255,255,255,.04);">
-                  <td style="padding:7px 12px;color:#DFFF61;font-family:'JetBrains Mono',monospace;font-size:10px;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${tarea}">${tarea}</td>
-                  <td style="padding:7px 10px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:#B0F2AE;">${cmrFmtI(moData.total)}</td>
-                  <td style="padding:7px 10px;color:#94a3b8;font-size:10px;">${m.estado || '—'}</td>
-                  <td style="padding:7px 10px;color:#7B8CDE;font-size:10px;">${m.flujo || '—'}</td>
-                  <td style="padding:7px 10px;color:#f1f5f9;font-size:10px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${m.material||''}">${m.material || '—'}</td>
-                  <td style="padding:7px 10px;color:#64748b;white-space:nowrap;font-size:10px;">${cmrFmtDate(m.fecha)}</td>
-                  <td style="padding:7px 10px;color:#64748b;font-size:10px;max-width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${m.guia||''}">${m.guia || '—'}</td>
-                  <td style="padding:7px 10px;color:#64748b;font-size:10px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${m.origen||''}">${m.origen || '—'}</td>
+                  ${_moRow(m, false)}
                 </tr>`;
               } else {
-                // Múltiples movimientos: primera fila de resumen + sub-filas
+                // Múltiples movimientos: fila encabezado colapsable + sub-filas
                 return `<tr style="background:rgba(176,242,174,.03);border-bottom:1px solid rgba(176,242,174,.08);">
-                  <td style="padding:7px 12px;color:#DFFF61;font-family:'JetBrains Mono',monospace;font-size:10px;" colspan="8">
+                  <td style="padding:7px 12px;color:#DFFF61;font-family:'JetBrains Mono',monospace;font-size:10px;" colspan="17">
                     <span style="font-weight:700;">${tarea}</span>
                     <span style="color:#64748b;font-size:10px;margin-left:10px;">${moData.movs.length} movimientos</span>
                     <span style="background:rgba(176,242,174,.12);color:#B0F2AE;border-radius:6px;padding:1px 8px;font-size:10px;margin-left:8px;">Total: ${cmrFmtI(moData.total)} rollos</span>
                   </td>
                 </tr>
-                ${moData.movs.slice(0, 5).map((m, mi) => `
+                ${moData.movs.map((m, mi) => `
                   <tr style="background:${mi%2===0?'rgba(0,0,0,.15)':'rgba(0,0,0,.08)'};border-bottom:1px solid rgba(255,255,255,.03);">
-                    <td style="padding:5px 12px 5px 24px;color:#475569;font-size:10px;">└ mov ${mi+1}</td>
-                    <td style="padding:5px 10px;text-align:right;font-family:'JetBrains Mono',monospace;color:#B0F2AE;font-size:11px;">${cmrFmtI(m.cantidad)}</td>
-                    <td style="padding:5px 10px;color:#94a3b8;font-size:10px;">${m.estado || '—'}</td>
-                    <td style="padding:5px 10px;color:#7B8CDE;font-size:10px;">${m.flujo || '—'}</td>
-                    <td style="padding:5px 10px;color:#f1f5f9;font-size:10px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.material || '—'}</td>
-                    <td style="padding:5px 10px;color:#64748b;white-space:nowrap;font-size:10px;">${cmrFmtDate(m.fecha)}</td>
-                    <td style="padding:5px 10px;color:#64748b;font-size:10px;">${m.guia || '—'}</td>
-                    <td style="padding:5px 10px;color:#64748b;font-size:10px;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${m.origen || '—'}</td>
-                  </tr>`).join('')}
-                ${moData.movs.length > 5 ? `<tr><td colspan="8" style="padding:4px 24px;color:#475569;font-size:10px;">… y ${moData.movs.length - 5} movimientos más</td></tr>` : ''}`;
+                    ${_moRow(m, mi + 1)}
+                  </tr>`).join('')}`;
               }
             }).join('')}
           </tbody>
