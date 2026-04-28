@@ -14,8 +14,8 @@ const MSAL_CONFIG = {
   cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
 };
 
-const MS_SCOPES       = ['openid','profile','email','User.Read'];
-const ALLOWED_DOMAIN  = 'lineacom.co';
+const MS_SCOPES        = ['openid','profile','email','User.Read'];
+const ALLOWED_DOMAIN   = 'lineacom.co';
 const SESSION_DURATION = 1 * 60 * 60 * 1000; // 1 hora
 
 let _msalInstance = null;
@@ -91,6 +91,12 @@ async function doMicrosoftLogin() {
     } catch (graphErr) { console.warn('[Auth] Graph parcial:', graphErr.message); }
 
     window._msUserProfile = { nombre: displayName, cargo: jobTitle, email, foto: photo };
+
+    // ── Registrar acceso en Firebase (global para todos los PCs) ──
+    if (window.LoginTracker) {
+      window.LoginTracker.registrar(window._msUserProfile).catch(() => {});
+    }
+
     _enterApp();
 
   } catch (err) {
@@ -124,6 +130,11 @@ function _enterApp() {
   clearTimeout(_sessionTimer);
   _sessionTimer = setTimeout(() => { alert('⏰ Sesión expirada. Inicia sesión nuevamente.'); doLogout(); }, SESSION_DURATION);
   initDashboard();
+
+  // ── Montar panel de accesos en home (con pequeño delay para que el DOM esté listo) ──
+  setTimeout(() => {
+    if (window.LoginTracker) window.LoginTracker.renderPanel();
+  }, 400);
 }
 
 // ── Logout ────────────────────────────────────────────────────────
