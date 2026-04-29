@@ -28,8 +28,7 @@ const LoginTracker = (() => {
   const DB_PATH  = 'dashboard_logins';
   const MAX_SHOW = 40;   // máx entradas visibles en el panel
 
-  let _db = null, _fbRef = null, _fbGet = null, _fbSet = null, _fbQuery = null,
-      _orderByChild = null, _limitToLast = null;
+  let _db = null, _fbRef = null, _fbGet = null, _fbSet = null;
   let _panelRendered = false;
   let _refreshInterval = null;
 
@@ -40,17 +39,14 @@ const LoginTracker = (() => {
       const { initializeApp, getApps } = await import(
         'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'
       );
-      const { getDatabase, ref, get, set, query, orderByChild, limitToLast } = await import(
+      const { getDatabase, ref, get, set } = await import(
         'https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js'
       );
       const app = getApps().length ? getApps()[0] : initializeApp(FIREBASE_CONFIG);
-      _db           = getDatabase(app);
-      _fbRef        = ref;
-      _fbGet        = get;
-      _fbSet        = set;
-      _fbQuery      = query;
-      _orderByChild = orderByChild;
-      _limitToLast  = limitToLast;
+      _db    = getDatabase(app);
+      _fbRef = ref;
+      _fbGet = get;
+      _fbSet = set;
       return true;
     } catch (e) {
       console.warn('[LoginTracker] Firebase init error:', e.message);
@@ -102,8 +98,10 @@ const LoginTracker = (() => {
     if (!list) return;
 
     try {
-      const q    = _fbQuery(_fbRef(_db, DB_PATH), _orderByChild('ts'), _limitToLast(MAX_SHOW));
-      const snap = await _fbGet(q);
+      // FIX: get directo sin orderByChild — ese query fallaba cuando algunos
+      // nodos tenían el campo `foto` (base64 pesado) y otros no, devolviendo
+      // solo 1 resultado. Ordenamos en JS después de traer todo.
+      const snap = await _fbGet(_fbRef(_db, DB_PATH));
 
       if (!snap.exists()) {
         list.innerHTML = `
