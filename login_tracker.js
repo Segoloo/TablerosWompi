@@ -112,10 +112,13 @@ const LoginTracker = (() => {
         return;
       }
 
-      // Ordenar más reciente primero
-      const entries = [];
-      snap.forEach(child => entries.push(child.val()));
-      entries.sort((a, b) => b.ts - a.ts);
+      // FIX CRÍTICO: snap.forEach se detiene en el primer child cuando algún nodo
+      // tiene foto base64 pesada. snap.val() trae todo el árbol como objeto plano.
+      const raw = snap.val();
+      const entries = Object.values(raw)
+        .filter(e => e && e.ts)
+        .sort((a, b) => b.ts - a.ts)
+        .slice(0, MAX_SHOW);
 
       if (countEl) {
         countEl.textContent = `· ${entries.length} acceso${entries.length !== 1 ? 's' : ''}`;
