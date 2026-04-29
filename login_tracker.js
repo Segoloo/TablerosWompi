@@ -1,6 +1,9 @@
 /**
  * login_tracker.js — Registro y visualización de accesos al dashboard
- * Guarda en Firebase Realtime DB: nombre, cargo, foto, timestamp
+ * Guarda en Firebase Realtime DB: nombre, cargo, email, timestamp
+ * ⚠ FIX: La foto base64 NO se guarda en Firebase (excedía el límite de tamaño
+ *         del nodo y causaba que solo el primer registro se persistiera).
+ *         El avatar se regenera localmente con iniciales o foto de sesión.
  * Muestra en panel-home quién ha entrado y hace cuánto (global, todos los PCs)
  * Desarrollado para Dashboard Unificado Wompi × Linea Comunicaciones
  */
@@ -22,8 +25,8 @@ const LoginTracker = (() => {
     measurementId:     "G-S1YC8WDC55"
   };
 
-  const DB_PATH    = 'dashboard_logins';
-  const MAX_SHOW   = 40;   // máx entradas visibles en el panel
+  const DB_PATH  = 'dashboard_logins';
+  const MAX_SHOW = 40;   // máx entradas visibles en el panel
 
   let _db = null, _fbRef = null, _fbGet = null, _fbSet = null, _fbQuery = null,
       _orderByChild = null, _limitToLast = null;
@@ -68,6 +71,12 @@ const LoginTracker = (() => {
   }
 
   // ── Guardar login en Firebase ────────────────────────────────────
+  // ⚠ FIX: Se eliminó el campo `foto` (base64) del payload.
+  //   Un base64 de foto de perfil pesa entre 30 KB y 200 KB.
+  //   Firebase Realtime DB acepta hasta ~10 MB por write, pero
+  //   con muchos registros + fotos, el nodo raíz crece y las
+  //   queries fallan o devuelven solo el primer child.
+  //   Solución: solo guardar datos textuales livianos.
   async function registrar(profile) {
     const ok = await _initFirebase();
     if (!ok) return;
@@ -77,8 +86,8 @@ const LoginTracker = (() => {
         ts:     Date.now(),
         nombre: profile.nombre || 'Desconocido',
         cargo:  profile.cargo  || '',
-        email:  profile.email  || '',
-        foto:   profile.foto   || ''   // base64 completo desde Microsoft Graph
+        email:  profile.email  || ''
+        // foto: ← removida intencionalmente (excede límite Firebase)
       });
       console.log('[LoginTracker] ✅ Acceso registrado:', profile.email);
     } catch (e) {
@@ -118,24 +127,32 @@ const LoginTracker = (() => {
         const initials = (e.nombre || 'U')
           .split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
-        const avatarHTML = e.foto
-          ? `<img class="lt-avatar" src="${e.foto}" alt="${initials}"
+        // FIX: avatar siempre con iniciales (foto ya no se persiste en Firebase).
+        // Si en el futuro se quiere mostrar la foto del usuario ACTIVO,
+        // se puede comparar e.email con window._msUserProfile?.email
+        // y usar window._msUserProfile?.foto solo para ese chip.
+        const isCurrentUser = window._msUserProfile?.email &&
+                              e.email === window._msUserProfile.email;
+        const fotoActual    = isCurrentUser ? window._msUserProfile?.foto : null;
+
+        const avatarHTML = fotoActual
+          ? `<img class="lt-avatar" src="${fotoActual}" alt="${initials}"
                onerror="this.outerHTML='<div class=\\'lt-initials\\'>${initials}</div>'">`
           : `<div class="lt-initials">${initials}</div>`;
 
-        // Hora legible local
+        // FIX: fechaLocal ahora se usa en el chip (antes se calculaba pero se ignoraba)
         const fechaLocal = new Date(e.ts).toLocaleString('es-CO', {
           day: '2-digit', month: '2-digit',
           hour: '2-digit', minute: '2-digit'
         });
 
         return `
-          <div class="lt-chip" title="${e.email ? e.email : ''}">
+          <div class="lt-chip" title="${e.email || ''}">
             ${avatarHTML}
             <div>
               <div class="lt-name">${e.nombre || 'Desconocido'}</div>
               <div class="lt-meta">
-                ${_timeAgo(e.ts)}${e.cargo ? ' · ' + e.cargo : ''}
+                ${_timeAgo(e.ts)} · ${fechaLocal}${e.cargo ? ' · ' + e.cargo : ''}
               </div>
             </div>
           </div>`;
@@ -218,7 +235,6 @@ const LoginTracker = (() => {
 
     _injectStyles();
 
-    // Crear sección
     const section = document.createElement('div');
     section.id = 'lt-section';
     section.style.cssText = `
@@ -267,7 +283,6 @@ const LoginTracker = (() => {
     panelHome.appendChild(section);
     _panelRendered = true;
 
-    // Inicializar Firebase y cargar datos
     const ok = await _initFirebase();
     if (!ok) {
       document.getElementById('lt-list').innerHTML = `
@@ -280,12 +295,10 @@ const LoginTracker = (() => {
 
     await _loadAndRender();
 
-    // Refrescar cada 30 segundos automáticamente
     if (_refreshInterval) clearInterval(_refreshInterval);
     _refreshInterval = setInterval(_loadAndRender, 30000);
   }
 
-  // Expuesta para el botón de actualizar
   async function _refresh() {
     const btn = document.getElementById('lt-refresh-btn');
     if (btn) { btn.textContent = '↺ ...'; btn.disabled = true; }
