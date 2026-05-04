@@ -242,7 +242,11 @@ function _invRenderKPIs() {
   const rows = INV_FILTERED;
   const total = sumCantidad(rows);
 
-  const unBodega   = sumCantidad(rows.filter(r => INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim())));
+  const INGENICO_NAME = 'ALMACEN INGENICO - PROVEEDOR WOMPI';
+  const unBodega   = sumCantidad(rows.filter(r => {
+    const loc = (r['Nombre de la ubicación']||'').trim();
+    return INV_BODEGAS.has(loc) && loc !== INGENICO_NAME;
+  }));
   const unComercio = sumCantidad(rows.filter(r => (r['Tipo de ubicación']||'').trim() === 'Site'));
   const unTecnico  = sumCantidad(rows.filter(r => (r['Tipo de ubicación']||'').trim() === 'Staff'));
   const unGW       = sumCantidad(rows.filter(r => GW_RE.test((r['Código de ubicación']||'').trim())));
@@ -251,7 +255,7 @@ function _invRenderKPIs() {
 
   const kpis = [
     { label:'TOTAL INVENTARIO', value:fmtN(total),      sub1:'100% del stock',               sub2:INV_BODEGAS.size + ' bodegas Wompi',       color:INV_PALETTE.total,    icon:'📦', wide:true,  drillRows: rows,                                                                                                                                     drillTitle:'Total Inventario' },
-    { label:'EN BODEGA',        value:fmtN(unBodega),   sub1:fmtPct(unBodega,total),         sub2:fmtN(unBodega)+' uds',   color:INV_PALETTE.bodega,   icon:'🏪', drillRows: rows.filter(function(r){ return INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim()); }),                                                     drillTitle:'Stock en Bodega' },
+    { label:'EN BODEGA',        value:fmtN(unBodega),   sub1:fmtPct(unBodega,total),         sub2:fmtN(unBodega)+' uds',   color:INV_PALETTE.bodega,   icon:'🏪', drillRows: rows.filter(function(r){ var loc=(r['Nombre de la ubicación']||'').trim(); return INV_BODEGAS.has(loc) && loc !== 'ALMACEN INGENICO - PROVEEDOR WOMPI'; }),                                                     drillTitle:'Stock en Bodega' },
     { label:'EN COMERCIO',      value:fmtN(unComercio), sub1:fmtPct(unComercio,total),       sub2:fmtN(unComercio)+' uds', color:INV_PALETTE.comercio, icon:'🏬', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Site'; }),                                                                  drillTitle:'Stock en Comercio (Site)' },
     { label:'TÉC. LINEACOM',    value:fmtN(unTecnico),  sub1:fmtPct(unTecnico,total),        sub2:fmtN(unTecnico)+' uds',  color:INV_PALETTE.tecnico,  icon:'🔧', drillRows: rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Staff'; }),                                                                 drillTitle:'Stock Técnicos Lineacom (Staff)' },
     { label:'GEST. & EMPL. WOMPI',    value:fmtN(unGW),       sub1:fmtPct(unGW,total),             sub2:fmtN(unGW)+' uds',       color:INV_PALETTE.gestores, icon:'👤', drillRows: rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }),                                                              drillTitle:'Stock Gestores & Empleados (GW)' },
@@ -333,7 +337,8 @@ function _invRenderCharts() {
   }
 
   // ── Datos — calculados TODOS antes de tocar el DOM ─────────────
-  const unBodega   = sumCantidad(rows.filter(function(r){ return INV_BODEGAS.has((r['Nombre de la ubicación']||'').trim()); }));
+  const _ingenicoName = 'ALMACEN INGENICO - PROVEEDOR WOMPI';
+  const unBodega   = sumCantidad(rows.filter(function(r){ var loc=(r['Nombre de la ubicación']||'').trim(); return INV_BODEGAS.has(loc) && loc !== _ingenicoName; }));
   const unComercio = sumCantidad(rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Site'; }));
   const unTecnico  = sumCantidad(rows.filter(function(r){ return (r['Tipo de ubicación']||'').trim() === 'Staff'; }));
   const unGW       = sumCantidad(rows.filter(function(r){ return GW_RE.test((r['Código de ubicación']||'').trim()); }));
