@@ -43,7 +43,7 @@ const PR_CONFIG = [
     titulo:    'Punto de Reorden · Datáfonos CB',
     icono:     '📱',
     // Hoja PR-Dataf-CB del Excel
-    punto:     610,      // Punto Reorden Datafonos CB (redondeado de 610.5)
+    punto:     610.5,    // Punto Reorden Datafonos CB
     solicitud: 685,
     stockMin:  58,
     stockMax:  1210,
@@ -376,13 +376,13 @@ window.renderPuntosReorden = function() {
           }
           html += '          <div class="pr-formula-step"><span class="pr-fs-label">Demanda aperturas / mes</span><span class="pr-fs-val">' + f.demandaAperturas + ' uds</span></div>';
           html += '          <div class="pr-formula-step"><span class="pr-fs-label">Colchón de seguridad (20%)</span><span class="pr-fs-val">→ Total requeridos: ' + f.totalRequeridos + ' uds / mes</span></div>';
-          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Recuperación de cierres</span><span class="pr-fs-val">− ' + f.reusoMes + ' uds / mes (90% de ' + (cfg.id === 'datafonos-cb' ? f.cierresMes + ' cierres × ' + f.datafonosPorCierre : f.cierresMes + ' cierres × ' + f.pinpadsPorCierre) + ')</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Recuperación de cierres</span><span class="pr-fs-val">− ' + f.reusoMes + ' uds / mes (' + (cfg.id === 'datafonos-cb' ? f.cierresMes + ' cierres × ' + f.datafonosPorCierre : f.cierresMes + ' cierres × ' + f.pinpadsPorCierre) + ' × 90% recuperación)</span></div>';
         } else if (cfg.id === 'datafonos-vp') {
           html += '          <div class="pr-formula-step"><span class="pr-fs-label">Instalaciones prom. mes (Wompi)</span><span class="pr-fs-val">' + f.instalacionesMes + ' instalaciones</span></div>';
           html += '          <div class="pr-formula-step"><span class="pr-fs-label">VP por instalación</span><span class="pr-fs-val">× ' + f.vpPorInstalacion + '</span></div>';
           html += '          <div class="pr-formula-step"><span class="pr-fs-label">Demanda instalaciones / mes</span><span class="pr-fs-val">' + f.demandaInstalaciones + ' uds</span></div>';
           html += '          <div class="pr-formula-step"><span class="pr-fs-label">Colchón de seguridad (20%)</span><span class="pr-fs-val">→ Total requeridos: ' + f.totalRequeridos + ' uds / mes</span></div>';
-          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Recuperación de cierres</span><span class="pr-fs-val">− ' + f.reusoMes + ' uds / mes (' + f.recuperacion * 100 + '% × ' + f.cierresMes + ' cierres)</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Recuperación de cierres</span><span class="pr-fs-val">− ' + f.reusoMes + ' uds / mes (' + f.cierresMes + ' cierres × ' + f.vpPorCierre + ' VP/cierre × 90% recuperación)</span></div>';
         }
 
         html += '          <div class="pr-formula-step"><span class="pr-fs-label">Lead Time entrega</span><span class="pr-fs-val">' + f.leadTime + ' meses</span></div>';
