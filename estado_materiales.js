@@ -58,12 +58,12 @@ let EM_SIM_SEARCH   = '';
 let EM_SIM_FILTERED = [];
 let _EM_KPI_ROWS    = [];
 
-// Filtros globales de Estado Materiales
-let EM_F_NEGOCIO  = '';   // 'CB' | 'VP' | ''
-let EM_F_UBICV3   = '';   // valor de invUbicacionV3 | ''
-let EM_F_BODEGA   = '';   // nombre de bodega exacto | ''
-let EM_F_SERIAL   = '';   // número de serie exacto | ''
-let EM_F_REF      = '';   // referencia exacta | ''
+// Filtros globales de Estado Materiales (multi-select = Set de valores seleccionados, vacío = todos)
+let EM_F_NEGOCIO  = new Set();   // Set<'CB'|'VP'>
+let EM_F_UBICV3   = new Set();   // Set<string> de invUbicacionV3
+let EM_F_BODEGA   = new Set();   // Set<string> de nombres de bodega
+let EM_F_SERIAL   = '';          // número de serie exacto (texto libre)
+let EM_F_REF      = new Set();   // Set<string> de referencias exactas
 
 // ══════════════════════════════════════════════════════════════════
 //  HELPERS DE DATOS
@@ -472,23 +472,23 @@ function _emApplyGlobalFilters() {
   // Función de filtro común
   function applyFilters(arr) {
     return arr.filter(r => {
-      if (EM_F_NEGOCIO) {
+      if (EM_F_NEGOCIO.size) {
         const neg = (typeof invNegocio === 'function') ? invNegocio(r['Subtipo']) : (()=>{const s=(r['Subtipo']||'').trim().toUpperCase();return(s==='WOMPI VP'||s==='EQUIPO VP'||s==='VP')?'VP':'CB';})();
-        if (neg !== EM_F_NEGOCIO) return false;
+        if (!EM_F_NEGOCIO.has(neg)) return false;
       }
-      if (EM_F_UBICV3) {
+      if (EM_F_UBICV3.size) {
         const ubv3 = (typeof invUbicacionV3 === 'function') ? invUbicacionV3(r) : '';
-        if (ubv3 !== EM_F_UBICV3) return false;
+        if (!EM_F_UBICV3.has(ubv3)) return false;
       }
-      if (EM_F_BODEGA) {
-        if ((r['Nombre de la ubicación']||'').trim() !== EM_F_BODEGA) return false;
+      if (EM_F_BODEGA.size) {
+        if (!EM_F_BODEGA.has((r['Nombre de la ubicación']||'').trim())) return false;
       }
       if (EM_F_SERIAL) {
         const s = (r['Número de serie']||r['Numero de serie']||r['Serial']||'').trim();
         if (s !== EM_F_SERIAL) return false;
       }
-      if (EM_F_REF) {
-        if ((r['Nombre']||'').trim() !== EM_F_REF) return false;
+      if (EM_F_REF.size) {
+        if (!EM_F_REF.has((r['Nombre']||'').trim())) return false;
       }
       return true;
     });
@@ -1127,59 +1127,303 @@ window.emExportSimExcel=function(){
 //  FILTROS GLOBALES — funciones auxiliares
 // ══════════════════════════════════════════════════════════════════
 
-// Autocomplete para bodega
-let _emAcBodegaTimer = null;
-window._emAcBodega = function(val) {
-  clearTimeout(_emAcBodegaTimer);
-  _emAcBodegaTimer = setTimeout(() => {
-    const ac = document.getElementById('em-f-bodega-ac');
-    if (!ac) return;
-    const q = val.trim().toLowerCase();
-    const raw = _emGetRaw() || [];
-    const bodegas = (typeof INV_BODEGAS !== 'undefined' ? INV_BODEGAS : null) || window.INV_BODEGAS;
-    const opts = [...new Set(raw.filter(r => bodegas && bodegas.has((r['Nombre de la ubicación']||'').trim())).map(r => (r['Nombre de la ubicación']||'').trim()).filter(Boolean))].sort();
-    const matches = q ? opts.filter(o => o.toLowerCase().includes(q)) : opts;
-    if (!matches.length) { ac.style.display = 'none'; return; }
-    ac.innerHTML = matches.slice(0, 30).map(o => `<div style="padding:7px 12px;cursor:pointer;color:#e2e8f0;border-bottom:1px solid rgba(255,255,255,.04);" onmousedown="event.preventDefault();_emAcBodegaSelect('${o.replace(/'/g,"\\'")}')" onmouseover="this.style.background='rgba(176,242,174,.08)'" onmouseout="this.style.background=''">${o}</div>`).join('');
-    ac.style.display = 'block';
-  }, 120);
-};
-window._emAcBodegaSelect = function(val) {
-  const inp = document.getElementById('em-f-bodega');
-  if (inp) inp.value = val;
-  const ac = document.getElementById('em-f-bodega-ac');
-  if (ac) ac.style.display = 'none';
-  emApplyGlobalFilters();
-};
-window._emAcBodegaHide = function() {
-  setTimeout(() => { const ac = document.getElementById('em-f-bodega-ac'); if (ac) ac.style.display = 'none'; }, 200);
+// ══════════════════════════════════════════════════════════════════
+//  MULTI-SELECT DROPDOWN — Estilo filtro Excel
+//  Usado por: Negocio, Ubicación V3, Bodega, Referencia
+// ══════════════════════════════════════════════════════════════════
+
+// Inyectar estilos del multi-select una sola vez
+function _emInjectMsStyles() {
+  if (document.getElementById('em-ms-styles')) return;
+  const st = document.createElement('style');
+  st.id = 'em-ms-styles';
+  st.textContent = `
+    .em-ms-wrap { position:relative; }
+    .em-ms-btn {
+      display:flex; align-items:center; justify-content:space-between; gap:6px;
+      width:100%; background:rgba(255,255,255,.06);
+      border:1px solid rgba(176,242,174,.2); border-radius:8px;
+      color:#e2e8f0; padding:7px 10px; font-size:12px;
+      font-family:'Outfit',sans-serif; cursor:pointer; outline:none;
+      transition:border-color .15s; white-space:nowrap; overflow:hidden;
+      text-overflow:ellipsis; box-sizing:border-box;
+    }
+    .em-ms-btn:hover, .em-ms-btn.open { border-color:rgba(176,242,174,.55); }
+    .em-ms-btn .em-ms-badge {
+      background:#B0F2AE; color:#0a1a12; font-size:10px; font-weight:700;
+      padding:1px 6px; border-radius:10px; flex-shrink:0; margin-left:4px;
+    }
+    .em-ms-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; min-width:100%;
+      background:#1a1f2e; border:1px solid rgba(176,242,174,.3);
+      border-radius:10px; z-index:500; box-shadow:0 8px 32px rgba(0,0,0,.6);
+      overflow:hidden; animation:emMsDrop .12s ease;
+      max-width:340px;
+    }
+    @keyframes emMsDrop {
+      from { opacity:0; transform:translateY(-6px); }
+      to   { opacity:1; transform:none; }
+    }
+    .em-ms-search {
+      width:100%; box-sizing:border-box;
+      background:rgba(255,255,255,.07); border:none;
+      border-bottom:1px solid rgba(255,255,255,.08);
+      color:#FAFAFA; padding:9px 12px; font-size:12px;
+      font-family:'Outfit',sans-serif; outline:none;
+    }
+    .em-ms-actions {
+      display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,.06);
+    }
+    .em-ms-actions button {
+      flex:1; background:transparent; border:none;
+      color:#B0F2AE; font-size:10px; font-family:'Outfit',sans-serif;
+      padding:5px 8px; cursor:pointer; transition:background .12s;
+    }
+    .em-ms-actions button:hover { background:rgba(176,242,174,.08); }
+    .em-ms-list {
+      max-height:220px; overflow-y:auto; padding:4px 0;
+    }
+    .em-ms-list::-webkit-scrollbar { width:5px; }
+    .em-ms-list::-webkit-scrollbar-track { background:transparent; }
+    .em-ms-list::-webkit-scrollbar-thumb { background:rgba(176,242,174,.2); border-radius:3px; }
+    .em-ms-item {
+      display:flex; align-items:center; gap:9px;
+      padding:7px 13px; cursor:pointer;
+      font-size:12px; font-family:'Outfit',sans-serif;
+      color:#e2e8f0; transition:background .1s;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .em-ms-item:hover { background:rgba(176,242,174,.07); }
+    .em-ms-item input[type=checkbox] {
+      accent-color:#B0F2AE; width:13px; height:13px; flex-shrink:0; cursor:pointer;
+    }
+    .em-ms-empty {
+      padding:12px; text-align:center; color:#475569;
+      font-size:11px; font-family:'Outfit',sans-serif;
+    }
+  `;
+  document.head.appendChild(st);
+}
+
+// Cierra todos los dropdowns abiertos excepto el indicado
+function _emMsCloseAll(exceptId) {
+  document.querySelectorAll('.em-ms-dropdown').forEach(d => {
+    if (d.id !== exceptId) {
+      d.remove();
+      const btn = document.getElementById(d.dataset.btnId);
+      if (btn) btn.classList.remove('open');
+    }
+  });
+}
+
+// Refresca el texto del botón de un filtro multi-select
+function _emMsRefreshBtn(filterId) {
+  const btn = document.querySelector(`[data-ms-id="${filterId}"]`);
+  if (!btn) return;
+  const setMap = {
+    'em-f-negocio': EM_F_NEGOCIO,
+    'em-f-ubicv3':  EM_F_UBICV3,
+    'em-f-bodega':  EM_F_BODEGA,
+    'em-f-ref':     EM_F_REF,
+  };
+  const sel = setMap[filterId];
+  const placeholder = btn.dataset.placeholder || 'Todos';
+  const labelEl = btn.querySelector('.em-ms-label');
+  const badgeEl = btn.querySelector('.em-ms-badge');
+  if (!sel || sel.size === 0) {
+    if (labelEl) labelEl.textContent = placeholder;
+    if (badgeEl) badgeEl.remove();
+  } else {
+    if (labelEl) labelEl.textContent = sel.size === 1 ? [...sel][0] : `${sel.size} seleccionados`;
+    if (!badgeEl) {
+      const b = document.createElement('span');
+      b.className = 'em-ms-badge';
+      b.textContent = sel.size;
+      btn.appendChild(b);
+    } else {
+      badgeEl.textContent = sel.size;
+    }
+  }
+}
+
+// Abre/cierra el dropdown para un filtro multi-select
+window._emMsToggle = function(filterId, allOptions, filterSet, onApply) {
+  _emInjectMsStyles();
+  const dropId = `em-ms-drop-${filterId}`;
+  const existing = document.getElementById(dropId);
+  const btn = document.querySelector(`[data-ms-id="${filterId}"]`);
+  if (existing) {
+    existing.remove();
+    if (btn) btn.classList.remove('open');
+    return;
+  }
+  _emMsCloseAll(dropId);
+  if (btn) btn.classList.add('open');
+
+  const wrap = btn ? btn.closest('.em-ms-wrap') : null;
+  if (!wrap) return;
+
+  const drop = document.createElement('div');
+  drop.className = 'em-ms-dropdown';
+  drop.id = dropId;
+  drop.dataset.btnId = `[data-ms-id="${filterId}"]`;
+
+  // Búsqueda
+  const search = document.createElement('input');
+  search.className = 'em-ms-search';
+  search.placeholder = '🔍 Buscar...';
+  drop.appendChild(search);
+
+  // Acciones rápidas
+  const actions = document.createElement('div');
+  actions.className = 'em-ms-actions';
+  actions.innerHTML = `
+    <button onmousedown="event.preventDefault();_emMsSelectAll('${filterId}')">✔ Seleccionar todo</button>
+    <button onmousedown="event.preventDefault();_emMsClearAll('${filterId}')">✕ Limpiar</button>
+  `;
+  drop.appendChild(actions);
+
+  // Lista
+  const list = document.createElement('div');
+  list.className = 'em-ms-list';
+  list.id = `em-ms-list-${filterId}`;
+  drop.appendChild(list);
+
+  // Guardar opciones en el drop para acceso desde selectAll/clearAll
+  drop._allOptions = allOptions;
+  drop._filterSet = filterSet;
+  drop._onApply = onApply;
+
+  function renderList(query) {
+    const q = (query||'').toLowerCase().trim();
+    const opts = q ? allOptions.filter(o => o.toLowerCase().includes(q)) : allOptions;
+    if (!opts.length) {
+      list.innerHTML = `<div class="em-ms-empty">Sin coincidencias</div>`;
+      return;
+    }
+    list.innerHTML = opts.map(o => {
+      const checked = filterSet.has(o) ? 'checked' : '';
+      const safe = o.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+      return `<label class="em-ms-item">
+        <input type="checkbox" ${checked}
+          onchange="_emMsToggleOption('${filterId}','${safe}',this.checked)">
+        <span title="${safe}">${o}</span>
+      </label>`;
+    }).join('');
+  }
+
+  renderList('');
+  search.oninput = () => renderList(search.value);
+
+  wrap.appendChild(drop);
+
+  // Cerrar al hacer click fuera
+  setTimeout(() => {
+    function outsideClick(e) {
+      if (!wrap.contains(e.target)) {
+        drop.remove();
+        if (btn) btn.classList.remove('open');
+        document.removeEventListener('mousedown', outsideClick);
+      }
+    }
+    document.addEventListener('mousedown', outsideClick);
+  }, 0);
 };
 
-// Autocomplete para referencia
-let _emAcRefTimer = null;
-window._emAcRef = function(val) {
-  clearTimeout(_emAcRefTimer);
-  _emAcRefTimer = setTimeout(() => {
-    const ac = document.getElementById('em-f-ref-ac');
-    if (!ac) return;
-    const q = val.trim().toLowerCase();
-    const raw = _emGetRaw() || [];
-    const allRefs = [...new Set(raw.map(r => (r['Nombre']||'').trim()).filter(Boolean))].sort();
-    const matches = q ? allRefs.filter(o => o.toLowerCase().includes(q)) : allRefs;
-    if (!matches.length) { ac.style.display = 'none'; return; }
-    ac.innerHTML = matches.slice(0, 20).map(o => `<div style="padding:7px 12px;cursor:pointer;color:#e2e8f0;border-bottom:1px solid rgba(255,255,255,.04);" onmousedown="event.preventDefault();_emAcRefSelect('${o.replace(/'/g,"\\'")}')" onmouseover="this.style.background='rgba(176,242,174,.08)'" onmouseout="this.style.background=''">${o}</div>`).join('');
-    ac.style.display = 'block';
-  }, 120);
-};
-window._emAcRefSelect = function(val) {
-  const inp = document.getElementById('em-f-ref');
-  if (inp) inp.value = val;
-  const ac = document.getElementById('em-f-ref-ac');
-  if (ac) ac.style.display = 'none';
+// Marca/desmarca una opción individual
+window._emMsToggleOption = function(filterId, value, checked) {
+  const setMap = {
+    'em-f-negocio': () => { if(checked) EM_F_NEGOCIO.add(value); else EM_F_NEGOCIO.delete(value); },
+    'em-f-ubicv3':  () => { if(checked) EM_F_UBICV3.add(value);  else EM_F_UBICV3.delete(value);  },
+    'em-f-bodega':  () => { if(checked) EM_F_BODEGA.add(value);  else EM_F_BODEGA.delete(value);  },
+    'em-f-ref':     () => { if(checked) EM_F_REF.add(value);     else EM_F_REF.delete(value);     },
+  };
+  if (setMap[filterId]) setMap[filterId]();
+  _emMsRefreshBtn(filterId);
   emApplyGlobalFilters();
 };
-window._emAcRefHide = function() {
-  setTimeout(() => { const ac = document.getElementById('em-f-ref-ac'); if (ac) ac.style.display = 'none'; }, 200);
+
+// Seleccionar todo (de las opciones visibles en el dropdown)
+window._emMsSelectAll = function(filterId) {
+  const drop = document.getElementById(`em-ms-drop-${filterId}`);
+  if (!drop) return;
+  const checkboxes = drop.querySelectorAll('input[type=checkbox]');
+  checkboxes.forEach(cb => {
+    if (!cb.checked) {
+      cb.checked = true;
+      const label = cb.closest('.em-ms-item')?.querySelector('span');
+      if (label) _emMsToggleOptionDirect(filterId, label.title || label.textContent, true);
+    }
+  });
+  _emMsRefreshBtn(filterId);
+  emApplyGlobalFilters();
+};
+
+// Limpiar todo
+window._emMsClearAll = function(filterId) {
+  const setMap = {
+    'em-f-negocio': () => { EM_F_NEGOCIO.clear(); },
+    'em-f-ubicv3':  () => { EM_F_UBICV3.clear();  },
+    'em-f-bodega':  () => { EM_F_BODEGA.clear();  },
+    'em-f-ref':     () => { EM_F_REF.clear();     },
+  };
+  if (setMap[filterId]) setMap[filterId]();
+  const drop = document.getElementById(`em-ms-drop-${filterId}`);
+  if (drop) drop.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  _emMsRefreshBtn(filterId);
+  emApplyGlobalFilters();
+};
+
+function _emMsToggleOptionDirect(filterId, value, add) {
+  const setMap = {
+    'em-f-negocio': add ? () => EM_F_NEGOCIO.add(value)  : () => EM_F_NEGOCIO.delete(value),
+    'em-f-ubicv3':  add ? () => EM_F_UBICV3.add(value)   : () => EM_F_UBICV3.delete(value),
+    'em-f-bodega':  add ? () => EM_F_BODEGA.add(value)   : () => EM_F_BODEGA.delete(value),
+    'em-f-ref':     add ? () => EM_F_REF.add(value)      : () => EM_F_REF.delete(value),
+  };
+  if (setMap[filterId]) setMap[filterId]();
+}
+
+// Retorna las opciones disponibles para cada filtro según los datos actuales
+function _emGetMsOptions(filterId) {
+  const raw = _emGetRaw() || [];
+  const bodegas = (typeof INV_BODEGAS !== 'undefined' ? INV_BODEGAS : null) || window.INV_BODEGAS;
+  switch(filterId) {
+    case 'em-f-negocio':
+      return ['CB', 'VP'];
+    case 'em-f-ubicv3':
+      return [
+        'En bodega','En corresponsal','Gestor LineaCom','Gestor Wompi',
+        'Empleados Wompi','En operador Logistico','En distribución','En Ingenico'
+      ];
+    case 'em-f-bodega': {
+      const opts = [...new Set(
+        raw.filter(r => bodegas && bodegas.has((r['Nombre de la ubicación']||'').trim()))
+           .map(r => (r['Nombre de la ubicación']||'').trim())
+           .filter(Boolean)
+      )].sort();
+      return opts;
+    }
+    case 'em-f-ref': {
+      const opts = [...new Set(
+        raw.map(r => (r['Nombre']||'').trim()).filter(Boolean)
+      )].sort();
+      return opts;
+    }
+    default: return [];
+  }
+}
+
+// Lanza el dropdown de un filtro multi-select
+window._emOpenMs = function(filterId) {
+  const opts = _emGetMsOptions(filterId);
+  const setMap = {
+    'em-f-negocio': EM_F_NEGOCIO,
+    'em-f-ubicv3':  EM_F_UBICV3,
+    'em-f-bodega':  EM_F_BODEGA,
+    'em-f-ref':     EM_F_REF,
+  };
+  _emMsToggle(filterId, opts, setMap[filterId] || new Set(), emApplyGlobalFilters);
 };
 
 // Serial — debounce directo
@@ -1194,11 +1438,11 @@ function _emRenderFilterTags() {
   const tag = document.getElementById('em-filtros-tag');
   if (!tag) return;
   const tags = [];
-  if (EM_F_NEGOCIO) tags.push({ label: `Negocio: ${EM_F_NEGOCIO}`, clear: () => { EM_F_NEGOCIO=''; const el=document.getElementById('em-f-negocio'); if(el)el.value=''; } });
-  if (EM_F_UBICV3)  tags.push({ label: `Ubic. V3: ${EM_F_UBICV3}`, clear: () => { EM_F_UBICV3=''; const el=document.getElementById('em-f-ubicv3'); if(el)el.value=''; } });
-  if (EM_F_BODEGA)  tags.push({ label: `Bodega: ${EM_F_BODEGA}`, clear: () => { EM_F_BODEGA=''; const el=document.getElementById('em-f-bodega'); if(el)el.value=''; } });
-  if (EM_F_SERIAL)  tags.push({ label: `Serial: ${EM_F_SERIAL}`, clear: () => { EM_F_SERIAL=''; const el=document.getElementById('em-f-serial'); if(el)el.value=''; } });
-  if (EM_F_REF)     tags.push({ label: `Ref: ${EM_F_REF}`, clear: () => { EM_F_REF=''; const el=document.getElementById('em-f-ref'); if(el)el.value=''; } });
+  if (EM_F_NEGOCIO.size) tags.push({ label: `Negocio: ${[...EM_F_NEGOCIO].join(', ')}`, clear: () => { EM_F_NEGOCIO=new Set(); _emMsRefreshBtn('em-f-negocio'); } });
+  if (EM_F_UBICV3.size)  tags.push({ label: `Ubic. V3: ${[...EM_F_UBICV3].join(', ')}`, clear: () => { EM_F_UBICV3=new Set(); _emMsRefreshBtn('em-f-ubicv3'); } });
+  if (EM_F_BODEGA.size)  tags.push({ label: `Bodega: ${EM_F_BODEGA.size > 1 ? EM_F_BODEGA.size+' seleccionadas' : [...EM_F_BODEGA][0]}`, clear: () => { EM_F_BODEGA=new Set(); _emMsRefreshBtn('em-f-bodega'); } });
+  if (EM_F_SERIAL)       tags.push({ label: `Serial: ${EM_F_SERIAL}`, clear: () => { EM_F_SERIAL=''; const el=document.getElementById('em-f-serial'); if(el)el.value=''; } });
+  if (EM_F_REF.size)     tags.push({ label: `Ref: ${EM_F_REF.size > 1 ? EM_F_REF.size+' seleccionadas' : [...EM_F_REF][0]}`, clear: () => { EM_F_REF=new Set(); _emMsRefreshBtn('em-f-ref'); } });
   tag.innerHTML = tags.map((t,i)=>`<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(176,242,174,.1);border:1px solid rgba(176,242,174,.25);border-radius:20px;padding:3px 10px 3px 12px;font-size:11px;color:#B0F2AE;font-family:'Outfit',sans-serif;" data-tag-idx="${i}">${t.label}<button onclick="_emClearTag(${i})" style="background:transparent;border:none;color:#B0F2AE;cursor:pointer;font-size:13px;line-height:1;padding:0 0 1px 2px;" title="Quitar filtro">×</button></span>`).join('');
   window._emTagsClear = tags.map(t=>t.clear);
 }
@@ -1208,11 +1452,9 @@ window._emClearTag = function(i) {
 
 // Función principal de aplicación de filtros globales
 window.emApplyGlobalFilters = function() {
-  EM_F_NEGOCIO = (document.getElementById('em-f-negocio')?.value||'').trim();
-  EM_F_UBICV3  = (document.getElementById('em-f-ubicv3')?.value||'').trim();
-  EM_F_BODEGA  = (document.getElementById('em-f-bodega')?.value||'').trim();
-  EM_F_SERIAL  = (document.getElementById('em-f-serial')?.value||'').trim();
-  EM_F_REF     = (document.getElementById('em-f-ref')?.value||'').trim();
+  // Los Sets se actualizan directamente desde los dropdowns multi-select
+  // Solo el serial sigue siendo texto libre
+  EM_F_SERIAL = (document.getElementById('em-f-serial')?.value||'').trim();
 
   _emRenderFilterTags();
   _emApplyGlobalFilters(); // reconstruye EM_DF_ALL y EM_SIM_ALL con filtros
@@ -1223,9 +1465,10 @@ window.emApplyGlobalFilters = function() {
 };
 
 window.emResetGlobalFilters = function() {
-  EM_F_NEGOCIO=''; EM_F_UBICV3=''; EM_F_BODEGA=''; EM_F_SERIAL=''; EM_F_REF='';
-  ['em-f-negocio','em-f-ubicv3'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
-  ['em-f-bodega','em-f-serial','em-f-ref'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  EM_F_NEGOCIO=new Set(); EM_F_UBICV3=new Set(); EM_F_BODEGA=new Set(); EM_F_SERIAL=''; EM_F_REF=new Set();
+  // Refrescar botones de todos los dropdowns multi-select
+  ['em-f-negocio','em-f-ubicv3','em-f-bodega','em-f-ref'].forEach(id => _emMsRefreshBtn(id));
+  const serialEl = document.getElementById('em-f-serial'); if(serialEl) serialEl.value='';
   _emRenderFilterTags();
   _emApplyGlobalFilters();
   EM_DF_SEARCH=''; EM_SIM_SEARCH=''; EM_DF_PAGE=1; EM_SIM_PAGE=1;
@@ -1250,7 +1493,7 @@ async function renderEstadoMateriales() {
   }
   Object.keys(EM_CHARTS).forEach(id=>{try{EM_CHARTS[id].destroy();}catch(e){}});
   EM_CHARTS={};
-  EM_F_NEGOCIO=''; EM_F_UBICV3=''; EM_F_BODEGA=''; EM_F_SERIAL=''; EM_F_REF='';
+  EM_F_NEGOCIO=new Set(); EM_F_UBICV3=new Set(); EM_F_BODEGA=new Set(); EM_F_SERIAL=''; EM_F_REF=new Set();
   _emBuildHTML();
   _emProcesar();
   requestAnimationFrame(()=>{ _emRenderDatafonos(); _emRenderSimcards(); });
