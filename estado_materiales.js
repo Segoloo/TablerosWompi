@@ -1480,7 +1480,11 @@ async function renderEstadoMateriales() {
   requestAnimationFrame(()=>{ _emRenderDatafonos(); _emRenderSimcards(); });
 }
 
+
+
 window.renderEstadoMateriales=renderEstadoMateriales;
 window._emApplyDfSearch=_emApplyDfSearch;
 window._emApplySimSearch=_emApplySimSearch;
 window._emRenderFilterTags=_emRenderFilterTags;
+
+
