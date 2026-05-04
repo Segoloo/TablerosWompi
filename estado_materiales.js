@@ -913,27 +913,8 @@ function _emBuildHTML() {
   const panel=document.getElementById('panel-estado-materiales');
   if(!panel) return;
 
-  // Inyectar CSS para forzar modo oscuro en los <select> al desplegar opciones
-  if (!document.getElementById('em-select-dark-style')) {
-    const st = document.createElement('style');
-    st.id = 'em-select-dark-style';
-    st.textContent = `
-      #em-f-negocio, #em-f-ubicv3 {
-        background-color: #1a1f2e !important;
-        color: #e2e8f0 !important;
-        color-scheme: dark;
-      }
-      #em-f-negocio option, #em-f-ubicv3 option {
-        background-color: #1a1f2e !important;
-        color: #e2e8f0 !important;
-      }
-      #em-f-negocio:focus, #em-f-ubicv3:focus {
-        background-color: #1a1f2e !important;
-        color: #e2e8f0 !important;
-      }
-    `;
-    document.head.appendChild(st);
-  }
+  // Inyectar estilos multi-select desde el inicio (no esperar primer click)
+  _emInjectMsStyles();
 
   const _cc=(title,sub,cid,h='260px',extra='')=>`
     <div style="background:linear-gradient(145deg,rgba(10,26,18,.95),rgba(8,20,14,.9));border:1px solid rgba(223,255,97,.1);border-radius:18px;padding:22px 24px 18px;position:relative;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.4);${extra}">
@@ -955,44 +936,43 @@ function _emBuildHTML() {
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
 
-        <!-- Tipo de Negocio -->
+        <!-- Tipo de Negocio — Multi-select Excel -->
         <div style="display:flex;flex-direction:column;gap:5px;min-width:140px;">
           <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Tipo Negocio</label>
-          <select id="em-f-negocio" onchange="emApplyGlobalFilters()" style="background:#1a1f2e;border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;color-scheme:dark;">
-            <option value="">Todos</option>
-            <option value="CB">CB</option>
-            <option value="VP">VP</option>
-          </select>
-        </div>
-
-        <!-- Ubicación V3 -->
-        <div style="display:flex;flex-direction:column;gap:5px;min-width:180px;">
-          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Ubicación (V3)</label>
-          <select id="em-f-ubicv3" onchange="emApplyGlobalFilters()" style="background:#1a1f2e;border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;cursor:pointer;color-scheme:dark;">
-            <option value="">Todas</option>
-            <option value="En bodega">En bodega</option>
-            <option value="En corresponsal">En corresponsal</option>
-            <option value="Gestor LineaCom">Gestor LineaCom</option>
-            <option value="Gestor Wompi">Gestor Wompi</option>
-            <option value="Empleados Wompi">Empleados Wompi</option>
-            <option value="En operador Logistico">En operador Logístico</option>
-            <option value="En distribución">En distribución</option>
-            <option value="En Ingenico">En Ingenico</option>
-          </select>
-        </div>
-
-        <!-- Bodega -->
-        <div style="display:flex;flex-direction:column;gap:5px;min-width:200px;flex:1;">
-          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Bodega</label>
-          <div style="position:relative;">
-            <input id="em-f-bodega" type="text" placeholder="Todas las bodegas..." autocomplete="off"
-              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;"
-              oninput="_emAcBodega(this.value)" onblur="_emAcBodegaHide()">
-            <div id="em-f-bodega-ac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#181715;border:1px solid rgba(176,242,174,.2);border-radius:0 0 8px 8px;max-height:200px;overflow-y:auto;z-index:100;font-size:12px;font-family:'Outfit',sans-serif;"></div>
+          <div class="em-ms-wrap">
+            <button class="em-ms-btn" data-ms-id="em-f-negocio" data-placeholder="Todos"
+              onclick="_emOpenMs('em-f-negocio')">
+              <span class="em-ms-label">Todos</span>
+              <span style="opacity:.5;font-size:10px;flex-shrink:0;">▾</span>
+            </button>
           </div>
         </div>
 
-        <!-- Número de Serie -->
+        <!-- Ubicación V3 — Multi-select Excel -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:190px;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Ubicación (V3)</label>
+          <div class="em-ms-wrap">
+            <button class="em-ms-btn" data-ms-id="em-f-ubicv3" data-placeholder="Todas"
+              onclick="_emOpenMs('em-f-ubicv3')">
+              <span class="em-ms-label">Todas</span>
+              <span style="opacity:.5;font-size:10px;flex-shrink:0;">▾</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bodega — Multi-select Excel -->
+        <div style="display:flex;flex-direction:column;gap:5px;min-width:200px;flex:1;">
+          <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Bodega</label>
+          <div class="em-ms-wrap">
+            <button class="em-ms-btn" data-ms-id="em-f-bodega" data-placeholder="Todas las bodegas"
+              onclick="_emOpenMs('em-f-bodega')">
+              <span class="em-ms-label">Todas las bodegas</span>
+              <span style="opacity:.5;font-size:10px;flex-shrink:0;">▾</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Número de Serie — texto libre (sin cambio) -->
         <div style="display:flex;flex-direction:column;gap:5px;min-width:160px;flex:1;">
           <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Número de Serie</label>
           <input id="em-f-serial" type="text" placeholder="Buscar serial..." autocomplete="off"
@@ -1000,14 +980,15 @@ function _emBuildHTML() {
             oninput="_emGfSerialInput(this.value)">
         </div>
 
-        <!-- Referencia -->
+        <!-- Referencia — Multi-select Excel -->
         <div style="display:flex;flex-direction:column;gap:5px;min-width:200px;flex:1;">
           <label style="font-size:10px;font-weight:700;color:#7A7674;font-family:'Syne',sans-serif;letter-spacing:.5px;text-transform:uppercase;">Referencia</label>
-          <div style="position:relative;">
-            <input id="em-f-ref" type="text" placeholder="Todas las referencias..." autocomplete="off"
-              style="width:100%;box-sizing:border-box;background:rgba(255,255,255,.06);border:1px solid rgba(176,242,174,.2);border-radius:8px;color:#e2e8f0;padding:7px 10px;font-size:12px;font-family:'Outfit',sans-serif;outline:none;"
-              oninput="_emAcRef(this.value)" onblur="_emAcRefHide()">
-            <div id="em-f-ref-ac" style="display:none;position:absolute;top:100%;left:0;right:0;background:#181715;border:1px solid rgba(176,242,174,.2);border-radius:0 0 8px 8px;max-height:180px;overflow-y:auto;z-index:100;font-size:12px;font-family:'Outfit',sans-serif;"></div>
+          <div class="em-ms-wrap">
+            <button class="em-ms-btn" data-ms-id="em-f-ref" data-placeholder="Todas las referencias"
+              onclick="_emOpenMs('em-f-ref')">
+              <span class="em-ms-label">Todas las referencias</span>
+              <span style="opacity:.5;font-size:10px;flex-shrink:0;">▾</span>
+            </button>
           </div>
         </div>
 
@@ -1210,7 +1191,7 @@ function _emMsCloseAll(exceptId) {
   document.querySelectorAll('.em-ms-dropdown').forEach(d => {
     if (d.id !== exceptId) {
       d.remove();
-      const btn = document.getElementById(d.dataset.btnId);
+      const btn = document.querySelector(d.dataset.btnId);
       if (btn) btn.classList.remove('open');
     }
   });
