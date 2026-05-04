@@ -67,6 +67,13 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         <span class="dl-item-sub" id="dl-sub-inventario">&nbsp;</span>
       </div>
     </div>
+    <div class="dl-item">
+      <div class="dl-item-dot-wrap"><div class="dl-item-dot" id="dl-dot-detalles-tas"></div></div>
+      <div class="dl-item-info">
+        <span class="dl-item-text">rollos_detalles.json.gz</span>
+        <span class="dl-item-sub" id="dl-sub-detalles-tas">&nbsp;</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -166,6 +173,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
           <div class="sidebar-tab" id="sb-tab-rollos-detalle"  onclick="selectBoardTab('rollos','rollos-detalle')"><span class="sidebar-tab-icon">📋</span> Detalles por Movimientos</div>
           <div class="sidebar-tab" id="sb-tab-rollos-comercio" onclick="selectBoardTab('rollos','rollos-comercio')"><span class="sidebar-tab-icon">🏪</span> DetalleS por Comercio</div>
           <div class="sidebar-tab" id="sb-tab-rollos-consulta-masiva" onclick="selectBoardTab('rollos','rollos-consulta-masiva')"><span class="sidebar-tab-icon">🔍</span> Consulta Masiva</div>
+          <div class="sidebar-tab" id="sb-tab-rollos-detalles-tas" onclick="selectBoardTab('rollos','rollos-detalles-tas')"><span class="sidebar-tab-icon">📑</span> Detalles TAs</div>
         </div>
       </div>
 
@@ -1105,6 +1113,11 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
 
         </div><!-- /panel-rollos-consulta-masiva -->
 
+        <!-- ════ PANEL: Detalles TAs ════ -->
+        <div id="panel-rollos-detalles-tas" style="display:none;padding:20px 0 60px;">
+          <div id="dt-root" style="width:100%;"></div>
+        </div><!-- /panel-rollos-detalles-tas -->
+
       </div><!-- /main -->
     </div><!-- /content-area -->
   </div><!-- /app-body -->
@@ -1143,5 +1156,6 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="rollos_inventario.js"></script>
 <script src="rollos_comercio_v2.js"></script>
 <script src="consulta_masiva_rollos.js"></script>
+<script src="rollos_detalles_tas.js"></script>
 </body>
 </html>
