@@ -7,42 +7,140 @@
  */
 
 // ── Configuración de puntos de reorden ───────────────────────────
+// Valores extraídos del archivo Punto_reorden_cb_-_wompi.xlsx
 const PR_CONFIG = [
   {
     id:        'rollos',
     titulo:    'Punto de Reorden · Rollos',
     icono:     '🎞️',
-    punto:     400000,
+    // Hoja PR-Rollos del Excel
+    punto:     530611,   // Punto Reorden final (con stock de seguridad)
+    solicitud: 897958,   // Pedido sugerido
+    stockMin:  530611,
+    stockMax:  null,
     categoria: 'Rollos',
-    negocio:   null,          // CB + VP
+    negocio:   null,     // CB + VP
     acento:    '#DFFF61',
+    formula: {
+      leadTime:         1.5,      // meses
+      mesesAbast:       3,
+      demandaMes:       244897.6, // Total Rollos Trim / 3
+      demandaTrim:      734692.8, // rollos / trimestre
+      puntoSinSeg:      367346.4, // Lead Time × demanda mensual
+      diasSeguridad:    20,       // días de stock de seguridad
+      stockSeguridad:   163265.1,
+      puntoFinal:       530611.5,
+      pedido:           897957.9,
+      componentes: [
+        { label: 'Distribución masiva (trim)',  valor: 650448,   unidad: 'rollos' },
+        { label: 'Aperturas (trim)',            valor: 19200,    unidad: 'rollos' },
+        { label: 'Órdenes de cambio (trim)',    valor: 65044.8,  unidad: 'rollos' },
+      ]
+    }
   },
   {
     id:        'datafonos-cb',
     titulo:    'Punto de Reorden · Datáfonos CB',
     icono:     '📱',
-    punto:     2322,
+    // Hoja PR-Dataf-CB del Excel
+    punto:     610,      // Punto Reorden Datafonos CB (redondeado de 610.5)
+    solicitud: 685,
+    stockMin:  58,
+    stockMax:  1210,
     categoria: 'Datáfonos',
     negocio:   'CB',
     acento:    '#99D1FC',
+    formula: {
+      leadTime:         4,        // meses
+      colchon:          0.20,     // 20% buffer de seguridad
+      aperturasMes:     200,
+      datafonosPorAp:   1.2,
+      demandaAperturas: 240,
+      incidentesMes:    0,
+      ocMes:            0,
+      totalRequeridos:  288,      // con colchón
+      cierresMes:       150,
+      datafonosPorCierre: 1.1,
+      recuperacion:     0.90,
+      reusoMes:         149,      // recuperados de cierres
+      datafonosNuevosMes: 91,     // nuevos necesarios (sin reuso)
+      puntoFinal:       610.5,
+      pedido:           685,
+      componentes: [
+        { label: 'Demanda aperturas / mes',   valor: 240,  unidad: 'uds' },
+        { label: 'Colchón de seguridad 20%',  valor: 48,   unidad: 'uds' },
+        { label: 'Recuperación de cierres',   valor: -149, unidad: 'uds' },
+        { label: 'Lead Time',                 valor: 4,    unidad: 'meses' },
+      ]
+    }
   },
   {
     id:        'pinpads-cb',
     titulo:    'Punto de Reorden · Pinpads CB',
     icono:     '🔢',
-    punto:     455,
+    // Hoja PR-Pinpad-CB del Excel
+    punto:     180,
+    solicitud: 198,
+    stockMin:  10,
+    stockMax:  202,
     categoria: 'Pin pad',
     negocio:   'CB',
     acento:    '#C084FC',
+    formula: {
+      leadTime:         4,        // meses
+      colchon:          0.20,
+      aperturasMes:     200,
+      pctConPinpad:     0.20,     // 20% de aperturas llevan pinpad
+      demandaAperturas: 40,
+      incidentesMes:    0,
+      ocMes:            0,
+      totalRequeridos:  48,       // con colchón
+      cierresMes:       200,
+      pinpadsPorCierre: 0.10,
+      recuperacion:     0.90,
+      reusoMes:         18,
+      puntoFinal:       180,
+      pedido:           198,
+      componentes: [
+        { label: 'Demanda aperturas / mes (20%)', valor: 40, unidad: 'uds' },
+        { label: 'Colchón de seguridad 20%',      valor: 8,  unidad: 'uds' },
+        { label: 'Recuperación de cierres',       valor: -18, unidad: 'uds' },
+        { label: 'Lead Time',                     valor: 4,  unidad: 'meses' },
+      ]
+    }
   },
   {
     id:        'datafonos-vp',
     titulo:    'Punto de Reorden · Datáfonos VP',
     icono:     '💳',
-    punto:     4500,
+    // Hoja PR-Dataf-VP del Excel
+    punto:     3906,
+    solicitud: 3915,
+    stockMin:  132,
+    stockMax:  2772,
     categoria: 'Datáfonos',
     negocio:   'VP',
     acento:    '#B0F2AE',
+    formula: {
+      leadTime:         4,        // meses
+      colchon:          0.20,
+      instalacionesMes: 500,      // proyección Wompi
+      vpPorInstalacion: 1.1,
+      demandaInstalaciones: 550,
+      totalRequeridos:  660,      // con colchón
+      cierresMes:       10,
+      vpPorCierre:      0.10,
+      recuperacion:     0.90,
+      reusoMes:         9,
+      puntoFinal:       3906,
+      pedido:           3915,
+      componentes: [
+        { label: 'Demanda instalaciones / mes', valor: 550, unidad: 'uds' },
+        { label: 'Colchón de seguridad 20%',    valor: 110, unidad: 'uds' },
+        { label: 'Recuperación de cierres',     valor: -9,  unidad: 'uds' },
+        { label: 'Lead Time',                   valor: 4,   unidad: 'meses' },
+      ]
+    }
   },
 ];
 
@@ -227,7 +325,81 @@ window.renderPuntosReorden = function() {
     html += '      <div class="pr-kpi-value" style="color:' + barColor + ';">' + _prPct(s.ratio) + '</div>';
     html += '      <div class="pr-kpi-sub">vs. punto de reorden</div>';
     html += '    </div>';
+    // KPI: Solicitud sugerida
+    if (cfg.solicitud) {
+      html += '    <div class="pr-kpi">';
+      html += '      <div class="pr-kpi-label">SOLICITUD</div>';
+      html += '      <div class="pr-kpi-value" style="color:#FFC04D;">' + _prFmt(cfg.solicitud) + '</div>';
+      html += '      <div class="pr-kpi-sub">pedido sugerido</div>';
+      html += '    </div>';
+    }
     html += '  </div>';
+
+    // ── Desglose de fórmula ────────────────────────────────────────
+    if (cfg.formula) {
+      var f = cfg.formula;
+      html += '  <details class="pr-formula">';
+      html += '    <summary class="pr-formula-summary">📐 Ver fórmula de cálculo</summary>';
+      html += '    <div class="pr-formula-body">';
+
+      // Fórmula rollos
+      if (cfg.id === 'rollos') {
+        html += '      <div class="pr-formula-eq">';
+        html += '        <span class="pr-formula-title">Punto Reorden = (Demanda mensual × Lead Time) + Stock de Seguridad</span>';
+        html += '        <div class="pr-formula-steps">';
+        html += '          <div class="pr-formula-step"><span class="pr-fs-label">Demanda trimestral</span><span class="pr-fs-val">' + _prFmt(Math.round(f.demandaTrim)) + ' rollos</span></div>';
+        html += '          <div class="pr-formula-step pr-formula-step-indent">';
+        if (f.componentes) f.componentes.forEach(function(c) {
+          html += '<div class="pr-formula-comp"><span>' + c.label + '</span><span>' + _prFmt(Math.round(c.valor)) + ' ' + c.unidad + '</span></div>';
+        });
+        html += '          </div>';
+        html += '          <div class="pr-formula-step"><span class="pr-fs-label">Demanda mensual</span><span class="pr-fs-val">' + _prFmt(Math.round(f.demandaTrim / 3)) + ' rollos / mes</span></div>';
+        html += '          <div class="pr-formula-step"><span class="pr-fs-label">Lead Time cadena</span><span class="pr-fs-val">' + f.leadTime + ' meses</span></div>';
+        html += '          <div class="pr-formula-step"><span class="pr-fs-label">P. Reorden sin seguridad</span><span class="pr-fs-val">' + _prFmt(Math.round(f.puntoSinSeg)) + ' rollos</span></div>';
+        html += '          <div class="pr-formula-step"><span class="pr-fs-label">Stock de seguridad (' + f.diasSeguridad + ' días)</span><span class="pr-fs-val">' + _prFmt(Math.round(f.stockSeguridad)) + ' rollos</span></div>';
+        html += '          <div class="pr-formula-step pr-formula-step-total"><span>PUNTO DE REORDEN FINAL</span><span style="color:' + cfg.acento + ';">' + _prFmt(Math.round(f.puntoFinal)) + ' rollos</span></div>';
+        html += '          <div class="pr-formula-step pr-formula-step-pedido"><span>Pedido sugerido (' + f.mesesAbast + ' meses)</span><span style="color:#FFC04D;">' + _prFmt(Math.round(f.pedido)) + ' rollos</span></div>';
+        html += '        </div>';
+        html += '      </div>';
+      } else {
+        // Fórmula dispositivos (CB y VP)
+        html += '      <div class="pr-formula-eq">';
+        html += '        <span class="pr-formula-title">Punto Reorden = (Demanda neta × Lead Time) + Stock Mínimo</span>';
+        html += '        <div class="pr-formula-steps">';
+
+        if (cfg.id === 'rollos') {
+          // ya manejado arriba
+        } else if (cfg.id === 'datafonos-cb' || cfg.id === 'pinpads-cb') {
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Aperturas prom. mes</span><span class="pr-fs-val">' + f.aperturasMes + ' aperturas</span></div>';
+          if (cfg.id === 'pinpads-cb') {
+            html += '          <div class="pr-formula-step pr-formula-step-indent"><div class="pr-formula-comp"><span>% aperturas con pinpad</span><span>' + _prPct(f.pctConPinpad) + '</span></div></div>';
+          }
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Demanda aperturas / mes</span><span class="pr-fs-val">' + f.demandaAperturas + ' uds</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Colchón de seguridad (20%)</span><span class="pr-fs-val">→ Total requeridos: ' + f.totalRequeridos + ' uds / mes</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Recuperación de cierres</span><span class="pr-fs-val">− ' + f.reusoMes + ' uds / mes (90% de ' + (cfg.id === 'datafonos-cb' ? f.cierresMes + ' cierres × ' + f.datafonosPorCierre : f.cierresMes + ' cierres × ' + f.pinpadsPorCierre) + ')</span></div>';
+        } else if (cfg.id === 'datafonos-vp') {
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Instalaciones prom. mes (Wompi)</span><span class="pr-fs-val">' + f.instalacionesMes + ' instalaciones</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">VP por instalación</span><span class="pr-fs-val">× ' + f.vpPorInstalacion + '</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Demanda instalaciones / mes</span><span class="pr-fs-val">' + f.demandaInstalaciones + ' uds</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Colchón de seguridad (20%)</span><span class="pr-fs-val">→ Total requeridos: ' + f.totalRequeridos + ' uds / mes</span></div>';
+          html += '          <div class="pr-formula-step"><span class="pr-fs-label">Recuperación de cierres</span><span class="pr-fs-val">− ' + f.reusoMes + ' uds / mes (' + f.recuperacion * 100 + '% × ' + f.cierresMes + ' cierres)</span></div>';
+        }
+
+        html += '          <div class="pr-formula-step"><span class="pr-fs-label">Lead Time entrega</span><span class="pr-fs-val">' + f.leadTime + ' meses</span></div>';
+        html += '          <div class="pr-formula-step pr-formula-step-total"><span>PUNTO DE REORDEN FINAL</span><span style="color:' + cfg.acento + ';">' + _prFmt(Math.round(f.puntoFinal)) + ' uds</span></div>';
+        html += '          <div class="pr-formula-step pr-formula-step-pedido"><span>Solicitud sugerida</span><span style="color:#FFC04D;">' + _prFmt(Math.round(f.pedido)) + ' uds</span></div>';
+
+        // Stock Min / Max
+        if (cfg.stockMin != null) {
+          html += '          <div class="pr-formula-step pr-formula-step-minmax"><span>Stock Mín / Máx</span><span>' + _prFmt(cfg.stockMin) + ' / ' + (cfg.stockMax != null ? _prFmt(cfg.stockMax) : '—') + ' uds</span></div>';
+        }
+        html += '        </div>';
+        html += '      </div>';
+      }
+
+      html += '    </div>'; // /pr-formula-body
+      html += '  </details>';
+    } // /if (cfg.formula)
 
     // ── Barra de progreso mejorada ─────────────────────────────────
     html += '  <div class="pr-bar-wrap">';
@@ -368,7 +540,7 @@ window.renderPuntosReorden = function() {
     /* ── Fila de KPIs ── */
     .pr-kpi-row {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
       gap: 12px;
       margin-bottom: 18px;
     }
@@ -471,6 +643,104 @@ window.renderPuntosReorden = function() {
     .pr-mensaje.pr-estado-amarillo { background: #FFC04D0d; color: #d4a03f; }
     .pr-mensaje.pr-estado-rojo     { background: #FF5C5C0d; color: #e07070; }
     .pr-mensaje.pr-estado-negro    { background: #64748b0d; color: #94a3b8; }
+
+    /* ── Fórmula desplegable ── */
+    .pr-formula {
+      margin-top: 12px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.025);
+      border: 1px solid rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+    .pr-formula-summary {
+      cursor: pointer;
+      padding: 9px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #64748b;
+      font-family: 'Outfit', sans-serif;
+      letter-spacing: 0.3px;
+      list-style: none;
+      user-select: none;
+      transition: color 0.2s, background 0.2s;
+    }
+    .pr-formula-summary::-webkit-details-marker { display: none; }
+    .pr-formula[open] .pr-formula-summary {
+      color: #94a3b8;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .pr-formula-body {
+      padding: 14px 16px 16px;
+    }
+    .pr-formula-title {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: #475569;
+      margin-bottom: 12px;
+      letter-spacing: 0.2px;
+      font-style: italic;
+    }
+    .pr-formula-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .pr-formula-step {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      padding: 5px 8px;
+      border-radius: 6px;
+      gap: 10px;
+    }
+    .pr-formula-step:hover { background: rgba(255,255,255,0.03); }
+    .pr-fs-label { color: #64748b; }
+    .pr-fs-val {
+      font-family: 'JetBrains Mono', monospace;
+      color: #94a3b8;
+      font-size: 11px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .pr-formula-step-indent {
+      flex-direction: column;
+      align-items: stretch;
+      padding-left: 16px;
+      gap: 2px;
+    }
+    .pr-formula-comp {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10.5px;
+      color: #475569;
+      padding: 2px 4px;
+    }
+    .pr-formula-comp span:last-child {
+      font-family: 'JetBrains Mono', monospace;
+      color: #64748b;
+    }
+    .pr-formula-step-total {
+      margin-top: 4px;
+      border-top: 1px solid rgba(255,255,255,0.07);
+      padding-top: 8px;
+      font-weight: 700;
+      font-size: 12px;
+      color: #e2e8f0;
+    }
+    .pr-formula-step-pedido {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .pr-formula-step-minmax {
+      font-size: 10px;
+      color: #475569;
+      border-top: 1px dashed rgba(255,255,255,0.05);
+      margin-top: 2px;
+      padding-top: 6px;
+    }
   `;
   document.head.appendChild(style);
 })();
