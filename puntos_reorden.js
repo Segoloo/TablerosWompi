@@ -431,6 +431,11 @@ window.renderPuntosReorden = function() {
     html += '    <span>' + s.mensaje + '</span>';
     html += '  </div>';
 
+    // ── Sección de notas colaborativas ────────────────────────────
+    if (window.NotasReorden) {
+      html += window.NotasReorden.cardHTML(cfg.id, cfg.acento);
+    }
+
     html += '</div>'; // /pr-card
   });
 
@@ -438,6 +443,11 @@ window.renderPuntosReorden = function() {
   html += '</div>'; // /pr-wrap
 
   panel.innerHTML = html;
+
+  // Inicializar notas (cargar desde Firebase) después del render
+  if (window.NotasReorden) {
+    window.NotasReorden.init();
+  }
 };
 
 // ── Estilos ───────────────────────────────────────────────────────
