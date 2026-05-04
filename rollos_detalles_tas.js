@@ -55,8 +55,7 @@ const DT = {
 };
 
 // URL del JSON (mismo origen que otros archivos del repo)
-const DT_JSON_URL = new URL('rollos_detalles.json.gz?t=' + Date.now(), window.location.href).href;
-
+const DT_JSON_URL = window.location.origin + '/rollos_detalles.json.gz';
 
 // ──────────────────────────────────────────────────────────────────
 //  CARGA DEL JSON (Web Worker inline para no bloquear el hilo)
@@ -146,11 +145,12 @@ function _dtApplyFilters() {
           return true;
         });
       }
-    } else if (f.text) {
-      const needle = f.text.trim().toUpperCase();
-      if (needle) {
-        rows = rows.filter(r => _dtNorm(r[col]).includes(needle));
-      }
+    } else if (f.selected && f.selected.size > 0) {
+      // Filtro estilo Excel: set de valores seleccionados
+      rows = rows.filter(r => {
+        const v = r[col] == null || r[col] === '' ? '__BLANK__' : String(r[col]);
+        return f.selected.has(v);
+      });
     }
   }
   DT.filtered = rows;
@@ -187,15 +187,18 @@ function _dtTotalPages() {
   return Math.max(1, Math.ceil(DT.filtered.length / DT.pageSize));
 }
 
-// Valores únicos de una columna para autocomplete (máx 300)
+// Valores únicos de una columna para el dropdown Excel
 function _dtUniqueVals(col) {
   const set = new Set();
   for (const r of DT.raw) {
     const v = r[col];
-    if (v != null && v !== '') set.add(String(v));
-    if (set.size >= 300) break;
+    set.add(v == null || v === '' ? '__BLANK__' : String(v));
   }
-  return Array.from(set).sort();
+  return Array.from(set).sort((a, b) => {
+    if (a === '__BLANK__') return 1;
+    if (b === '__BLANK__') return -1;
+    return a.localeCompare(b, 'es', { sensitivity: 'base' });
+  });
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -311,9 +314,45 @@ function _dtInjectStyles() {
     .dt-sort-asc .dt-sort-icon,
     .dt-sort-desc .dt-sort-icon { color: #B0F2AE; }
 
-    /* filtro input */
+    /* filtro botón */
     .dt-filter-wrap { position: relative; }
-    .dt-filter-input {
+    .dt-filter-btn {
+      width: 100%;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 6px;
+      padding: 4px 26px 4px 8px;
+      font-size: 11px;
+      color: #94a3b8;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
+      min-width: 80px;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .dt-filter-btn::after {
+      content: '▾';
+      position: absolute;
+      right: 7px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      color: #475569;
+    }
+    .dt-filter-btn:hover { border-color: rgba(176,242,174,.4); background: rgba(176,242,174,.04); }
+    .dt-filter-btn.active {
+      border-color: rgba(176,242,174,.7);
+      color: #B0F2AE;
+      background: rgba(176,242,174,.07);
+    }
+    .dt-filter-btn.active::after { color: #B0F2AE; }
+    .dt-filter-range-wrap { display: flex; gap: 4px; }
+    .dt-filter-range-input {
       width: 100%;
       background: rgba(255,255,255,.05);
       border: 1px solid rgba(255,255,255,.1);
@@ -324,48 +363,128 @@ function _dtInjectStyles() {
       font-family: 'Outfit', sans-serif;
       outline: none;
       box-sizing: border-box;
-      min-width: 80px;
+      min-width: 52px;
       transition: border-color .2s;
     }
-    .dt-filter-input:focus { border-color: rgba(176,242,174,.5); background: rgba(176,242,174,.04); }
-    .dt-filter-input.active { border-color: rgba(176,242,174,.7); color: #B0F2AE; background: rgba(176,242,174,.07); }
-    .dt-filter-range-wrap { display: flex; gap: 4px; }
-    .dt-filter-range-wrap .dt-filter-input { min-width: 52px; }
+    .dt-filter-range-input:focus { border-color: rgba(176,242,174,.5); background: rgba(176,242,174,.04); }
+    .dt-filter-range-input.active { border-color: rgba(176,242,174,.7); color: #B0F2AE; background: rgba(176,242,174,.07); }
 
-    /* autocomplete dropdown */
-    .dt-ac-list {
-      position: absolute;
-      top: 100%;
-      left: 0;
-      right: 0;
-      z-index: 9999;
-      background: #1c1b18;
-      border: 1px solid rgba(176,242,174,.3);
-      border-radius: 8px;
-      margin-top: 3px;
-      list-style: none;
-      padding: 0;
-      max-height: 200px;
-      overflow-y: auto;
-      box-shadow: 0 8px 28px rgba(0,0,0,.7);
-      scrollbar-width: thin;
-      scrollbar-color: rgba(176,242,174,.3) transparent;
+    /* dropdown Excel */
+    .dt-excel-drop {
+      position: fixed;
+      z-index: 99999;
+      background: #18181b;
+      border: 1px solid rgba(176,242,174,.25);
+      border-radius: 10px;
+      box-shadow: 0 12px 40px rgba(0,0,0,.8);
+      min-width: 200px;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
-    .dt-ac-list::-webkit-scrollbar { width: 4px; }
-    .dt-ac-list::-webkit-scrollbar-thumb { background: rgba(176,242,174,.3); border-radius: 2px; }
-    .dt-ac-list li {
-      padding: 6px 12px;
+    .dt-excel-drop-search {
+      padding: 8px 10px 6px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .dt-excel-drop-search input {
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 6px;
+      padding: 5px 9px;
+      font-size: 11px;
+      color: #e2e8f0;
+      font-family: 'Outfit', sans-serif;
+      outline: none;
+      box-sizing: border-box;
+    }
+    .dt-excel-drop-search input:focus { border-color: rgba(176,242,174,.5); }
+    .dt-excel-drop-actions {
+      display: flex;
+      gap: 6px;
+      padding: 6px 10px;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+    }
+    .dt-excel-drop-actions button {
+      flex: 1;
+      padding: 4px 0;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 6px;
+      color: #94a3b8;
+      font-size: 10px;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .dt-excel-drop-actions button:hover { background: rgba(176,242,174,.1); color: #B0F2AE; border-color: rgba(176,242,174,.3); }
+    .dt-excel-drop-list {
+      overflow-y: auto;
+      max-height: 240px;
+      padding: 4px 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(176,242,174,.25) transparent;
+    }
+    .dt-excel-drop-list::-webkit-scrollbar { width: 4px; }
+    .dt-excel-drop-list::-webkit-scrollbar-thumb { background: rgba(176,242,174,.25); border-radius: 2px; }
+    .dt-excel-drop-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      cursor: pointer;
       font-size: 11px;
       font-family: 'Outfit', sans-serif;
-      color: #e2e8f0;
-      cursor: pointer;
-      border-bottom: 1px solid rgba(255,255,255,.04);
+      color: #cbd5e1;
+      transition: background .12s;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .dt-ac-list li:last-child { border-bottom: none; }
-    .dt-ac-list li:hover, .dt-ac-list li.dt-ac-active { background: rgba(176,242,174,.12); color: #B0F2AE; }
+    .dt-excel-drop-item:hover { background: rgba(176,242,174,.08); color: #e2e8f0; }
+    .dt-excel-drop-item input[type=checkbox] {
+      accent-color: #B0F2AE;
+      width: 13px;
+      height: 13px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .dt-excel-drop-item.select-all {
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      font-weight: 700;
+      color: #e2e8f0;
+      margin-bottom: 2px;
+      padding-bottom: 7px;
+    }
+    .dt-excel-drop-footer {
+      display: flex;
+      gap: 6px;
+      padding: 8px 10px;
+      border-top: 1px solid rgba(255,255,255,.07);
+    }
+    .dt-excel-drop-footer button {
+      flex: 1;
+      padding: 5px 0;
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'Outfit', sans-serif;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .dt-excel-drop-footer .btn-ok {
+      background: rgba(176,242,174,.15);
+      border: 1px solid rgba(176,242,174,.35);
+      color: #B0F2AE;
+      font-weight: 700;
+    }
+    .dt-excel-drop-footer .btn-ok:hover { background: rgba(176,242,174,.25); }
+    .dt-excel-drop-footer .btn-cancel {
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.1);
+      color: #94a3b8;
+    }
+    .dt-excel-drop-footer .btn-cancel:hover { background: rgba(255,92,92,.1); color: #FF5C5C; border-color: rgba(255,92,92,.3); }
 
     /* body rows */
     #dt-table tbody tr {
@@ -516,12 +635,8 @@ function _dtRenderRoot(mode) {
     <div id="dt-pagination">${_dtPaginationHTML(tp)}</div>
   `;
 
-  // Bind autocomplete
-  cols.forEach((col, i) => {
-    if (col !== 'CANTIDAD' && col !== 'DIAS INVENTARIO RESTANTES') {
-      _dtBindAutocomplete(col, i);
-    }
-  });
+  // Precachear valores únicos si es primera vez
+  if (Object.keys(_dtAcCache).length === 0) _dtPrecacheAll();
 }
 
 // ── Header cell ───────────────────────────────────────────────────
@@ -540,27 +655,36 @@ function _dtThHTML(col, i) {
     const fMax = f.max != null ? f.max : '';
     filterHtml = `
       <div class="dt-filter-wrap dt-filter-range-wrap">
-        <input class="dt-filter-input${fMin !== '' ? ' active' : ''}" type="number"
+        <input class="dt-filter-range-input${fMin !== '' ? ' active' : ''}" type="number"
           placeholder="Min" value="${fMin}"
           oninput="window._dtSetRangeFilter('${col}','min',this.value)"
           style="min-width:52px;">
-        <input class="dt-filter-input${fMax !== '' ? ' active' : ''}" type="number"
+        <input class="dt-filter-range-input${fMax !== '' ? ' active' : ''}" type="number"
           placeholder="Max" value="${fMax}"
           oninput="window._dtSetRangeFilter('${col}','max',this.value)"
           style="min-width:52px;">
       </div>`;
   } else {
-    const fVal = (DT.filters[col] || {}).text || '';
+    const f = DT.filters[col];
+    const hasFilter = f && f.selected && f.selected.size > 0;
+    const allVals = _dtAcCache[col] || [];
+    let label = 'Filtrar…';
+    if (hasFilter) {
+      if (f.selected.size === 1) {
+        const v = Array.from(f.selected)[0];
+        label = v === '__BLANK__' ? '(Vacío)' : v;
+      } else {
+        label = `${f.selected.size} seleccionados`;
+      }
+    }
     filterHtml = `
       <div class="dt-filter-wrap" id="dt-fw-${i}">
-        <input class="dt-filter-input${fVal ? ' active' : ''}" type="text"
-          placeholder="Filtrar…" value="${fVal.replace(/"/g, '&quot;')}"
-          autocomplete="off"
-          id="dt-fi-${i}"
-          oninput="window._dtSetTextFilter('${col}',this.value,${i})"
-          onfocus="window._dtShowAC(${i})"
-          onblur="setTimeout(()=>window._dtHideAC(${i}),180)">
-        <ul class="dt-ac-list" id="dt-ac-${i}" style="display:none;"></ul>
+        <button class="dt-filter-btn${hasFilter ? ' active' : ''}"
+          id="dt-fb-${i}"
+          onclick="window._dtOpenDrop(${i}, event)"
+          title="${hasFilter ? label : 'Filtrar por ' + col}">
+          ${label}
+        </button>
       </div>`;
   }
 
@@ -638,51 +762,202 @@ function _dtPaginationHTML(tp) {
 }
 
 // ──────────────────────────────────────────────────────────────────
-//  AUTOCOMPLETE
+//  DROPDOWN EXCEL
 // ──────────────────────────────────────────────────────────────────
 let _dtAcCache = {};
+let _dtActiveDrop = null;   // { colIdx, tempSelected }
 
-function _dtBindAutocomplete(col, i) {
-  // Cache de valores únicos al primer uso de cada columna
-  if (!_dtAcCache[col]) {
-    _dtAcCache[col] = _dtUniqueVals(col);
+// Pre-cachear valores únicos al cargar datos
+function _dtPrecacheAll() {
+  for (const col of DT.columns) {
+    if (col !== 'DIAS INVENTARIO RESTANTES') {
+      _dtAcCache[col] = _dtUniqueVals(col);
+    }
   }
 }
 
-window._dtShowAC = function(i) {
-  const col  = DT.columns[i];
-  const inp  = document.getElementById(`dt-fi-${i}`);
-  const list = document.getElementById(`dt-ac-${i}`);
-  if (!inp || !list) return;
-  if (!_dtAcCache[col]) _dtAcCache[col] = _dtUniqueVals(col);
-  _dtRenderAC(i, col, inp.value);
-  list.style.display = 'block';
-};
-
-window._dtHideAC = function(i) {
-  const list = document.getElementById(`dt-ac-${i}`);
-  if (list) list.style.display = 'none';
-};
-
-function _dtRenderAC(i, col, query) {
-  const list = document.getElementById(`dt-ac-${i}`);
-  if (!list) return;
-  const needle = query.trim().toUpperCase();
-  const all    = _dtAcCache[col] || [];
-  const matches = needle
-    ? all.filter(v => String(v).toUpperCase().includes(needle)).slice(0, 60)
-    : all.slice(0, 60);
-  list.innerHTML = matches.map(v =>
-    `<li onmousedown="window._dtPickAC(${i},'${String(v).replace(/'/g,"\\'")}')">
-       ${String(v)}
-     </li>`
-  ).join('') || `<li style="color:#475569;pointer-events:none;">Sin resultados</li>`;
+// Cerrar dropdown activo
+function _dtCloseDrop() {
+  const existing = document.getElementById('dt-excel-drop');
+  if (existing) existing.remove();
+  _dtActiveDrop = null;
 }
 
-window._dtPickAC = function(i, val) {
+// Abrir dropdown para columna i
+window._dtOpenDrop = function(i, evt) {
+  evt.stopPropagation();
   const col = DT.columns[i];
-  if (!DT.filters[col]) DT.filters[col] = {};
-  DT.filters[col].text = val;
+
+  // Cerrar si ya estaba abierto en el mismo botón
+  if (_dtActiveDrop && _dtActiveDrop.colIdx === i) {
+    _dtCloseDrop();
+    return;
+  }
+  _dtCloseDrop();
+
+  if (!_dtAcCache[col]) _dtAcCache[col] = _dtUniqueVals(col);
+  const allVals = _dtAcCache[col];
+
+  // Estado temporal: copia del filtro actual
+  const currentSelected = (DT.filters[col] && DT.filters[col].selected)
+    ? new Set(DT.filters[col].selected)
+    : new Set(allVals);   // sin filtro = todos seleccionados
+
+  _dtActiveDrop = { colIdx: i, tempSelected: currentSelected };
+
+  const drop = document.createElement('div');
+  drop.id = 'dt-excel-drop';
+  drop.className = 'dt-excel-drop';
+  drop.onclick = e => e.stopPropagation();
+
+  drop.innerHTML = `
+    <div class="dt-excel-drop-search">
+      <input type="text" placeholder="🔍 Buscar…" id="dt-drop-search"
+        oninput="window._dtDropSearch(this.value, ${i})">
+    </div>
+    <div class="dt-excel-drop-actions">
+      <button onclick="window._dtDropSelectAll(${i})">✓ Seleccionar todo</button>
+      <button onclick="window._dtDropDeselectAll(${i})">✕ Deseleccionar todo</button>
+    </div>
+    <div class="dt-excel-drop-list" id="dt-drop-list-${i}"></div>
+    <div class="dt-excel-drop-footer">
+      <button class="btn-cancel" onclick="window._dtDropCancel()">Cancelar</button>
+      <button class="btn-ok" onclick="window._dtDropApply(${i})">Aplicar</button>
+    </div>
+  `;
+
+  document.body.appendChild(drop);
+  _dtDropRenderList(i, '');
+
+  // Posicionar debajo del botón
+  const btn = document.getElementById(`dt-fb-${i}`);
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    const dropW = 240;
+    let left = rect.left;
+    if (left + dropW > window.innerWidth - 8) left = window.innerWidth - dropW - 8;
+    drop.style.left = left + 'px';
+    drop.style.top  = (rect.bottom + 4) + 'px';
+  }
+
+  // Cerrar al hacer click fuera
+  setTimeout(() => {
+    document.addEventListener('click', _dtCloseDrop, { once: true });
+  }, 0);
+};
+
+function _dtDropRenderList(i, query) {
+  const list = document.getElementById(`dt-drop-list-${i}`);
+  if (!list || !_dtActiveDrop) return;
+  const col     = DT.columns[i];
+  const allVals = _dtAcCache[col] || [];
+  const needle  = query.trim().toUpperCase();
+  const visible = needle
+    ? allVals.filter(v => (v === '__BLANK__' ? '(Vacío)' : v).toUpperCase().includes(needle))
+    : allVals;
+
+  const sel = _dtActiveDrop.tempSelected;
+  const allChecked  = visible.every(v => sel.has(v));
+  const someChecked = visible.some(v => sel.has(v));
+
+  list.innerHTML = `
+    <label class="dt-excel-drop-item select-all">
+      <input type="checkbox" id="dt-drop-chk-all-${i}"
+        ${allChecked ? 'checked' : someChecked ? 'indeterminate' : ''}
+        onchange="window._dtDropToggleAll(${i}, this.checked, '${query.replace(/'/g,"\\'")}')">
+      <span>Seleccionar todo</span>
+    </label>
+    ${visible.map(v => {
+      const label = v === '__BLANK__' ? '<span style="color:#475569;font-style:italic;">(Vacío)</span>' : v;
+      const vEsc  = v.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+      return `
+        <label class="dt-excel-drop-item">
+          <input type="checkbox" ${sel.has(v) ? 'checked' : ''}
+            onchange="window._dtDropToggleOne(${i}, '${vEsc}', this.checked)">
+          <span style="overflow:hidden;text-overflow:ellipsis;">${label}</span>
+        </label>`;
+    }).join('')}
+    ${visible.length === 0 ? '<div style="padding:10px 12px;font-size:11px;color:#475569;">Sin resultados</div>' : ''}
+  `;
+
+  // Aplicar indeterminate vía JS (no se puede desde HTML)
+  const chkAll = document.getElementById(`dt-drop-chk-all-${i}`);
+  if (chkAll && !allChecked && someChecked) chkAll.indeterminate = true;
+}
+
+window._dtDropSearch = function(q, i) {
+  _dtDropRenderList(i, q);
+};
+
+window._dtDropToggleAll = function(i, checked, query) {
+  if (!_dtActiveDrop) return;
+  const col     = DT.columns[i];
+  const allVals = _dtAcCache[col] || [];
+  const needle  = query.trim().toUpperCase();
+  const visible = needle
+    ? allVals.filter(v => (v === '__BLANK__' ? '(Vacío)' : v).toUpperCase().includes(needle))
+    : allVals;
+  if (checked) visible.forEach(v => _dtActiveDrop.tempSelected.add(v));
+  else         visible.forEach(v => _dtActiveDrop.tempSelected.delete(v));
+  _dtDropRenderList(i, query);
+};
+
+window._dtDropToggleOne = function(i, val, checked) {
+  if (!_dtActiveDrop) return;
+  if (checked) _dtActiveDrop.tempSelected.add(val);
+  else         _dtActiveDrop.tempSelected.delete(val);
+  // Actualizar checkbox "Seleccionar todo"
+  const col     = DT.columns[i];
+  const allVals = _dtAcCache[col] || [];
+  const q       = (document.getElementById('dt-drop-search') || {}).value || '';
+  const needle  = q.trim().toUpperCase();
+  const visible = needle
+    ? allVals.filter(v => (v === '__BLANK__' ? '(Vacío)' : v).toUpperCase().includes(needle))
+    : allVals;
+  const sel = _dtActiveDrop.tempSelected;
+  const allChecked  = visible.every(v => sel.has(v));
+  const someChecked = visible.some(v => sel.has(v));
+  const chkAll = document.getElementById(`dt-drop-chk-all-${i}`);
+  if (chkAll) {
+    chkAll.checked       = allChecked;
+    chkAll.indeterminate = !allChecked && someChecked;
+  }
+};
+
+window._dtDropSelectAll = function(i) {
+  if (!_dtActiveDrop) return;
+  const col = DT.columns[i];
+  (_dtAcCache[col] || []).forEach(v => _dtActiveDrop.tempSelected.add(v));
+  const q = (document.getElementById('dt-drop-search') || {}).value || '';
+  _dtDropRenderList(i, q);
+};
+
+window._dtDropDeselectAll = function(i) {
+  if (!_dtActiveDrop) return;
+  _dtActiveDrop.tempSelected.clear();
+  const q = (document.getElementById('dt-drop-search') || {}).value || '';
+  _dtDropRenderList(i, q);
+};
+
+window._dtDropCancel = function() {
+  _dtCloseDrop();
+};
+
+window._dtDropApply = function(i) {
+  if (!_dtActiveDrop) return;
+  const col     = DT.columns[i];
+  const allVals = _dtAcCache[col] || [];
+  const sel     = _dtActiveDrop.tempSelected;
+
+  // Si están todos seleccionados = sin filtro activo
+  const allSelected = allVals.every(v => sel.has(v));
+  if (allSelected) {
+    delete DT.filters[col];
+  } else {
+    if (!DT.filters[col]) DT.filters[col] = {};
+    DT.filters[col].selected = new Set(sel);
+  }
+  _dtCloseDrop();
   _dtApplyFilters();
   _dtRenderRoot('table');
 };
@@ -690,27 +965,7 @@ window._dtPickAC = function(i, val) {
 // ──────────────────────────────────────────────────────────────────
 //  CALLBACKS DESDE EL DOM
 // ──────────────────────────────────────────────────────────────────
-window._dtSetTextFilter = function(col, val, i) {
-  if (!DT.filters[col]) DT.filters[col] = {};
-  DT.filters[col].text = val;
-  _dtApplyFilters();
-  // Actualizar solo tabla y paginación sin re-render completo de cabeceras
-  const tbody = document.querySelector('#dt-table tbody');
-  const pg    = document.getElementById('dt-pagination');
-  const cnt   = document.getElementById('dt-count-badge');
-  const rows  = _dtPagedRows();
-  if (tbody) {
-    tbody.innerHTML = rows.length === 0
-      ? `<tr><td colspan="${DT.columns.length}" style="text-align:center;padding:40px;color:#475569;">Sin resultados.</td></tr>`
-      : rows.map(_dtRowHTML).join('');
-  }
-  if (pg)  pg.innerHTML  = _dtPaginationHTML(_dtTotalPages());
-  if (cnt) cnt.textContent = `${DT.filtered.length.toLocaleString('es-CO')} registros encontrados · ${DT.raw.length.toLocaleString('es-CO')} total`;
-  // Re-render AC en el campo activo
-  const inp = document.getElementById(`dt-fi-${i}`);
-  if (inp) { inp.className = 'dt-filter-input' + (val ? ' active' : ''); }
-  if (document.getElementById(`dt-ac-${i}`)) _dtRenderAC(i, col, val);
-};
+
 
 window._dtSetRangeFilter = function(col, side, val) {
   if (!DT.filters[col]) DT.filters[col] = {};
@@ -750,6 +1005,7 @@ window._dtGoPage = function(p) {
 };
 
 window._dtClearFilters = function() {
+  _dtCloseDrop();
   DT.filters = {};
   DT.sortCol = -1;
   DT.sortDir = 1;
