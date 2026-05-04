@@ -1126,62 +1126,161 @@ function _emInjectMsStyles() {
       border:1px solid rgba(176,242,174,.2); border-radius:8px;
       color:#e2e8f0; padding:7px 10px; font-size:12px;
       font-family:'Outfit',sans-serif; cursor:pointer; outline:none;
-      transition:border-color .15s; white-space:nowrap; overflow:hidden;
+      transition:border-color .15s, box-shadow .15s; white-space:nowrap; overflow:hidden;
       text-overflow:ellipsis; box-sizing:border-box;
     }
-    .em-ms-btn:hover, .em-ms-btn.open { border-color:rgba(176,242,174,.55); }
+    .em-ms-btn:hover { border-color:rgba(176,242,174,.45); }
+    .em-ms-btn.open {
+      border-color:rgba(176,242,174,.7);
+      box-shadow:0 0 0 2px rgba(176,242,174,.15);
+    }
     .em-ms-btn .em-ms-badge {
       background:#B0F2AE; color:#0a1a12; font-size:10px; font-weight:700;
       padding:1px 6px; border-radius:10px; flex-shrink:0; margin-left:4px;
+      min-width:16px; text-align:center;
     }
+    /* Dropdown — usa position:fixed via JS para salir de cualquier overflow */
     .em-ms-dropdown {
-      position:absolute; top:calc(100% + 4px); left:0; min-width:100%;
-      background:#1a1f2e; border:1px solid rgba(176,242,174,.3);
-      border-radius:10px; z-index:500; box-shadow:0 8px 32px rgba(0,0,0,.6);
-      overflow:hidden; animation:emMsDrop .12s ease;
-      max-width:340px;
+      position:fixed;
+      background:#1c2133;
+      border:1px solid rgba(176,242,174,.35);
+      border-radius:12px;
+      z-index:99999;
+      box-shadow:0 12px 48px rgba(0,0,0,.75), 0 2px 8px rgba(0,0,0,.4);
+      overflow:hidden;
+      min-width:240px;
+      max-width:380px;
     }
-    @keyframes emMsDrop {
-      from { opacity:0; transform:translateY(-6px); }
+    .em-ms-dropdown.em-ms-anim-down {
+      animation:emMsDropDown .14s cubic-bezier(.4,0,.2,1);
+    }
+    .em-ms-dropdown.em-ms-anim-up {
+      animation:emMsDropUp .14s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes emMsDropDown {
+      from { opacity:0; transform:translateY(-8px) scale(.97); }
       to   { opacity:1; transform:none; }
     }
-    .em-ms-search {
-      width:100%; box-sizing:border-box;
-      background:rgba(255,255,255,.07); border:none;
-      border-bottom:1px solid rgba(255,255,255,.08);
-      color:#FAFAFA; padding:9px 12px; font-size:12px;
-      font-family:'Outfit',sans-serif; outline:none;
+    @keyframes emMsDropUp {
+      from { opacity:0; transform:translateY(8px) scale(.97); }
+      to   { opacity:1; transform:none; }
     }
+    /* Cabecera del dropdown */
+    .em-ms-header {
+      padding:10px 12px 6px;
+      border-bottom:1px solid rgba(255,255,255,.07);
+      background:rgba(0,0,0,.25);
+    }
+    .em-ms-search-wrap {
+      display:flex; align-items:center; gap:6px;
+      background:rgba(255,255,255,.07);
+      border:1px solid rgba(176,242,174,.2);
+      border-radius:7px; padding:0 9px;
+      transition:border-color .15s;
+    }
+    .em-ms-search-wrap:focus-within {
+      border-color:rgba(176,242,174,.5);
+      box-shadow:0 0 0 2px rgba(176,242,174,.1);
+    }
+    .em-ms-search-icon {
+      color:#475569; font-size:12px; flex-shrink:0; pointer-events:none;
+    }
+    .em-ms-search {
+      flex:1; background:transparent; border:none;
+      color:#FAFAFA; padding:8px 0; font-size:12px;
+      font-family:'Outfit',sans-serif; outline:none; min-width:0;
+    }
+    .em-ms-search::placeholder { color:#475569; }
+    .em-ms-search-clear {
+      background:transparent; border:none; color:#475569;
+      font-size:14px; cursor:pointer; padding:0 2px; line-height:1;
+      transition:color .12s; flex-shrink:0;
+    }
+    .em-ms-search-clear:hover { color:#94a3b8; }
+    /* Contador de resultados */
+    .em-ms-count {
+      font-size:10px; color:#475569; font-family:'Outfit',sans-serif;
+      margin-top:5px; padding:0 2px;
+    }
+    /* Acciones rápidas */
     .em-ms-actions {
-      display:flex; gap:0; border-bottom:1px solid rgba(255,255,255,.06);
+      display:flex; gap:0;
+      border-bottom:1px solid rgba(255,255,255,.06);
+      background:rgba(0,0,0,.15);
     }
     .em-ms-actions button {
-      flex:1; background:transparent; border:none;
-      color:#B0F2AE; font-size:10px; font-family:'Outfit',sans-serif;
-      padding:5px 8px; cursor:pointer; transition:background .12s;
+      flex:1; background:transparent; border:none; border-right:1px solid rgba(255,255,255,.06);
+      color:#B0F2AE; font-size:11px; font-family:'Outfit',sans-serif;
+      padding:6px 8px; cursor:pointer; transition:background .12s;
+      display:flex; align-items:center; justify-content:center; gap:4px;
     }
-    .em-ms-actions button:hover { background:rgba(176,242,174,.08); }
+    .em-ms-actions button:last-child { border-right:none; color:#94a3b8; }
+    .em-ms-actions button:hover { background:rgba(176,242,174,.08); color:#B0F2AE; }
+    .em-ms-actions button:last-child:hover { background:rgba(255,92,92,.07); color:#f87171; }
+    /* Lista de opciones */
     .em-ms-list {
-      max-height:220px; overflow-y:auto; padding:4px 0;
+      max-height:240px; overflow-y:auto; padding:4px 0;
     }
     .em-ms-list::-webkit-scrollbar { width:5px; }
     .em-ms-list::-webkit-scrollbar-track { background:transparent; }
-    .em-ms-list::-webkit-scrollbar-thumb { background:rgba(176,242,174,.2); border-radius:3px; }
+    .em-ms-list::-webkit-scrollbar-thumb { background:rgba(176,242,174,.25); border-radius:3px; }
+    .em-ms-list::-webkit-scrollbar-thumb:hover { background:rgba(176,242,174,.4); }
+    /* Cada opción */
     .em-ms-item {
       display:flex; align-items:center; gap:9px;
       padding:7px 13px; cursor:pointer;
       font-size:12px; font-family:'Outfit',sans-serif;
-      color:#e2e8f0; transition:background .1s;
-      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+      color:#cbd5e1; transition:background .1s;
+      user-select:none;
     }
-    .em-ms-item:hover { background:rgba(176,242,174,.07); }
-    .em-ms-item input[type=checkbox] {
-      accent-color:#B0F2AE; width:13px; height:13px; flex-shrink:0; cursor:pointer;
+    .em-ms-item:hover { background:rgba(176,242,174,.07); color:#e2e8f0; }
+    .em-ms-item.em-ms-checked { color:#f1f5f9; }
+    /* Checkbox custom */
+    .em-ms-cb-wrap {
+      width:15px; height:15px; flex-shrink:0;
+      border:1.5px solid rgba(176,242,174,.35);
+      border-radius:3px; background:rgba(255,255,255,.04);
+      display:flex; align-items:center; justify-content:center;
+      transition:all .12s; position:relative;
     }
+    .em-ms-item.em-ms-checked .em-ms-cb-wrap {
+      background:#B0F2AE; border-color:#B0F2AE;
+    }
+    .em-ms-cb-wrap::after {
+      content:''; display:none;
+      width:4px; height:7px;
+      border:2px solid #0a1a12; border-top:none; border-left:none;
+      transform:rotate(40deg) translateY(-1px);
+    }
+    .em-ms-item.em-ms-checked .em-ms-cb-wrap::after { display:block; }
+    .em-ms-item input[type=checkbox] { display:none; }
+    /* Texto de opción */
+    .em-ms-item span {
+      flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    }
+    /* Sin resultados */
     .em-ms-empty {
-      padding:12px; text-align:center; color:#475569;
+      padding:16px 14px; text-align:center; color:#475569;
       font-size:11px; font-family:'Outfit',sans-serif;
     }
+    /* Footer con botón Aplicar */
+    .em-ms-footer {
+      padding:8px 12px;
+      border-top:1px solid rgba(255,255,255,.07);
+      background:rgba(0,0,0,.2);
+      display:flex; align-items:center; justify-content:space-between; gap:8px;
+    }
+    .em-ms-footer-sel {
+      font-size:11px; color:#475569; font-family:'Outfit',sans-serif;
+    }
+    .em-ms-footer-apply {
+      background:#B0F2AE; color:#0a1a12; border:none;
+      padding:5px 14px; border-radius:7px; cursor:pointer;
+      font-size:11px; font-weight:700; font-family:'Outfit',sans-serif;
+      transition:opacity .15s;
+    }
+    .em-ms-footer-apply:hover { opacity:.85; }
+    .em-ms-footer-apply:disabled { opacity:.35; cursor:default; }
   `;
   document.head.appendChild(st);
 }
@@ -1190,9 +1289,10 @@ function _emInjectMsStyles() {
 function _emMsCloseAll(exceptId) {
   document.querySelectorAll('.em-ms-dropdown').forEach(d => {
     if (d.id !== exceptId) {
-      d.remove();
-      const btn = document.querySelector(d.dataset.btnId);
+      const fid = d.dataset.filterId;
+      const btn = fid ? document.querySelector(`[data-ms-id="${fid}"]`) : null;
       if (btn) btn.classList.remove('open');
+      d.remove();
     }
   });
 }
@@ -1227,7 +1327,7 @@ function _emMsRefreshBtn(filterId) {
   }
 }
 
-// Abre/cierra el dropdown para un filtro multi-select
+// Abre/cierra el dropdown para un filtro multi-select (position:fixed para evitar overflow clip)
 window._emMsToggle = function(filterId, allOptions, filterSet, onApply) {
   _emInjectMsStyles();
   const dropId = `em-ms-drop-${filterId}`;
@@ -1240,75 +1340,227 @@ window._emMsToggle = function(filterId, allOptions, filterSet, onApply) {
   }
   _emMsCloseAll(dropId);
   if (btn) btn.classList.add('open');
+  if (!btn) return;
 
-  const wrap = btn ? btn.closest('.em-ms-wrap') : null;
-  if (!wrap) return;
+  // Copia del Set actual para edición en el dropdown (se aplica al cerrar/aplicar)
+  const pendingSet = new Set(filterSet);
 
   const drop = document.createElement('div');
   drop.className = 'em-ms-dropdown';
   drop.id = dropId;
-  drop.dataset.btnId = `[data-ms-id="${filterId}"]`;
+  drop.dataset.filterId = filterId;
 
-  // Búsqueda
-  const search = document.createElement('input');
-  search.className = 'em-ms-search';
-  search.placeholder = '🔍 Buscar...';
-  drop.appendChild(search);
+  // ── Posicionamiento inteligente con position:fixed ──────────────
+  function _positionDrop() {
+    const rect = btn.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const dropW = Math.max(btn.offsetWidth, 260);
+    const dropH = 400; // estimado máximo
 
-  // Acciones rápidas
+    // Horizontal: alinear a la izquierda del botón, ajustar si sale por la derecha
+    let left = rect.left;
+    if (left + dropW > vw - 8) left = Math.max(8, vw - dropW - 8);
+
+    // Vertical: abrir hacia abajo por defecto, hacia arriba si no hay espacio
+    const spaceBelow = vh - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    let top, openUp = false;
+
+    if (spaceBelow >= Math.min(dropH, 260) || spaceBelow >= spaceAbove) {
+      top = rect.bottom + 4;
+    } else {
+      openUp = true;
+      top = rect.top - Math.min(dropH, spaceAbove) - 4;
+    }
+
+    drop.style.left  = left + 'px';
+    drop.style.top   = top + 'px';
+    drop.style.width = dropW + 'px';
+    drop.classList.add(openUp ? 'em-ms-anim-up' : 'em-ms-anim-down');
+
+    // Altura máxima dinámica
+    const maxH = openUp ? spaceAbove - 8 : spaceBelow;
+    drop.querySelector('.em-ms-list').style.maxHeight = Math.max(100, Math.min(260, maxH - 130)) + 'px';
+  }
+
+  // ── Header: búsqueda ──────────────────────────────────────────
+  const header = document.createElement('div');
+  header.className = 'em-ms-header';
+  header.innerHTML = `
+    <div class="em-ms-search-wrap">
+      <span class="em-ms-search-icon">🔍</span>
+      <input class="em-ms-search" placeholder="Buscar..." autocomplete="off" spellcheck="false">
+      <button class="em-ms-search-clear" title="Limpiar búsqueda" style="display:none;">✕</button>
+    </div>
+    <div class="em-ms-count"></div>
+  `;
+  drop.appendChild(header);
+  const searchInput = header.querySelector('.em-ms-search');
+  const searchClear = header.querySelector('.em-ms-search-clear');
+  const countEl     = header.querySelector('.em-ms-count');
+
+  // ── Acciones rápidas ─────────────────────────────────────────
   const actions = document.createElement('div');
   actions.className = 'em-ms-actions';
   actions.innerHTML = `
-    <button onmousedown="event.preventDefault();_emMsSelectAll('${filterId}')">✔ Seleccionar todo</button>
-    <button onmousedown="event.preventDefault();_emMsClearAll('${filterId}')">✕ Limpiar</button>
+    <button onmousedown="event.preventDefault();">✔ Seleccionar todo</button>
+    <button onmousedown="event.preventDefault();">✕ Limpiar</button>
   `;
   drop.appendChild(actions);
+  const [btnSelAll, btnClear] = actions.querySelectorAll('button');
 
-  // Lista
+  // ── Lista ────────────────────────────────────────────────────
   const list = document.createElement('div');
   list.className = 'em-ms-list';
   list.id = `em-ms-list-${filterId}`;
   drop.appendChild(list);
 
-  // Guardar opciones en el drop para acceso desde selectAll/clearAll
+  // ── Footer: contador + aplicar ───────────────────────────────
+  const footer = document.createElement('div');
+  footer.className = 'em-ms-footer';
+  footer.innerHTML = `
+    <span class="em-ms-footer-sel"></span>
+    <button class="em-ms-footer-apply">Aplicar</button>
+  `;
+  drop.appendChild(footer);
+  const footerSel   = footer.querySelector('.em-ms-footer-sel');
+  const applyBtn    = footer.querySelector('.em-ms-footer-apply');
+
+  // ── Guardar opciones en el drop para acceso desde selectAll ──
   drop._allOptions = allOptions;
-  drop._filterSet = filterSet;
-  drop._onApply = onApply;
+  drop._filterSet  = pendingSet;
+  drop._filterId   = filterId;
+
+  let lastQuery = '';
+
+  function updateFooter() {
+    const n = pendingSet.size;
+    footerSel.textContent = n ? `${n} seleccionado${n!==1?'s':''}` : 'Todos los elementos';
+  }
 
   function renderList(query) {
-    const q = (query||'').toLowerCase().trim();
-    const opts = q ? allOptions.filter(o => o.toLowerCase().includes(q)) : allOptions;
+    lastQuery = (query||'').toLowerCase().trim();
+    const opts = lastQuery ? allOptions.filter(o => o.toLowerCase().includes(lastQuery)) : allOptions;
+    countEl.textContent = lastQuery
+      ? `${opts.length} de ${allOptions.length} opciones`
+      : `${allOptions.length} opción${allOptions.length!==1?'es':''}`;
+    searchClear.style.display = lastQuery ? '' : 'none';
     if (!opts.length) {
-      list.innerHTML = `<div class="em-ms-empty">Sin coincidencias</div>`;
+      list.innerHTML = `<div class="em-ms-empty">Sin coincidencias para "<strong style="color:#94a3b8">${query}</strong>"</div>`;
       return;
     }
     list.innerHTML = opts.map(o => {
-      const checked = filterSet.has(o) ? 'checked' : '';
-      const safe = o.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-      return `<label class="em-ms-item">
-        <input type="checkbox" ${checked}
-          onchange="_emMsToggleOption('${filterId}','${safe}',this.checked)">
+      const checked = pendingSet.has(o);
+      const safe = o.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      return `<div class="em-ms-item${checked?' em-ms-checked':''}" data-val="${safe}">
+        <div class="em-ms-cb-wrap"></div>
         <span title="${safe}">${o}</span>
-      </label>`;
+      </div>`;
     }).join('');
+    updateFooter();
   }
 
-  renderList('');
-  search.oninput = () => renderList(search.value);
+  function toggleItem(el, val) {
+    if (pendingSet.has(val)) {
+      pendingSet.delete(val);
+      el.classList.remove('em-ms-checked');
+    } else {
+      pendingSet.add(val);
+      el.classList.add('em-ms-checked');
+    }
+    updateFooter();
+  }
 
-  wrap.appendChild(drop);
+  // Click en ítem
+  list.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const item = e.target.closest('.em-ms-item');
+    if (!item) return;
+    toggleItem(item, item.dataset.val);
+  });
+
+  // Seleccionar todo (visible)
+  btnSelAll.addEventListener('mousedown', e => {
+    e.preventDefault();
+    const q = lastQuery;
+    const opts = q ? allOptions.filter(o => o.toLowerCase().includes(q)) : allOptions;
+    opts.forEach(o => pendingSet.add(o));
+    renderList(searchInput.value);
+  });
+
+  // Limpiar todo
+  btnClear.addEventListener('mousedown', e => {
+    e.preventDefault();
+    pendingSet.clear();
+    renderList(searchInput.value);
+  });
+
+  // Buscar
+  searchInput.oninput = () => renderList(searchInput.value);
+  searchClear.onmousedown = e => {
+    e.preventDefault();
+    searchInput.value = '';
+    renderList('');
+    searchInput.focus();
+  };
+
+  // Aplicar y cerrar
+  function _applyAndClose() {
+    // Sincronizar el Set original con el pendingSet
+    filterSet.clear();
+    pendingSet.forEach(v => filterSet.add(v));
+    _emMsRefreshBtn(filterId);
+    if (typeof onApply === 'function') onApply();
+    drop.remove();
+    btn.classList.remove('open');
+    document.removeEventListener('mousedown', outsideClick);
+    document.removeEventListener('keydown', keyHandler);
+  }
+
+  applyBtn.addEventListener('click', _applyAndClose);
+
+  // Tecla Enter aplica, Escape cierra sin aplicar
+  function keyHandler(e) {
+    if (e.key === 'Escape') {
+      drop.remove();
+      btn.classList.remove('open');
+      document.removeEventListener('mousedown', outsideClick);
+      document.removeEventListener('keydown', keyHandler);
+    } else if (e.key === 'Enter') {
+      _applyAndClose();
+    }
+  }
+  document.addEventListener('keydown', keyHandler);
+
+  renderList('');
+  document.body.appendChild(drop);
+  _positionDrop();
+
+  // Reenfocar búsqueda
+  setTimeout(() => searchInput.focus(), 50);
 
   // Cerrar al hacer click fuera
-  setTimeout(() => {
-    function outsideClick(e) {
-      if (!wrap.contains(e.target)) {
-        drop.remove();
-        if (btn) btn.classList.remove('open');
-        document.removeEventListener('mousedown', outsideClick);
-      }
+  function outsideClick(e) {
+    if (!drop.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+      // Cerrar sin aplicar (comportamiento Excel: el usuario debe presionar Aplicar o Enter)
+      drop.remove();
+      btn.classList.remove('open');
+      document.removeEventListener('mousedown', outsideClick);
+      document.removeEventListener('keydown', keyHandler);
     }
-    document.addEventListener('mousedown', outsideClick);
-  }, 0);
+  }
+  setTimeout(() => document.addEventListener('mousedown', outsideClick), 0);
+
+  // Reposicionar si hay scroll o resize
+  const _repos = () => { if (document.getElementById(dropId)) _positionDrop(); };
+  window.addEventListener('scroll', _repos, { passive:true, capture:true });
+  window.addEventListener('resize', _repos, { passive:true });
+  const origRemove = drop.remove.bind(drop);
+  drop.remove = function() {
+    window.removeEventListener('scroll', _repos, { capture:true });
+    window.removeEventListener('resize', _repos);
+    origRemove();
+  };
 };
 
 // Marca/desmarca una opción individual
