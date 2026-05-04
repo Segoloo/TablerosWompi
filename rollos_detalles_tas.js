@@ -55,7 +55,8 @@ const DT = {
 };
 
 // URL del JSON (mismo origen que otros archivos del repo)
-const DT_JSON_URL = window.location.origin + '/rollos_detalles.json.gz';
+const DT_JSON_URL = new URL('rollos_detalles.json.gz?t=' + Date.now(), window.location.href).href;
+
 
 // ──────────────────────────────────────────────────────────────────
 //  CARGA DEL JSON (Web Worker inline para no bloquear el hilo)
