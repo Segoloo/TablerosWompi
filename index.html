@@ -184,6 +184,7 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
           <div class="sidebar-tab" id="sb-tab-estado-materiales" onclick="selectBoardTab('inventario','estado-materiales')"><span class="sidebar-tab-icon">🧩</span> Estado Materiales</div>
           <div class="sidebar-tab" id="sb-tab-garantia-inventario" onclick="selectBoardTab('inventario','garantia-inventario')"><span class="sidebar-tab-icon">🔒</span> Garantía & Rollos</div>
           <div class="sidebar-tab" id="sb-tab-puntos-reorden" onclick="selectBoardTab('inventario','puntos-reorden')"><span class="sidebar-tab-icon">🎯</span> Puntos de Reorden</div>
+          <div class="sidebar-tab" id="sb-tab-inv-export" onclick="selectBoardTab('inventario','inv-export')"><span class="sidebar-tab-icon">📥</span> Export Stock</div>
         </div>
       </div>
     </div>
@@ -994,6 +995,10 @@ input.inv-ac-selected{border-color:rgba(176,242,174,.6)!important;
         <div id="panel-puntos-reorden" style="display:none;padding:4px 0 40px;">
         </div>
 
+        <!-- ════ PANEL: EXPORT COMPLETO DE STOCK ════ -->
+        <div id="panel-inv-export" style="display:none;padding:4px 0 40px;">
+        </div>
+
         <!-- ════ PANEL: CONSULTA MASIVA ROLLOS ════ -->
         <div id="panel-rollos-consulta-masiva" style="display:none;padding:20px 0 60px;">
 
@@ -1134,6 +1139,7 @@ function selectBoardTab(b,t)     { if(window._sidebarReady) window._selectBoardT
 <script src="garantia_inventario.js"></script>
 <script src="notas_reorden.js"></script> 
 <script src="puntos_reorden.js"></script>
+<script src="inventario_export.js"></script>
 <script src="rollos_inventario.js"></script>
 <script src="rollos_comercio_v2.js"></script>
 <script src="consulta_masiva_rollos.js"></script>
