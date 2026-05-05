@@ -48,6 +48,7 @@ const DT = {
     'ESTADO',
     'ESTADO TRANSPORTADORA',
     'PROYECTO',
+    'PLANTILLA',
     'DIAS INVENTARIO RESTANTES',
   ],
   // Estado de filtros: un objeto por columna { text, min, max }
@@ -277,7 +278,7 @@ function _dtInjectStyles() {
     #dt-table {
       width: 100%;
       border-collapse: collapse;
-      min-width: 1300px;
+      min-width: 1450px;
     }
     #dt-table thead th {
       background: rgba(255,255,255,.04);
