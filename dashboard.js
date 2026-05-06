@@ -520,19 +520,53 @@ function resetFilters() {
 // ══════════════════════════════════════════════════════════════════
 //  COMPUTE KPIs  ← lógica idéntica a vp.py compute_kpis()
 // ══════════════════════════════════════════════════════════════════
+// Estados que se consideran "Ejecutado/Cancelado" — separados de los KPIs principales
+// y que NO cuentan como incumplimientos aunque tengan fecha límite vencida
+const EJECUTADO_CANCELADO_ESTADOS = new Set([
+  'EJECUTADO/CANCELADO',
+  'EJECUTADO / CANCELADO',
+  'EJECUTADO/CANCELADO ',
+]);
+
+// Estados "conocidos" que tienen su propio KPI — todo lo demás va a "Otros"
+const ESTADOS_CONOCIDOS = new Set([
+  'ENTREGADO',
+  'EN TRANSITO', 'EN TRÁNSITO',
+  'PROGRAMADO', 'VISITA PROGRAMADA',
+  'EN ALISTAMIENTO',
+  'CANCELADO',
+]);
+
+function isEjecutadoCancelado(r) {
+  const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim();
+  return EJECUTADO_CANCELADO_ESTADOS.has(e);
+}
+
 function computeKPIs(data) {
-  // 1. Excluir cancelados (igual que vp.py)
-  const df = data.filter(r =>
-    getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase() !== 'CANCELADO'
-  );
-  const cancelados = data.length - df.length;
+  // 1. Separar EJECUTADO/CANCELADO primero — no cuenta en el total ni en incumplimientos
+  const ejecutadoCanceladoRows = data.filter(isEjecutadoCancelado);
+
+  // 2. Excluir cancelados Y ejecutado/cancelado del flujo principal
+  const df = data.filter(r => {
+    const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim();
+    return e !== 'CANCELADO' && !EJECUTADO_CANCELADO_ESTADOS.has(e);
+  });
+  const cancelados = data.filter(r =>
+    getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim() === 'CANCELADO'
+  ).length;
   const total = df.length;
 
-  // 2. Conteo por estado (upper case)
+  // 3. Conteo por estado (upper case) — solo sobre df (sin cancelados ni ejec/canc)
   const ec = {};
   df.forEach(r => {
     const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim() || 'SIN ESTADO';
     ec[e] = (ec[e] || 0) + 1;
+  });
+
+  // Estados "otros": los que no tienen KPI propio (excluye EJECUTADO/CANCELADO que va aparte)
+  const otrosRows = df.filter(r => {
+    const e = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim();
+    return !ESTADOS_CONOCIDOS.has(e);
   });
 
   const entregados = ec['ENTREGADO'] || 0;
@@ -615,6 +649,7 @@ function computeKPIs(data) {
   const pctCalidad = entregados ? Math.round((entregados - devueltos) / entregados * 100) : 100;
 
   // 9. Vencen hoy / vencidas (incluye VT y OPLG)
+  //    ⚠ EJECUTADO/CANCELADO ya fue excluido de df — no cuenta aquí.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const vencenHoyRows = df.filter(r => {
     const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
@@ -627,6 +662,7 @@ function computeKPIs(data) {
   const vencenHoy = vencenHoyRows.length;
 
   // Vencidas: TODOS los registros (VT + OPLG) no entregados con fecha limite pasada
+  //    ⚠ EJECUTADO/CANCELADO excluido de df — no suma a vencidas.
   const vencidasRows = df.filter(r => {
     const lim = parseDate(getCol(r, 'FECHA LIMITE DE ENTREGA', 'fecha limite de entrega'));
     const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase().trim();
@@ -639,6 +675,7 @@ function computeKPIs(data) {
   // Incumplimientos Totales (historico completo):
   // ENTREGADO con FECHA ENTREGA AL COMERCIO > FECHA LIMITE DE ENTREGA
   // + no entregados con fecha limite vencida
+  //    ⚠ EJECUTADO/CANCELADO excluido de df — NO cuenta como incumplimiento.
   const incumplimientosRows = df.filter(r => {
     const est = getCol(r, 'ESTADO DATAFONO', 'estado datafono').toUpperCase();
     const lim = getFechaLimite(r);
@@ -693,6 +730,11 @@ function computeKPIs(data) {
     entregadosRows: entDf,
     vtRows, olRows,
     devueltosRows: df.filter(isDevolucion),
+    // Nuevos KPIs separados
+    ejecutadoCancelado: ejecutadoCanceladoRows.length,
+    ejecutadoCanceladoRows,
+    otros: otrosRows.length,
+    otrosRows,
   };
 }
 
@@ -857,6 +899,16 @@ function renderKPIs(k) {
     {
       label: 'Op. Logístico', value: `${k.entOL}/${k.totalOL}`, color: 'blue', icon: '📮',
       sub: `${k.pctOL}% entregado`, pct: k.pctOL, rows: k.olRows
+    },
+    {
+      label: 'Ejecutado/Cancelado', value: k.ejecutadoCancelado, color: 'warn', icon: '🚫',
+      sub: 'No cuenta en incumplimientos ni vencidas',
+      rows: k.ejecutadoCanceladoRows
+    },
+    {
+      label: 'Otros Estados', value: k.otros, color: 'blue', icon: '🔲',
+      sub: 'Estados fuera de los KPIs principales',
+      rows: k.otrosRows
     },
     {
       label: 'Vencen Hoy', value: k.vencenHoy, color: 'warn', icon: '⏰',
@@ -1582,6 +1634,8 @@ function exportToExcel(data, filename) {
     { KPI: '% Calidad', Valor: `${k.pctCalidad}%` },
     { KPI: 'Vencen Hoy', Valor: k.vencenHoy },
     { KPI: 'Vencidas ANS', Valor: k.vencidas },
+    { KPI: 'Ejecutado/Cancelado', Valor: k.ejecutadoCancelado },
+    { KPI: 'Otros Estados', Valor: k.otros },
     { KPI: 'Generado', Valor: new Date().toLocaleString('es-CO') },
   ];
   const ws2 = XLSX.utils.json_to_sheet(summaryData);
